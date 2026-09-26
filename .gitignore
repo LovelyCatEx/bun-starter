@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-bin/
+
+# Compiled PTY helper (rebuilt from server/modules/terminal/pty/pty-helper.c)
+server/modules/terminal/pty/build/
+
+# Runtime data (SQLite)
+data.db
+data.db-shm
+data.db-wal
+
+# Per-tag log files (LOG_DIR)
+logs/
+
+# Written next to the executable when it fails to start
+startup-error.log
+
+# Env
+.env
+
+# --- IDEs / Editors ---
+
+# JetBrains (IntelliJ IDEA, WebStorm, PHPStorm, GoLand, ...)
+.idea/*
+!.idea/copyright/
+!.idea/copyright/**
+!.idea/scopes/
+!.idea/scopes/**
+*.iws
+*.iml
+*.ipr
+.fleet/
+
+# VS Code
+.vscode/*
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Vim
+*.swp
+*.swo
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Claude
+!.claude/settings.json
+!.claude/agents/
+!.claude/agents/**
+!.claude/skills/
+!.claude/skills/**
+!.claude/rules/
+!.claude/rules/**
+
+# Relink
+.relink/*
+!.relink/settings.json
+# Sealed payload staged for --asset (rebuilt on every SEAL=1 compile)
+scripts/build/

@@ -1,0 +1,284 @@
+---
+description: 前端（web/）开发规范。写前端代码、加页面/组件/请求、动样式与主题、加或改文案（i18n）、接认证时使用。涉及 web/src 的目录与 @ 别名、请求分层、react-i18next「目录即 key 前缀」的约定、Tailwind token 与四种颜色模式、应用标识、index.ts 与代码风格。
+paths:
+  - "web/**"
+  - "app.config.ts"
+---
+
+# 前端规范（`web/`）
+
+Vite + React + React Router + Tailwind CSS + shadcn/ui + react-i18next。默认端口 `5108`，开发时 `/api/*` 代理到后端 `5107`。
+
+命令、端口、目录概览见 `CLAUDE.md`；后端侧的规范见 `.claude/rules/backend.md`。
+
+## 结构与别名
+
+- `@` 别名指向 `web/src`（`web/vite.config.ts` 的 `resolve.alias` + `tsconfig.app.json` 的 `paths`）
+- import 顺序：外部依赖 → `@/` 别名 → 相对路径，之间空一行
+- 每个后端模块对应前端一个同名包，放在 `web/src/api/<feature>/`：
+
+```
+web/src/api/
+  requests.ts             # 原始请求层：doGet / doPost / doPut / doPatch / doDelete
+  system-requests.ts      # 适配后端 ApiResponse 的通用封装：get / post / put / patch / del
+  <feature>/
+    dto/                  # 与后端 DTO 对应
+    vo/                   # 与后端 VO 对应
+    <feature>.ts          # 该模块的请求方法
+```
+
+## 请求规范
+
+- `requests.ts` 是**原始请求层**，只提供 `doGet` / `doPost` / `doPut` / `doPatch` / `doDelete`，不处理业务响应结构
+- `system-requests.ts` 在 `requests.ts` 之上**再封装**，方法名为朴素的 `get` / `post` / `put` / `patch` / `del`，自动解包后端 `ApiResponse`
+- 业务代码不要直接发请求，应写在对应模块包 `<feature>.ts` 里，开发者只填返回体 `data` 的类型即可：
+
+```ts
+import { get, post } from '@/api/system-requests'
+import type { UserVo } from './vo/user.vo'
+import type { CreateUserDto } from './dto/create-user.dto'
+
+export function getUser(id: string) {
+  return get<UserVo>(`/api/user/${id}`)
+}
+
+export function createUser(body: CreateUserDto) {
+  return post<UserVo>('/api/user', body)
+}
+```
+
+- 请求可以写根相对路径（`'/api/...'`）：开发时 vite 代理，单端口打包时同源，两种情况下都对
+
+## 认证（`web/src/auth/`）
+
+- 认证方式由 **`web/.env` 的 `VITE_AUTH_MODE`** 决定：`cookie`（默认）| `localstorage`，非法或缺省时回退 `cookie`（见 `web/src/auth/auth-mode.ts`）
+- token 读写只走 `web/src/auth/token-store.ts`；**cookie 模式下三个方法都是 no-op**（JS 读不到 httpOnly cookie），登录态只能靠 `GET /api/auth/me` 判断
+- 请求头与 401 只在 `web/src/api/requests.ts` 一处处理：自动挂 `Authorization`（localstorage 模式）、`credentials: 'include'`、401 触发 `setUnauthorizedHandler`（登录接口除外）
+- 登录态与守卫：`auth-provider.tsx`（挂载时 `getMe` 判定）→ `useAuth()` → `require-auth.tsx`，受保护路由包在 `<Route element={<RequireAuth />}>` 里；`AuthProvider` 必须放在 `BrowserRouter` **内部**（要用 `useNavigate`）
+- 业务代码不要自己读 token、也不要自己处理 401
+
+后端侧（JWT、cookie、放行清单）见 `.claude/rules/backend.md` 的「认证」一节。
+
+## 文案（i18n）
+
+一句话：**目录就是 key 前缀，一个文件一种语言，语言文件里不许出现第二种语言。**
+
+### 目录结构
+
+```
+web/src/i18n/
+  languages.ts              # LANGUAGES + DEFAULT_LANGUAGE，唯一的语言清单
+  config.ts                 # 装配：import.meta.glob 扫语言文件 → 拼 resources → i18next.init
+  auth/login/{en-us,zh-cn}.ts              # 页面 → t('auth.login.*')
+  home/{en-us,zh-cn}.ts                    # 页面 → t('home.*')
+  component/require-auth/{en-us,zh-cn}.ts  # 组件 → t('component.require-auth.*')
+  common/{en-us,zh-cn}.ts                  # 跨页面共用 → t('common.*')
+```
+
+- **页面 / 模块 / 组件目录**（`auth/login`、`home`、`component/require-auth`、`common`…）里**只能放语言文件**
+- 装配逻辑永远待在根目录的 `config.ts`，语言清单一律在根目录的 `languages.ts`
+
+### 硬性约束（违反即返工）
+
+1. **一个文件只能有一种语言**。禁止在同一个文件里放两种语言，必须拆成 `<locale>.ts`（`en-us.ts` / `zh-cn.ts`）
+2. **语言目录里不许出现非语言文件**：`index.ts`、`config.ts`、`README.md`、`.gitkeep` 一律不准放
+3. 文件名必须是 `LANGUAGES` 里声明过的语言码（全小写带连字符，如 `en-us`），必须是 `.ts`，必须 `export default {}`
+4. **key 前缀由目录决定**，文件内的 key 不许再重复目录名：`auth/login/zh-cn.ts` 里写 `title`（→ `auth.login.title`），写 `loginTitle` 是错的
+5. key 里**禁止出现 `.`**（点号是 i18next 的路径分隔符，会把 key 拆成两级）
+6. 同一个 key 在各语言文件里必须一一对应：**不许只加一种语言**，加 key 就成套加
+7. 组件里**不许 import 语言文件**、不许写死英文/中文，一律 `t('...')`
+8. 语言码全小写；`config.ts` 里的 `lowerCaseLng: true` **不要删**（见"排查"）
+
+### 命名与分层
+
+- **页面文案** → `<域>/<页面>/`：`auth/login`（登录页）、`home`（首页）
+- **组件文案** → `component/<组件名>/`，**目录名与组件文件名一致**：`web/src/auth/require-auth.tsx` → `web/src/i18n/component/require-auth/` → `t('component.require-auth.loading')`
+- **跨页面共用** → `common/`（如语言切换按钮文案）；不要图省事把页面/组件自己的文案全塞 `common`
+- 不要在 `auth/` 这类域目录下放组件文案（旧的 `auth/guard/` 就是这么错的），组件一律进 `component/`
+- 目录名 kebab-case，文件内的 key 用 camelCase（`signedInAs`、`authMode`），不要带语言、不要 `xxxText` / `xxxLabel` 这类后缀堆叠
+- 插值统一 `{{name}}` 风格，且**每个语言文件里同一个 key 的插值变量必须一致**
+
+### 三种常见改动
+
+#### A. 加一条文案
+
+1. 判断属于哪个目录：页面 → 对应页面目录；组件 → `component/<组件名>/`；跨页面 → `common/`
+2. **每个** `<locale>.ts` 里都加同一个 key
+3. 组件里 `const { t } = useLanguage()` → `t('auth.login.title')`
+
+#### B. 加一个页面 / 组件
+
+```bash
+mkdir web/src/i18n/<domain>/<page>        # 页面
+mkdir web/src/i18n/component/<component>  # 组件：<component> 用组件文件名（kebab-case）
+# 每个语言建一个文件：en-us.ts / zh-cn.ts
+```
+
+`config.ts` **不用改**，它按文件名自动扫；目录路径自动成为 key 前缀。
+
+#### C. 加一门语言
+
+1. `languages.ts` 的 `LANGUAGES` 加一项（如 `'zh-tw'`），必要时改 `DEFAULT_LANGUAGE`
+2. 在**每个**文案目录下加 `<locale>.ts`，内容与该目录的 key 完全对应
+3. `config.ts` **不用改**
+
+### 组件侧用法
+
+```tsx
+const { t, language, setLanguage, toggleLanguage } = useLanguage()
+
+t('home.signedInAs', { name: user.name })
+```
+
+- 统一走 `web/src/hooks/use-language.ts` 的 `useLanguage()`，**不要**在页面里直接 `useTranslation()` 或 import i18next 实例
+- 需要 index / 日期格式化时才用返回的 `i18n`
+- `useLanguage().normalize()` 负责把 `en-US`、`zh-Hans` 这类语言码归一化成 `LANGUAGES` 里的值；改语言码规则时同步这里
+
+### 装配机制（为什么不用手写 registry）
+
+`web/src/i18n/config.ts`：
+
+1. `import.meta.glob('./**/*.ts', { eager: true })` 扫出所有文件
+2. 用 `/^\.\/(.+)\/([a-z]{2}-[a-z]{2})\.ts$/` 提取「目录」和「语言码」
+3. 语言码必须属于 `LANGUAGES`，否则跳过 → `config.ts` / `languages.ts` 等非语言文件天然被忽略
+4. 目录按 `/` 逐层 nest 进 `resources[locale].translation`
+
+所以：**新增目录、新增语言都不需要动装配代码**，只要遵守文件名和目录约定。
+
+### 排查：`t()` 返回 key 本身
+
+按顺序查：
+
+1. **key 前缀**是不是目录路径？`auth/login` → `t('auth.login.title')`
+2. 文件名有没有拼错 / 大小写不对（必须在 `LANGUAGES` 里）
+3. 是不是只加了当前语言的文件，另一种语言缺 key
+4. `config.ts` 的 `lowerCaseLng: true` 还在吗？i18next 默认会把语言码规范成 `en-US`（region 大写）再去查 resources，我们全用小写 `en-us`，删了就全部查不到
+5. 是不是在**非 Vite 环境**（Bun / Node 直接跑）里执行的？`import.meta.glob`、`import.meta.env` 是 Vite 专属
+6. 插值变量名拼错时，i18next 会保留 `{{xxx}}` 原样输出，不会报错
+
+### 验证
+
+```bash
+cd web && bun run typecheck && bun run lint
+```
+
+改了 `config.ts`、新增语言这类**必须证明翻译真能解析**的改动，用 SSR 构建实跑，别靠肉眼：
+
+```ts
+// web/src/__i18n-check.ts（临时文件，跑完删掉）
+import i18n from './i18n/config'
+
+// 资源全内联时 i18next 是同步初始化的，直接断言即可；
+// 不确定就加个兜底等待：
+if (!i18n.isInitialized) {
+  await new Promise((resolve) => { i18n.on('initialized', resolve) })
+}
+
+console.log(i18n.getFixedT('en-us')('auth.login.title'))
+console.log(i18n.getFixedT('zh-cn')('auth.login.title'))
+console.log(JSON.stringify(i18n.getResourceBundle('en-us', 'translation')))
+```
+
+```bash
+cd web
+bunx vite build --ssr src/__i18n-check.ts --outDir .i18n-check --emptyOutDir
+node .i18n-check/__i18n-check.js
+rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提交
+```
+
+顺手核对「一文件一语言」：`en-us.ts` 里不应出现中文，`zh-cn.ts` 里不应出现英文（唯一例外是 `common.switchTo` 这种"语言自称"文案）。
+
+## 样式
+
+- `web/src/index.css` 只做 `@import`，不写具体规则
+- token 分层（各自一个文件）：
+  - `web/src/styles/base.css` — 浅色 token（`:root`）、`@theme inline`、`@custom-variant`、`@layer base`、滚动条
+  - `web/src/styles/dark.css` — 暗色三档 token
+  - `web/src/styles/themes/<name>.css` — **一个主题色一个文件**（如 `sakura-pink.css`）
+
+### 颜色模式 × 主题色 = 矩阵
+
+**颜色模式 4 种**（由 `next-themes` 的 `light`/`dark` + `<html>` 上的 `data-dark-shade` 共同决定）：
+
+| 模式 | 选择值 | 生效选择器 |
+| --- | --- | --- |
+| 亮色 | `light` | `:root` |
+| 深黑 | `deep-black` | `.dark` |
+| 深灰 | `dark-gray` | `.dark[data-dark-shade='dark-gray']` |
+| 浅灰 | `light-gray` | `.dark[data-dark-shade='light-gray']` |
+
+- `data-theme`（主题色）和 `data-dark-shade`（灰度）都挂在 `<html>` 上，保证 Portal 内容（Dialog/Select 等）也能继承
+
+### 统一入口：`useThemeSettings()`
+
+`web/src/hooks/use-theme-settings.ts` 是唯一改主题的地方，返回：
+`mode` / `setMode`（亮色·深黑·深灰·浅灰）、`themeColor` / `setThemeColor`、
+`background` / `setBackground`、`frosted` / `setFrosted`。
+
+- 日夜交给 next-themes（`.dark` 类），其余四个维度统一写到 `<html>` 的 data 属性
+- 组件样式侧对应 Tailwind 自定义变体：`frosted:`（`data-frosted`）、`bgimage:`（`data-background`）
+- **不要再在页面里手写 `dataset.xxx`**，一律走这个 hook
+
+**主题色只有一个颜色**：如 `sakura-pink` = `#ff8da1` = `oklch(0.772 0.139 9.7)`。暗色模式**不换色、不改 chroma/hue**，只是把同一个颜色调暗（降低 lightness），例如 浅灰 `-0.03`、深灰 `-0.06`、深黑 `-0.10`。不要另造颜色。
+
+**前景色**：模式越黑，白色系 token（`--foreground` / `--*-foreground`）**越暗**；模式越亮则越亮。目的就是别让纯白在纯黑背景上刺眼。**不是越黑越亮。**
+
+**每个主题色文件必须覆盖 4 种模式**，即 4 个 block：
+
+```css
+[data-theme='<name>'] { /* 亮色 */ }
+.dark[data-dark-shade='deep-black'][data-theme='<name>'] { /* 深黑 */ }
+.dark[data-dark-shade='dark-gray'][data-theme='<name>'] { /* 深灰 */ }
+.dark[data-dark-shade='light-gray'][data-theme='<name>'] { /* 浅灰 */ }
+```
+
+新增主题色：在 `web/src/styles/themes/` 建文件（覆盖 `--primary` / `--ring` / `--sidebar-*` 等 token），再在 `index.css` 加一行 `@import`。
+
+### 全局基础样式（`base.css` 的 `@layer base`）
+
+- `*, ::before, ::after, ::backdrop { border-color: var(--border) }` — 修 Tailwind v4 默认 `currentColor` 边框
+- `html { color: var(--foreground) }` — 让 Radix Portal 到 `body` 的内容（Dialog/Menu/Tooltip/Toast）也能继承前景色
+- 滚动条：`*` 上 `scrollbar-width: thin` + `scrollbar-color: var(--scrollbar-thumb) transparent`，配合 `::-webkit-scrollbar` 的 8px 扁平 thumb、透明 track；hover 用 `--muted-foreground`
+- `@utility scrollbar-none` — 需要隐藏滚动条时用
+- 每个颜色模式都必须定义 `--scrollbar-thumb`（`base.css` 的 `:root` 与 `dark.css` 各档）
+
+### 毛玻璃 / 背景图
+
+这两块的细节各有专门的 skill，改之前先读：
+
+- **毛玻璃**（`frosted:` 变体、`backdrop-filter` 的六条铁律、被祖先 `mask` 杀掉、第三方 CSS 无层要上 `!`）→ `.claude/skills/frosted-glass/SKILL.md`
+- **背景图**（`bgimage:` 变体、开启后组件的透出/半透明处理）→ `.claude/skills/background-image/SKILL.md`
+
+## 配置
+
+- 前端只读自己的 `web/.env`（示例见 `web/.env.example`），与后端的 `server/.env` **不共享**
+- 目前唯一的 `VITE_` 变量是 `VITE_AUTH_MODE`（`cookie` | `localstorage`，默认 `cookie`），类型声明在 `web/src/vite-env.d.ts`
+- 新增 `VITE_` 变量时同步更新 `web/.env.example` 与 `vite-env.d.ts` 的 `ImportMetaEnv`
+
+## 应用标识（前端侧）
+
+- 应用名称与版本的唯一来源是仓库根目录的 **`app.config.ts`**，前端直接 import（如 `web/src/pages/home.tsx` 里的 `import { APP_NAME, APP_VERSION } from '../../../app.config'`）
+- 值是 **vite 构建时内联**进 `dist/assets/index-*.js` 的，改完必须重新 `vite build`（dev 下 `app.config.ts` 在依赖图里，会正常重载）
+- 注意 import 层级：`web/src/pages/x.tsx` → `../../../app.config`；相对 import 排在 `@/` 别名 import **之后**，空一行
+- 展示时**不要写死**：文案走 i18n（每个语言文件成套加 key），值传 `{ name: APP_NAME, version: APP_VERSION }`
+- 完整规则、验证与排查见 `.claude/skills/app-version/SKILL.md`；打包与产物命名见 `.claude/rules/backend.md`
+
+## `index.ts` 规范
+
+与后端一致：**只做 re-export，不得出现类、函数、常量、配置、初始化等任何实现**。完整规则与反例见 `.claude/rules/backend.md` 的「`index.ts` 规范」。
+
+```ts
+// web/src/components/foo/index.ts —— 允许，纯转发
+export { Foo } from './foo'
+export type { FooProps } from './foo.types'
+```
+
+外部一行导入：`import { Foo } from '@/components/foo'`
+
+## 代码风格
+
+- 单引号、**不写分号**、2 空格缩进
+- `tsconfig.app.json` 开了 `noUnusedLocals` / `noUnusedParameters` / `erasableSyntaxOnly`：不要留未使用的变量、不要用 enum / namespace / parameter properties
+- `verbatimModuleSyntax`：只当类型用的 import 必须写 `import type`
+- 组件文件与组件名 PascalCase（`require-auth.tsx` / `RequireAuth`），其余文件 kebab-case
+- 提交前跑 `cd web && bun run typecheck && bun run lint`（oxlint）

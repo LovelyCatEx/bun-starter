@@ -1,0 +1,48 @@
+/* sakura-pink theme.
+   The theme is ONE color: #ff8da1 = oklch(0.772 0.139 9.7).
+   Dark modes do not change the color, only darken it slightly (same chroma and
+   hue, lower lightness):
+     deep black  -0.132 -> oklch(0.64 0.139 9.7)
+     dark gray   -0.092 -> oklch(0.68 0.139 9.7)
+     light gray  -0.052 -> oklch(0.72 0.139 9.7)
+   `--primary-foreground` stays white-ish and gets dimmer as the mode darkens. */
+
+/* Light — the exact color */
+[data-theme='sakura-pink'] {
+    --primary: oklch(0.772 0.139 9.7);
+    --primary-foreground: oklch(0.99 0 0);
+    --ring: oklch(0.772 0.139 9.7);
+    --sidebar-primary: oklch(0.772 0.139 9.7);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-ring: oklch(0.772 0.139 9.7);
+}
+
+/* Light gray — a touch darker than #ff8da1 */
+.dark[data-dark-shade='light-gray'][data-theme='sakura-pink'] {
+    --primary: oklch(0.72 0.139 9.7);
+    --primary-foreground: oklch(0.99 0 0);
+    --ring: oklch(0.72 0.139 9.7);
+    --sidebar-primary: oklch(0.72 0.139 9.7);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-ring: oklch(0.72 0.139 9.7);
+}
+
+/* Dark gray — darker still */
+.dark[data-dark-shade='dark-gray'][data-theme='sakura-pink'] {
+    --primary: oklch(0.68 0.139 9.7);
+    --primary-foreground: oklch(0.975 0 0);
+    --ring: oklch(0.68 0.139 9.7);
+    --sidebar-primary: oklch(0.68 0.139 9.7);
+    --sidebar-primary-foreground: oklch(0.975 0 0);
+    --sidebar-ring: oklch(0.68 0.139 9.7);
+}
+
+/* Deep black — the darkest */
+.dark[data-dark-shade='deep-black'][data-theme='sakura-pink'] {
+    --primary: oklch(0.64 0.139 9.7);
+    --primary-foreground: oklch(0.955 0 0);
+    --ring: oklch(0.64 0.139 9.7);
+    --sidebar-primary: oklch(0.64 0.139 9.7);
+    --sidebar-primary-foreground: oklch(0.955 0 0);
+    --sidebar-ring: oklch(0.64 0.139 9.7);
+}

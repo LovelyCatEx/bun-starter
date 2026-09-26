@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+/* Token layers */
+@import "./styles/base.css";
+@import "./styles/dark.css";
+
+/* Color themes (one file per theme) */
+@import "./styles/themes/sakura-pink.css";
