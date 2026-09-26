@@ -21,6 +21,7 @@ Vite + React + React Router + Tailwind CSS + shadcn/ui + react-i18next。默认�
 web/src/api/
   requests.ts             # 原始请求层：doGet / doPost / doPut / doPatch / doDelete
   system-requests.ts      # 适配后端 ApiResponse 的通用封装：get / post / put / patch / del
+  websocket.ts            # 长连接客户端（见「WebSocket」）
   <feature>/
     dto/                  # 与后端 DTO 对应
     vo/                   # 与后端 VO 对应
@@ -48,6 +49,29 @@ export function createUser(body: CreateUserDto) {
 ```
 
 - 请求可以写根相对路径（`'/api/...'`）：开发时 vite 代理，单端口打包时同源，两种情况下都对
+
+## WebSocket（`web/src/api/websocket.ts` + `web/src/hooks/use-websocket.ts`）
+
+长连接的对应物，两个文件分工与 HTTP 侧一样：`websocket.ts` 是**传输层**（重连、心跳、请求应答、订阅都在这里，业务代码不要自己 `new WebSocket`），`hooks/use-websocket.ts` 是**组件里的入口**。
+
+```tsx
+const { connected, send } = useWebSocket({
+  handlers: { 'chat.message': (message) => append(message) },
+})
+
+await send<ChatMessageVo>('chat.send', { text })
+```
+
+- **全应用共享一条连接**（`getWebSocketClient()`），多个组件同时 `useWebSocket()` 不会各开一条；要接第二个后端才 `new WebSocketClient({ path })`
+- **挂载时自动连、卸载不断开**（别的组件可能还在用）。要断连就在该断的地方调 `getWebSocketClient().disconnect()`（退出登录、调试页开关），它会**停止重连**；反过来说，不调它就一定会自动重连
+- `send(event, data)` 发请求等应答，失败 reject 一个 `WsError`：`code === WS_CLIENT_ERROR`（负数）是**客户端侧**失败（没连上 / 超时 / 连接断掉），其余是后端的 `code`（与 HTTP 的 `ApiException.code` 同一套）；`notify(event, data)` 是单向帧，不等应答
+- 事件名与后端的 `event` 一字不差，`<feature>.<action>` 小写；**`ping` / `pong` 是协议保留事件**，业务不要用。心跳：默认每 25s 发一帧 `ping`，服务端回 `pong`，两个周期收不到任何帧就主动断开重连 —— 所以**后端 ws 路由必须实现 `ping → pong`**
+- `useWebSocket({ handlers })` 的 `handlers` 可以内联写字面量：只在**事件名集合**变化时才重新订阅，处理函数走 ref 取最新闭包，不必自己 `useMemo`
+- 认证不用管：cookie 模式浏览器自动带 cookie，localstorage 模式客户端自动拼 `?token=`（浏览器不能给 WS 加自定义头）。业务代码**不要**自己去读 token
+- 业务方法写在 `api/<feature>/<feature>.ts` 里（和 HTTP 一样），内部用客户端收发，调用点只调业务方法
+- 开发时 `/api` 代理的 `ws: true` 在 `web/vite.config.ts` 里，删了 WS 升级请求就停在 vite 上（表现是连不上、后端毫无反应）
+
+后端侧（帧结构、`WsRequest` / `WsResponse`、parse 与错误帧）见 `.claude/rules/backend.md` 的「WebSocket」一节。
 
 ## 认证（`web/src/auth/`）
 

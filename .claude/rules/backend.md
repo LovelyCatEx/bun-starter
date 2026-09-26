@@ -24,8 +24,10 @@ server/src/
     config.ts               # Zod env + Config 类
     request/
       page-query.ts         # PageQuery 分页查询基类
+      ws-request.ts         # WsRequest：客户端进来的 WS 帧（见「WebSocket」）
     response/
       api-response.ts       # ApiResponse / PaginatedResponseBody
+      ws-response.ts        # WsResponse：发给客户端的 WS 帧（见「WebSocket」）
     exception/
       api-exception.ts      # 异常基类
       business-exception.ts # 业务异常
@@ -165,6 +167,7 @@ new Elysia()
 
 - token 是 jose 的 HS256 无状态 JWT，claims 只有 `sub` / `username` / `name`；secret 与有效期来自 `AUTH_JWT_SECRET` / `AUTH_TOKEN_TTL`
 - 传输**同时接受**两种，后端不区分模式：httpOnly cookie（`AUTH_COOKIE_NAME = 'auth_token'`，`sameSite=lax`，生产自动 `secure`）+ `Authorization: Bearer <token>`
+- **WS 升级不算第三种传输**：升级请求也走同一个 `authInterceptor`（拿不到 token 直接连不上），只是浏览器不能给 WebSocket 加自定义头，所以升级请求额外接受 `?token=`（`pickToken` 里由 `isUpgrade()` 把口子限定在升级请求上 —— 普通请求把 token 拼进 URL 会漏进访问日志和 Referer）
 - 鉴权在 `modules/auth/interceptor/auth.interceptor.ts`：`derive({ as: 'global' })` 只解析身份（不通过就是 `null`），`onBeforeHandle({ as: 'global' })` 负责抛 `UnauthorizedException`；handler 里直接读 `auth`
 - 只拦 `/api/*`，静态资源与 HTML 不受影响；放行清单是 `PUBLIC_PATHS`，新增公开接口往这里加
 - 接口：`POST /api/auth/login`（返回 token + user，同时写 cookie）、`POST /api/auth/logout`、`GET /api/auth/me`
@@ -220,6 +223,62 @@ return new PaginatedResponseBody(items, total, page, pageSize)
 ```
 
 - **返回 `Response` 实例可以绕过包装**：拦截器只对"不是 `Response`"的返回值做包装。要自己控制响应体/头（流、文件、HTML）时必须返回真正的 `Response`（如 `new Response(file, { headers })`），返回 `BunFile` 之类会被 JSON 序列化掉
+
+## WebSocket（`common/request/ws-request.ts` / `common/response/ws-response.ts`）
+
+长连接只有一套帧，和 HTTP 的请求 / 响应**同构** —— 学一个就等于学两个：
+
+| 方向 | 类 | 帧 |
+| --- | --- | --- |
+| 客户端 → 服务端 | `WsRequest` | `{ id: string \| null, event: string, data: unknown }` |
+| 服务端 → 客户端 | `WsResponse` | `{ id: string \| null, event: string, code: number, message: string, data }` |
+
+- `code` 与 HTTP 的 `ApiResponse` **同一套语义**：`0` 成功、其余是 `ApiException.code`，所以同一个 service 抛的异常在两种传输下说的是同一件事
+- `event` 是事件名，`<feature>.<action>` 小写：`chat.send`、`terminal.input`；`ping` / `pong` 是**协议保留事件**，不要拿去当业务事件
+- `id` 由客户端生成、服务端原样带回，一个连接上并发多个请求也能各回各家；客户端不需要回答时 `id` 是 `null`（单向通知），服务端主动推送的 `id` 也是 `null`
+- 只走 **JSON 文本帧**，不支持二进制帧；二进制 / 非 JSON 的帧一律当非法帧处理
+
+**帧的解析与构造只在 common 这一处**，handler 里不许手拼对象：
+
+```ts
+.ws('/api/ws', {
+  open(ws) {
+    ws.send(WsResponse.push('chat.message', { welcome: true }).toFrame())
+  },
+  message(ws, message) {
+    // WS 边界是不可信输入：不是 JSON、缺 event、形状不对都从 parse 挡掉
+    const request = WsRequest.parse(message)
+
+    if (request === null) {
+      ws.send(WsResponse.fail(null, new BadRequestException('invalid frame')).toFrame())
+      return
+    }
+
+    if (request.event === 'ping') {
+      ws.send(WsResponse.push('pong', null).toFrame())
+      return
+    }
+
+    try {
+      // 业务异常照抛（和 controller 里一样），由 fail 转成错误帧
+      ws.send(WsResponse.ok(request, doSomething(request.data)).toFrame())
+    } catch (error) {
+      // ApiException 家族 → 用它自己的 code / message；其它 → 500，细节不外泄，只进日志
+      if (!(error instanceof ApiException)) {
+        LogService.error('chat', error)
+      }
+      ws.send(WsResponse.fail(request, error).toFrame())
+    }
+  },
+})
+```
+
+- **解析失败不要抛异常、也不要静默**：回一帧 `WsResponse.fail(null, …)`，或者直接 `ws.close(1003)`（协议错误码）
+- `WsRequest.parse<T>(frame)` 的泛型是**调用点的承诺而不是校验**：`data` 内部形状要严格校验就自己再收一道，和控制器里 `body as Partial<LoginDto>` 同一套写法
+- `WsResponse.fail(request, error)`：`ApiException` 家族沿用它的 `code` / `message`，其它异常一律折成 `500 Internal Server Error` —— **不把内部错误发给客户端**，原始异常用 `LogService.error` 记下来（tag 用功能域名）
+- **ping/pong 是协议的一部分**：前端客户端每 25s 发一帧 `{ event: 'ping' }`，连上没有其他流量时它靠 `pong` 判断连接还活着（两个周期收不到任何帧就主动断开重连），所以 ws 路由必须实现 `ping → pong`
+- 升级请求的鉴权与 HTTP 完全一样（`authInterceptor` 覆盖 ws，`ws.data.auth` 就是当前用户），见「认证」；无 token 的升级会被直接拒绝
+- 心跳、重连、请求应答这些都在前端 `web/src/api/websocket.ts` 里，服务端不要重复实现
 
 ## 数据库
 

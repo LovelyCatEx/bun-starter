@@ -17,6 +17,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5107',
         changeOrigin: true,
+        // 没有它，开发时 WS 升级请求会停在 vite 上，连不到后端（见 rules 的 WebSocket 一节）
+        ws: true,
       },
     },
   },

@@ -54,9 +54,9 @@ bun run db:studio    # 打开 Drizzle Studio
 **按端拆开的两个规范文件 —— 写对应侧代码前必须先读：**
 
 - **后端** → `.claude/rules/backend.md`
-  架构与分层依赖、模块内结构、认证、配置、请求/响应、数据库、应用标识与打包、`index.ts`、代码风格
+  架构与分层依赖、模块内结构、认证、配置、日志、请求/响应、WebSocket、数据库、应用标识与打包、`index.ts`、代码风格
 - **前端** → `.claude/rules/frontend.md`
-  结构与别名、请求规范、认证、文案（i18n）、样式与主题、配置、应用标识、`index.ts`、代码风格
+  结构与别名、请求规范、WebSocket、认证、文案（i18n）、样式与主题、配置、应用标识、`index.ts`、代码风格
 
 两个 rule 都用 frontmatter 的 `paths` 限定作用域（`server/**` / `web/**`，另加 `app.config.ts` 等共享文件），只在该侧文件被读取时加载 —— **rule 的 frontmatter 只认 `paths`**（YAML 列表，支持 glob 与 `{a,b}`），别写成 skill 的 `name` / `description`。
 
