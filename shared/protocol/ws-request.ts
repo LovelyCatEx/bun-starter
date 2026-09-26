@@ -1,9 +1,12 @@
 /**
  * 一条从客户端进来的 WS 帧。
  *
- * WS 是**不可信边界**：`message` 是 Elysia 原样交到 handler 的值，可能是任何东西 ——
- * 不是 JSON 的字符串、数组、`null`、缺 `event` 的对象。所以一律从 `WsRequest.parse()`
- * 进来：它要么给出字段齐全的请求，要么给出 `null`，让调用点自己决定是回一帧错误还是断连。
+ * 两端共用这一份：服务端在这里**解析**（`WsRequest.parse`），前端在这里**定型**
+ * （发出去的 `{ id, event, data }` 按它检查）。
+ *
+ * WS 是不可信边界：`message` 是 Elysia 原样交到 handler 的值，可能是任何东西 ——
+ * 不是 JSON 的字符串、数组、`null`、缺 `event` 的对象。所以一律从 `parse()` 进来：
+ * 它要么给出字段齐全的请求，要么给出 `null`，让调用点自己决定是回一帧错误还是断连。
  * HTTP 侧的对应物是 DTO 加控制器里的手校验（`body as Partial<LoginDto>`）。
  */
 export class WsRequest<T = unknown> {
@@ -15,7 +18,7 @@ export class WsRequest<T = unknown> {
    */
   id: string | null;
 
-  /** 事件名：`<feature>.<action>`，如 `chat.send`。`ping` / `pong` 是协议保留的。 */
+  /** 事件名：`<feature>.<action>`，如 `chat.send`。`WS_PING` / `WS_PONG` 是保留的。 */
   event: string;
 
   /** 业务负载，形状由事件决定（见 `parse` 的泛型说明）。 */

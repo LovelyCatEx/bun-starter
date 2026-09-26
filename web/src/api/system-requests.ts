@@ -1,3 +1,6 @@
+import type { ApiResponse } from '@shared/protocol/api-response'
+import { CODE_OK } from '@shared/protocol/api-response'
+
 import {
   doDelete,
   doGet,
@@ -7,16 +10,10 @@ import {
   type RequestConfig,
 } from './requests'
 
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T
-}
-
 async function unwrap<T>(promise: Promise<ApiResponse<T>>): Promise<T> {
   const envelope = await promise
 
-  if (envelope.code !== 0) {
+  if (envelope.code !== CODE_OK) {
     throw new Error(envelope.message || 'Request failed')
   }
 

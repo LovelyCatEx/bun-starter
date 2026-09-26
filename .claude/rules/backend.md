@@ -18,16 +18,23 @@ Bun + Elysia + Drizzle ORM + Drizzle Kit + Zod。默认端口 `5107`，开发时
 后端是**单包 + 内部功能域文件夹**，不再按 workspace 拆包。
 
 ```
+shared/                       # 仓库根目录：两端共用的线上契约，禁止依赖任何一端（见「共享层」）
+  protocol/                   # 与具体业务无关的传输契约
+    api-response.ts           # CODE_OK / ApiResponse / PaginatedResponseBody
+    page-query.ts             # PageQuery
+    ws-request.ts             # WsRequest：客户端进来的 WS 帧（见「WebSocket」）
+    ws-response.ts            # WsResponse：发给客户端的 WS 帧
+    ws-events.ts              # WS_PING / WS_PONG
+  <feature>/                  # 与业务模块同名：客户端也要用的 dto / vo
+    dto/
+    vo/
+
 server/src/
   main.ts                   # 组合根：组装插件、注册模块、listen
   common/                   # 通用能力，禁止依赖 modules/
     config.ts               # Zod env + Config 类
-    request/
-      page-query.ts         # PageQuery 分页查询基类
-      ws-request.ts         # WsRequest：客户端进来的 WS 帧（见「WebSocket」）
     response/
-      api-response.ts       # ApiResponse / PaginatedResponseBody
-      ws-response.ts        # WsResponse：发给客户端的 WS 帧（见「WebSocket」）
+      ws-failure.ts         # 服务端的异常 → WS 错误帧（见「WebSocket」）
     exception/
       api-exception.ts      # 异常基类
       business-exception.ts # 业务异常
@@ -45,8 +52,8 @@ server/src/
     <feature>/              # 每个业务模块一个包，内部按职责分包
       <feature>.plugin.ts   # 【按需】模块装配入口（工厂 / 注入点）
       controller/           # 【必须有】路由层
-        dto/                # 【必须有】请求 DTO
-        vo/                 # 【必须有】响应 VO
+        dto/                # 【必须有】只服务端用的请求 DTO（共享的放 shared/<feature>/dto/）
+        vo/                 # 【必须有】只服务端用的响应 VO（共享的放 shared/<feature>/vo/）
         <feature>.controller.ts
       service/              # 【必须有】业务逻辑
         <feature>.service.ts
@@ -64,15 +71,18 @@ server/src/
 ```
 main.ts             # 组合根：唯一可以同时 import common 与 modules 的地方
   ↓
-modules/<feature>   # 业务模块：可以依赖 common 与自身内部文件
+modules/<feature>   # 业务模块：可以依赖 common / shared 与自身内部文件
   ↓
 common              # 通用能力：config / response / exception / interceptor
+  ↓
+shared/             # 两端共用的契约：谁都能 import 它，它谁都 import 不了
 ```
 
 - **`common/**` 绝对不可以 import `src/modules/**`**。一旦某个"通用"文件需要用到具体业务模块，说明它本身就属于那个模块，应该搬进 `src/modules/<feature>/`。例：认证拦截器在 `modules/auth/interceptor/auth.interceptor.ts`，**不在** `common/interceptor/`
 - 模块之间不要互相 import；确实要复用就先下沉到 `common`
 - 模块自己的东西一律留在模块内：装配入口 `modules/<feature>/<feature>.plugin.ts` 放模块根目录，拦截器放 `modules/<feature>/interceptor/` 包（见下）
 - 反向依赖的判定标准很简单：`grep -rn "modules/" server/src/common/` 必须没有输出
+- 依赖方向里多了一层 `shared/`（仓库根目录），它是**最底下那一层**：两端都 import 它，它谁都不 import。边界与硬规则见「共享层」
 
 ### 模块内的结构
 
@@ -81,8 +91,8 @@ common              # 通用能力：config / response / exception / interceptor
 | 包 / 文件 | 必选 | 职责 |
 | --- | --- | --- |
 | `controller/<feature>.controller.ts` | 是 | 只做路由定义（`new Elysia().group('/api', ...)` 或 `{ prefix }`）与参数校验，转调 service |
-| `controller/dto/` | 是（目录） | 请求 DTO，`*.dto.ts` |
-| `controller/vo/` | 是（目录） | 响应 VO，`*.vo.ts` |
+| `controller/dto/` | 是（目录） | **只服务端用**的请求 DTO，`*.dto.ts`；客户端也要用的放 `shared/<feature>/dto/` |
+| `controller/vo/` | 是（目录） | **只服务端用**的响应 VO，`*.vo.ts`；客户端也要用的放 `shared/<feature>/vo/` |
 | `service/<feature>.service.ts` | 是 | 业务逻辑，返回业务数据；失败抛 `ApiException` 家族 |
 | `entity/` | 是（目录） | **唯一含义是某张数据表的记录对象**（Drizzle 表 / ORM entity），没有对应表就留空 |
 | `provider/` | 按需 | 可替换实现的接口 + 内置默认实现（如 `AuthProvider` / `InMemoryAuthProvider`） |
@@ -94,35 +104,50 @@ common              # 通用能力：config / response / exception / interceptor
 - 必选包与 `dto/` / `vo/` 目录**即使为空也必须保留**，并且**绝对不要**放 `.gitkeep` 之类的占位文件
 - **拦截器是包不是文件**：写 `modules/auth/interceptor/auth.interceptor.ts`，不要写成 `modules/auth/auth.interceptor.ts`
 - 拦截器用 `new Elysia({ name: '<feature>-xxx' })` 声明，需要全应用生效时给 hook 加 `{ as: 'global' }`，并在 `main.ts` 里于控制器**之前** `.use()`（Elysia 的 hook 只对注册之后的路由生效）
-- DTO / VO 都是**类**（不是 interface）；`tsconfig` 开了 `strictPropertyInitialization`，所以要么用构造函数赋值，要么对纯形状 DTO 用 `name!: string`，否则会报 TS2564
+- **DTO / VO 放哪边**：客户端也要用的（响应里出现的形状、请求体形状）放 `shared/<feature>/`，只服务端用的留 `controller/dto|vo`。判断标准就一句：**这个字段形状要不要出现在 `web/` 里**；两边都写一份是本仓库明确要避免的事
+- **共享的 DTO / VO 都是类，构造函数只吃自己的字段**（`new AuthUserVo(id, username, name)`），不允许出现 `new AuthUserVo(authUser)` 这种吃内部模型（provider / entity / 数据库行）的适配构造 —— 那个模型前端根本没有，写进去就没法共享了。内部模型 → VO 的映射写在调用点（controller），一行一个字段
+- 只服务端的 DTO / VO 同样是类；`strictPropertyInitialization` 下要么用构造函数赋值，要么对纯形状 DTO 用 `name!: string`，否则会报 TS2564
 - 新功能模块放在 `src/modules/<feature>/`，在 `src/main.ts` 中注册
 
 ### 新模块示例
 
 ```ts
-// src/modules/user/controller/dto/create-user.dto.ts
-// DTO 只描述请求体形状，不用构造；strictPropertyInitialization 下需要 `!`
-export class CreateUserDto {
-  name!: string
-  email!: string
+// src/modules/user/controller/dto/list-users.query.dto.ts
+// 只服务端用的请求形状（客户端不传这些内部筛选参数）：留在 controller/dto，不用构造 →
+// strictPropertyInitialization 下写 `!`
+export class ListUsersQueryDto {
+  keyword!: string
 }
 
-// src/modules/user/controller/vo/user.vo.ts
-// VO 由 service 的返回值构造，字段在构造函数里赋值
+// shared/user/dto/create-user.dto.ts —— 客户端也要发的请求体，放共享层（纯字段构造）
+export class CreateUserDto {
+  name: string
+  email: string
+
+  constructor(name: string, email: string) {
+    this.name = name
+    this.email = email
+  }
+}
+
+// shared/user/vo/user.vo.ts —— 响应里出现的形状，同样在共享层
 export class UserVo {
   id: string
   name: string
   email: string
 
-  constructor(data: { id: string; name: string; email: string }) {
-    this.id = data.id
-    this.name = data.name
-    this.email = data.email
+  constructor(id: string, name: string, email: string) {
+    this.id = id
+    this.name = name
+    this.email = email
   }
 }
 
 // src/modules/user/controller/user.controller.ts
 import { Elysia } from 'elysia'
+
+import { UserVo } from '@shared/user/vo/user.vo'
+
 import { UserService } from '../service/user.service'
 
 export class UserController {
@@ -130,7 +155,12 @@ export class UserController {
 
   get routes() {
     return new Elysia({ prefix: '/api/user' })
-      .get('/', () => this.service.list())
+      .get('/', async () => {
+        const users = await this.service.list()
+
+        // 内部模型 → 共享 VO 的映射写在调用点，一行一个字段
+        return users.map((user) => new UserVo(user.id, user.name, user.email))
+      })
       .post('/', ({ body }) => this.service.create(body))
   }
 }
@@ -177,6 +207,20 @@ new Elysia()
 
 **cookie 的同站限制**：`SameSite=Lax` 只适用于"前后端同站"（开发时 vite 代理即同源，单端口打包同样同源）。跨站部署需要改成 `SameSite=None; Secure`。
 
+## 共享层（仓库根目录 `shared/`）
+
+两端**共用同一份代码**的线上契约。以前是两份手抄的形状（`ApiResponse`、WS 帧、DTO/VO 各一份），抄错一边的症状是"类型都对、跑起来解不开包"，所以这部分只留一份。
+
+- 分两半：`shared/protocol/` 是与业务无关的传输契约（信封、分页、WS 帧、保留事件名），`shared/<feature>/` 是每个业务模块的 dto / vo，**目录名与后端模块同名**
+- import 一律用 `@shared/...` 别名：后端走 `server/tsconfig.json` 的 `paths`，前端走 `web/vite.config.ts` 的 `resolve.alias` **加上两个 tsconfig**（`tsconfig.app.json` 给 `tsc`，`tsconfig.json` 给 Bun / vite 这类按 tsconfig 解析的运行时 —— 只改一个的症状是"typecheck 过了、跑起来 Cannot find module"）
+- **`shared/` 里禁止出现**：`node:*` / `bun` / `@elysiajs/*` / `elysia` / `react` / DOM API、`process.env`、`fetch` / `localStorage`、任何一端独有的东西。它必须是最底层：**谁都 import 得动它，它谁都 import 不了**
+- 内容只有两种：**纯类型 / 纯数据类**（字段 + 参数构造 + 无依赖的小工具方法，如 `toFrame()` / `totalPages`），以及**常量**（`CODE_OK`、`WS_PING`）。别把配置、日志、异常体系搬进来 —— `ApiException`、`LogService`、`config` 是服务端的概念，前端永远不会用到
+- 副作用是"异常不认识 code"：共享的 `WsResponse` 只收 `code` / `message`，把 `ApiException` 翻成这两个值的映射留在服务端（`common/response/ws-failure.ts`）。以后加共享类型时也会遇到同样的分界线，往这边靠
+- **风格跟 `app.config.ts`**：单引号 + 分号（后端风格），字段显式声明，不用 `enum` / 参数属性
+- **严格度按最严的那份**：`shared/` 同时被 server（`strict` + `noUncheckedIndexedAccess`）和 web（宽松）编译，所以按 server 的规矩写 —— 反过来会出现"web 能过、server 报错"
+- 改 `shared/` 必须跑两端：`cd server && bun run typecheck` + `cd web && bun run typecheck && bun run lint`，并至少验一次 `vite build`（前端要能把共享代码打进 bundle）
+- 共享层里**不要**再出现"镜像类型"（`interface` 版 + `class` 版各一个），一份就是一份
+
 ## 配置
 
 - 所有项目设置都通过环境变量，由 `src/common/config.ts` 中的 `EnvSchema`（Zod）校验，并导出 `config` 单例和 `Config` 类
@@ -201,22 +245,23 @@ new Elysia()
 - 规则只管 `server/src/`；`scripts/` 下的构建脚本用 `console` 输出是正常的（那些是给人看的命令行输出）
 - 自查：`grep -rn "console\.\|process\.stdout\|process\.stderr" server/src/`，只应剩 `log-service.ts` 自己与 `config.ts` 那一处
 
-## 请求 / 响应
+## 请求 / 响应（契约在 `shared/protocol/`）
 
 - 控制器 handler **直接返回业务数据**，不要手动包 `ApiResponse`
-- 成功响应由 `responseInterceptor` 统一包装为：
+- 信封类是两端共用的 `@shared/protocol/api-response`，成功响应由 `responseInterceptor` 统一包装为：
 
 ```json
 { "code": 0, "message": "ok", "data": "业务数据" }
 ```
 
+- 判断成功**只用 `CODE_OK`**（同一个文件里导出），不要写 `0` 字面量：前端 `unwrap` 也在用同一个常量，两边各写一遍就是"永远解不开包"的隐患
 - 失败时**抛异常**，由拦截器统一转为 `ApiResponse` 并设置 HTTP 状态码：
 
 ```ts
 throw new NotFoundException('user not found')
 ```
 
-- 分页查询参数继承 `PageQuery`；分页结果直接返回 `PaginatedResponseBody`（拦截器会自动包装）：
+- 分页查询参数用 `@shared/protocol/page-query` 的 `PageQuery`；分页结果直接返回 `@shared/protocol/api-response` 的 `PaginatedResponseBody`（拦截器会自动包装）：
 
 ```ts
 return new PaginatedResponseBody(items, total, page, pageSize)
@@ -224,23 +269,28 @@ return new PaginatedResponseBody(items, total, page, pageSize)
 
 - **返回 `Response` 实例可以绕过包装**：拦截器只对"不是 `Response`"的返回值做包装。要自己控制响应体/头（流、文件、HTML）时必须返回真正的 `Response`（如 `new Response(file, { headers })`），返回 `BunFile` 之类会被 JSON 序列化掉
 
-## WebSocket（`common/request/ws-request.ts` / `common/response/ws-response.ts`）
+## WebSocket（帧在 `shared/protocol/ws-*.ts`，服务端补一个 `common/response/ws-failure.ts`）
 
-长连接只有一套帧，和 HTTP 的请求 / 响应**同构** —— 学一个就等于学两个：
+长连接只有一套帧，和 HTTP 的请求 / 响应**同构** —— 学一个就等于学两个。帧本身是共享的（`@shared/protocol/ws-request`、`@shared/protocol/ws-response`、`@shared/protocol/ws-events`）：
 
 | 方向 | 类 | 帧 |
 | --- | --- | --- |
 | 客户端 → 服务端 | `WsRequest` | `{ id: string \| null, event: string, data: unknown }` |
 | 服务端 → 客户端 | `WsResponse` | `{ id: string \| null, event: string, code: number, message: string, data }` |
 
-- `code` 与 HTTP 的 `ApiResponse` **同一套语义**：`0` 成功、其余是 `ApiException.code`，所以同一个 service 抛的异常在两种传输下说的是同一件事
-- `event` 是事件名，`<feature>.<action>` 小写：`chat.send`、`terminal.input`；`ping` / `pong` 是**协议保留事件**，不要拿去当业务事件
+- `code` 与 HTTP 的 `ApiResponse` **同一套语义**：`CODE_OK` 成功、其余是服务端异常的 `code`，所以同一个 service 抛的异常在两种传输下说的是同一件事
+- `event` 是事件名，`<feature>.<action>` 小写：`chat.send`、`terminal.input`；心跳用共享常量 `WS_PING` / `WS_PONG`，不要写字符串字面量、也不要拿它当业务事件
 - `id` 由客户端生成、服务端原样带回，一个连接上并发多个请求也能各回各家；客户端不需要回答时 `id` 是 `null`（单向通知），服务端主动推送的 `id` 也是 `null`
 - 只走 **JSON 文本帧**，不支持二进制帧；二进制 / 非 JSON 的帧一律当非法帧处理
 
-**帧的解析与构造只在 common 这一处**，handler 里不许手拼对象：
+**帧的解析与构造只在共享层这一处**，handler 里不许手拼对象；错误帧一律经 `wsFailure()`（服务端的异常 → code/message 映射）：
 
 ```ts
+import { WsRequest } from '@shared/protocol/ws-request'
+import { WsResponse } from '@shared/protocol/ws-response'
+import { WS_PING, WS_PONG } from '@shared/protocol/ws-events'
+import { wsFailure } from './common/response/ws-failure'
+
 .ws('/api/ws', {
   open(ws) {
     ws.send(WsResponse.push('chat.message', { welcome: true }).toFrame())
@@ -250,33 +300,33 @@ return new PaginatedResponseBody(items, total, page, pageSize)
     const request = WsRequest.parse(message)
 
     if (request === null) {
-      ws.send(WsResponse.fail(null, new BadRequestException('invalid frame')).toFrame())
+      ws.send(wsFailure(null, new BadRequestException('invalid frame')).toFrame())
       return
     }
 
-    if (request.event === 'ping') {
-      ws.send(WsResponse.push('pong', null).toFrame())
+    if (request.event === WS_PING) {
+      ws.send(WsResponse.push(WS_PONG, null).toFrame())
       return
     }
 
     try {
-      // 业务异常照抛（和 controller 里一样），由 fail 转成错误帧
+      // 业务异常照抛（和 controller 里一样），由 wsFailure 转成错误帧
       ws.send(WsResponse.ok(request, doSomething(request.data)).toFrame())
     } catch (error) {
       // ApiException 家族 → 用它自己的 code / message；其它 → 500，细节不外泄，只进日志
       if (!(error instanceof ApiException)) {
         LogService.error('chat', error)
       }
-      ws.send(WsResponse.fail(request, error).toFrame())
+      ws.send(wsFailure(request, error).toFrame())
     }
   },
 })
 ```
 
-- **解析失败不要抛异常、也不要静默**：回一帧 `WsResponse.fail(null, …)`，或者直接 `ws.close(1003)`（协议错误码）
+- **解析失败不要抛异常、也不要静默**：回一帧 `wsFailure(null, …)`，或者直接 `ws.close(1003)`（协议错误码）
 - `WsRequest.parse<T>(frame)` 的泛型是**调用点的承诺而不是校验**：`data` 内部形状要严格校验就自己再收一道，和控制器里 `body as Partial<LoginDto>` 同一套写法
-- `WsResponse.fail(request, error)`：`ApiException` 家族沿用它的 `code` / `message`，其它异常一律折成 `500 Internal Server Error` —— **不把内部错误发给客户端**，原始异常用 `LogService.error` 记下来（tag 用功能域名）
-- **ping/pong 是协议的一部分**：前端客户端每 25s 发一帧 `{ event: 'ping' }`，连上没有其他流量时它靠 `pong` 判断连接还活着（两个周期收不到任何帧就主动断开重连），所以 ws 路由必须实现 `ping → pong`
+- `wsFailure(request, error)`：`ApiException` 家族沿用它的 `code` / `message`，其它异常一律折成 `500 Internal Server Error` —— **不把内部错误发给客户端**，原始异常用 `LogService.error` 记下来（tag 用功能域名）
+- **ping/pong 是协议的一部分**：前端客户端每 25s 发一帧 `{ event: WS_PING }`，连上没有其他流量时它靠 `WS_PONG` 判断连接还活着（两个周期收不到任何帧就主动断开重连），所以 ws 路由必须实现 `WS_PING → WS_PONG`
 - 升级请求的鉴权与 HTTP 完全一样（`authInterceptor` 覆盖 ws，`ws.data.auth` 就是当前用户），见「认证」；无 token 的升级会被直接拒绝
 - 心跳、重连、请求应答这些都在前端 `web/src/api/websocket.ts` 里，服务端不要重复实现
 
@@ -308,6 +358,7 @@ return new PaginatedResponseBody(items, total, page, pageSize)
 - `--asset` 前端的路径前缀由 `index.html` 那条记录反推，别写死
 - 静态路由**必须返回真正的 `Response`**（见「请求 / 响应」最后一条），否则会被包装成 JSON
 - 客户端路由（如 `/login`）在服务端是未知路径，会回退到内嵌的 `index.html`；`/api/*` 的未知路径仍是 404
+- `scripts/compile.ts` 是**根目录的文件**，由根 `tsconfig.json` 检查（`types: ["bun"]` 已经带上 `node:*` 与 Bun 全局）；新增根目录 TS 文件要加进那份 `include`。三条命令各自解析 `@shared/*`：`bun run`（cwd=server）、`bun build src/main.ts`（按入口文件最近的 `server/tsconfig.json`）、`vite build`（按 `web/vite.config.ts` 的 alias）—— 改别名配置时这三条都要能过
 
 ## `index.ts` 规范（与前端一致，硬性要求）
 
@@ -349,6 +400,7 @@ export async function init() { /* 初始化 */ }
 ## 代码风格
 
 - TypeScript 严格模式（`strict` + `noUncheckedIndexedAccess`）、单引号、分号
+- import 顺序：外部依赖 → `@shared/` → 内部相对路径（`@shared` 是仓库根的共享契约，比"同一个包里的文件"更远，所以排在前面）
 - 类字段显式声明，避免 parameter properties（`erasableSyntaxOnly` 也禁止参数属性）
 - 命名：文件与类使用 PascalCase / kebab-case
 - 不提交 `dist/`、`data.db` 等构建/运行产物

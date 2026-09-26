@@ -4,6 +4,10 @@
   "workspaces": {
     "": {
       "name": "bun-starter",
+      "devDependencies": {
+        "@types/bun": "^1.4.2",
+        "typescript": "^5.9.3",
+      },
     },
     "server": {
       "name": "server",

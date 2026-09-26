@@ -13,6 +13,10 @@
     "dev:web": "bun run --filter web dev",
     "build": "bun run --workspaces build",
     "compile": "bun run scripts/compile.ts",
-    "typecheck": "bun run --workspaces typecheck"
+    "typecheck": "bun run --workspaces typecheck && tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^5.9.3"
   }
 }

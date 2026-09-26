@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import type { AuthUserVo } from '@shared/auth/vo/auth-user.vo'
+
 import {
   getMe,
   login as loginRequest,
   logout as logoutRequest,
 } from '@/api/auth/auth'
-import type { AuthUserVo } from '@/api/auth/vo/auth-user.vo'
 import { setUnauthorizedHandler } from '@/api/requests'
 
 import { AUTH_MODE } from './auth-mode'

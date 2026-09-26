@@ -9,6 +9,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
+      // 与后端共用的线上契约（server 侧走 tsconfig 的 paths，见 .claude/rules/frontend.md）
+      '@shared': path.resolve(import.meta.dirname, '../shared'),
     },
   },
   server: {

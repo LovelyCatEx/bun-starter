@@ -1,6 +1,6 @@
 import { createContext } from 'react'
 
-import type { AuthUserVo } from '@/api/auth/vo/auth-user.vo'
+import type { AuthUserVo } from '@shared/auth/vo/auth-user.vo'
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 

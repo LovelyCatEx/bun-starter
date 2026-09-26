@@ -1,0 +1,31 @@
+/**
+ * 仓库根目录那几个 TS 文件（`app.config.ts`、`scripts/`）的 program。
+ *
+ * 为什么必须单独有一份：`tsc` / 编辑器是按"文件往上找最近的 tsconfig.json"来定的，而根目录
+ * 之前一个都没有 —— 于是 `scripts/compile.ts` 谁都不属于，`node:fs/promises`、`Bun`、`process`
+ * 全报 TS2591 / TS2868（"要不要装 @types/node"）。它和 `server` / `web` 那两个 program 没关系，
+ * 只是根目录工具链的编译器选项：Bun 运行时 + 严格模式。
+ *
+ * 新增根目录的 TS 文件记得落进 `include`。
+ *
+ * `shared/` 故意不在这里：它已经由 `server`（最严的那份）与 `web` 两个 program 各自检查过，
+ * 再加一遍只会多一出可能不一致的报错。
+ */
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "lib": ["ESNext"],
+    // Bun 的 types 里带了 node: 内置模块与 Bun 全局（server 侧也是这么用的）
+    "types": ["bun"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["app.config.ts", "scripts"]
+}

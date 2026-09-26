@@ -1,12 +1,16 @@
+import type { WsRequest } from '@shared/protocol/ws-request'
+import type { WsResponse } from '@shared/protocol/ws-response'
+import { WS_PING, WS_PONG } from '@shared/protocol/ws-events'
+
 import { AUTH_MODE } from '@/auth/auth-mode'
 import { getToken } from '@/auth/token-store'
 
 /**
  * 前端唯一的长连接入口，`requests.ts` 的 WS 版本。
  *
- * 和后端的一对帧对应（`WsRequest` / `WsResponse`）：发出去的是
- * `{ id, event, data }`，收到的是 `{ id, event, code, message, data }`，`code === 0`
- * 表示成功、其余是后端 `ApiException.code`，与 HTTP 的 `{ code, message, data }` 是同一套语义。
+ * 和后端的一对帧对应（`WsRequest` / `WsResponse`，都来自 `@shared/protocol/`，不是两端各抄一份）：
+ * 发出去的是 `{ id, event, data }`，收到的是 `{ id, event, code, message, data }`，`code === 0`
+ * 表示成功、其余是后端异常的 `code`，与 HTTP 的 `{ code, message, data }` 是同一套语义。
  *
  * `id` 让一个连接上同时飞多个请求也能各回各家，所以：
  *
@@ -19,18 +23,10 @@ import { getToken } from '@/auth/token-store'
  * 主动断开重连。要长期不重连就 `disconnect()`（这点和 fetch 不同，它不会自己停）。
  */
 
-/** 服务端 → 客户端的帧，字段与后端 `WsResponse` 一一对应。 */
-export interface WsFrame<T = unknown> {
-  id: string | null
-  event: string
-  code: number
-  message: string
-  data: T
-}
-
 export type WsStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed'
 
-export type WsHandler<T = unknown> = (data: T, frame: WsFrame<T>) => void
+/** 处理函数收到的是应答 / 推送里的 `data`，第二个参数是整帧（要看 `code` / `message` 时用）。 */
+export type WsHandler<T = unknown> = (data: T, frame: WsResponse<T>) => void
 
 /** 客户端侧的失败码：**负数**都来自客户端（没连上 / 超时 / 被断开），不来自服务端。 */
 export const WS_CLIENT_ERROR = -1
@@ -67,9 +63,6 @@ interface PendingRequest {
   reject: (error: WsError) => void
   timer: ReturnType<typeof setTimeout>
 }
-
-const PING_EVENT = 'ping'
-const PONG_EVENT = 'pong'
 
 /**
  * `?token=` 只给 localstorage 模式用：浏览器不能给 WebSocket 加自定义头，
@@ -271,7 +264,8 @@ export class WebSocketClient {
     return `${Date.now().toString(36)}-${this.seq}`
   }
 
-  private write(frame: { id: string | null; event: string; data?: unknown }): void {
+  /** 发出去的形状就是共享的 `WsRequest` —— 字段名只有那一处定义。 */
+  private write(frame: WsRequest): void {
     const socket = this.socket
 
     if (!socket || socket.readyState !== WebSocket.OPEN) return
@@ -287,10 +281,10 @@ export class WebSocketClient {
       return
     }
 
-    let frame: WsFrame
+    let frame: WsResponse
 
     try {
-      frame = JSON.parse(raw) as WsFrame
+      frame = JSON.parse(raw) as WsResponse
     } catch {
       this.debug('ignored a frame that is not JSON', raw)
       return
@@ -319,7 +313,7 @@ export class WebSocketClient {
     }
 
     // 心跳的应答只是"连接还活着"的证据，不往业务 handler 送。
-    if (frame.event === PONG_EVENT) return
+    if (frame.event === WS_PONG) return
 
     for (const handler of this.handlers.get(frame.event) ?? []) {
       handler(frame.data, frame)
@@ -373,7 +367,7 @@ export class WebSocketClient {
         return
       }
 
-      this.notify(PING_EVENT)
+      this.notify(WS_PING)
     }, this.heartbeatInterval)
   }
 

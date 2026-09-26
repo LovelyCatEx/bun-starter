@@ -1,19 +1,17 @@
 import { Elysia } from 'elysia';
 
+import { LoginDto } from '@shared/auth/dto/login.dto';
+import { AuthUserVo } from '@shared/auth/vo/auth-user.vo';
+import { LoginVo } from '@shared/auth/vo/login.vo';
+
 import { config } from '../../../common/config';
 import { BadRequestException } from '../../../common/exception/http-exceptions';
 import {
   AUTH_COOKIE_NAME,
   authInterceptor,
 } from '../interceptor/auth.interceptor';
-import type {
-  AuthProvider,
-  AuthUser,
-} from '../provider/auth-provider';
+import type { AuthProvider, AuthUser } from '../provider/auth-provider';
 import { AuthService } from '../service/auth.service';
-import type { LoginDto } from './dto/login.dto';
-import { AuthUserVo } from './vo/auth-user.vo';
-import { LoginVo } from './vo/login.vo';
 
 export class AuthController {
   private readonly service: AuthService;
@@ -48,7 +46,10 @@ export class AuthController {
           maxAge: config.auth.tokenTtl,
         });
 
-        return new LoginVo(result);
+        return new LoginVo(
+          result.token,
+          new AuthUserVo(result.user.id, result.user.username, result.user.name),
+        );
       })
       .post('/logout', ({ cookie }) => {
         cookie[AUTH_COOKIE_NAME]?.remove();
@@ -57,7 +58,9 @@ export class AuthController {
       })
       .get('/me', ({ auth }) => {
         // authInterceptor already rejected the request when this is null.
-        return new AuthUserVo(auth as AuthUser);
+        const user = auth as AuthUser;
+
+        return new AuthUserVo(user.id, user.username, user.name);
       });
   }
 }

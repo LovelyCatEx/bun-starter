@@ -14,7 +14,8 @@ Vite + React + React Router + Tailwind CSS + shadcn/ui + react-i18next。默认�
 ## 结构与别名
 
 - `@` 别名指向 `web/src`（`web/vite.config.ts` 的 `resolve.alias` + `tsconfig.app.json` 的 `paths`）
-- import 顺序：外部依赖 → `@/` 别名 → 相对路径，之间空一行
+- `@shared` 别名指向仓库根的 `shared/`（两端共用的线上契约，见下）—— 它要在**三处**都配上：`vite.config.ts` 的 `resolve.alias`、`tsconfig.app.json` 的 `paths`（给 `tsc`）、`tsconfig.json` 的 `paths`（给按 tsconfig 解析的运行时，如 Bun 直接跑 web 代码）。只配一处或两处的症状是"typecheck 过了、跑起来 `Cannot find module '@shared/...'`"
+- import 顺序：外部依赖 → `@shared/` → `@/` → 相对路径，之间空一行
 - 每个后端模块对应前端一个同名包，放在 `web/src/api/<feature>/`：
 
 ```
@@ -23,21 +24,31 @@ web/src/api/
   system-requests.ts      # 适配后端 ApiResponse 的通用封装：get / post / put / patch / del
   websocket.ts            # 长连接客户端（见「WebSocket」）
   <feature>/
-    dto/                  # 与后端 DTO 对应
-    vo/                   # 与后端 VO 对应
-    <feature>.ts          # 该模块的请求方法
+    <feature>.ts          # 该模块的请求方法（dto / vo 从 @shared/<feature>/ 取，不再各写一份）
 ```
+
+## 共享层（仓库根目录 `shared/`）
+
+**两端共用的只有"线上契约"这一层**，不是把后端的 `common/` 搬过来 —— 后端的 config / 日志 / 异常 / 拦截器是服务端基础设施，前端也有自己的基础设施（`api/requests.ts`、`auth/token-store.ts`），这两堆都不共享。
+
+- 分两半：`shared/protocol/` 是与业务无关的传输契约（`ApiResponse` + `CODE_OK`、`PageQuery`、WS 帧、`WS_PING` / `WS_PONG`），`shared/<feature>/` 是每个业务模块的 dto / vo，**目录名与 `web/src/api/<feature>/` 同名**
+- 前端**只当类型用**就 `import type`（如 `AuthUserVo`、`WsResponse`），零运行时开销；确实要用到常量 / 类（`CODE_OK`、`WS_PING`）才值导入
+- **不要在 `web/src/api/<feature>/` 里再写一份 dto / vo**，那是以前两份手抄形状的老做法：抄错一边的症状是"类型都对、跑起来解不开包"。要改形状就改 `shared/`，两端一起变
+- 前端**不许**改 `shared/` 里的东西去迁就前端（比如用 `localStorage`、`window`、`fetch`）：它必须能在服务端跑。具体边界与禁止清单见 `.claude/rules/backend.md` 的「共享层」
+- 改 `shared/` 之后要跑两端：`cd web && bun run typecheck && bun run lint`，以及 `bunx vite build`（证明共享代码能被打进 bundle）
+- 共享层风格是**后端风格**（单引号 + 分号），前端不要去"顺手格式化"它 —— 一个文件被两端格式化工具来回改是没完的
 
 ## 请求规范
 
 - `requests.ts` 是**原始请求层**，只提供 `doGet` / `doPost` / `doPut` / `doPatch` / `doDelete`，不处理业务响应结构
-- `system-requests.ts` 在 `requests.ts` 之上**再封装**，方法名为朴素的 `get` / `post` / `put` / `patch` / `del`，自动解包后端 `ApiResponse`
+- `system-requests.ts` 在 `requests.ts` 之上**再封装**，方法名为朴素的 `get` / `post` / `put` / `patch` / `del`，自动解包后端 `ApiResponse`（信封与 `CODE_OK` 都是共享层那一份）
 - 业务代码不要直接发请求，应写在对应模块包 `<feature>.ts` 里，开发者只填返回体 `data` 的类型即可：
 
 ```ts
+import type { UserVo } from '@shared/user/vo/user.vo'
+import type { CreateUserDto } from '@shared/user/dto/create-user.dto'
+
 import { get, post } from '@/api/system-requests'
-import type { UserVo } from './vo/user.vo'
-import type { CreateUserDto } from './dto/create-user.dto'
 
 export function getUser(id: string) {
   return get<UserVo>(`/api/user/${id}`)
@@ -65,7 +76,7 @@ await send<ChatMessageVo>('chat.send', { text })
 - **全应用共享一条连接**（`getWebSocketClient()`），多个组件同时 `useWebSocket()` 不会各开一条；要接第二个后端才 `new WebSocketClient({ path })`
 - **挂载时自动连、卸载不断开**（别的组件可能还在用）。要断连就在该断的地方调 `getWebSocketClient().disconnect()`（退出登录、调试页开关），它会**停止重连**；反过来说，不调它就一定会自动重连
 - `send(event, data)` 发请求等应答，失败 reject 一个 `WsError`：`code === WS_CLIENT_ERROR`（负数）是**客户端侧**失败（没连上 / 超时 / 连接断掉），其余是后端的 `code`（与 HTTP 的 `ApiException.code` 同一套）；`notify(event, data)` 是单向帧，不等应答
-- 事件名与后端的 `event` 一字不差，`<feature>.<action>` 小写；**`ping` / `pong` 是协议保留事件**，业务不要用。心跳：默认每 25s 发一帧 `ping`，服务端回 `pong`，两个周期收不到任何帧就主动断开重连 —— 所以**后端 ws 路由必须实现 `ping → pong`**
+- **帧的类型来自共享层**（`@shared/protocol/ws-request` / `ws-response`），客户端不再自己声明 `WsFrame`；心跳用 `WS_PING` / `WS_PONG` 常量，不要写 `'ping'` 字面量。事件名与后端的 `event` 一字不差，`<feature>.<action>` 小写，业务不要占用心跳事件。心跳：默认每 25s 发一帧 `ping`，服务端回 `pong`，两个周期收不到任何帧就主动断开重连 —— 所以**后端 ws 路由必须实现 `ping → pong`**
 - `useWebSocket({ handlers })` 的 `handlers` 可以内联写字面量：只在**事件名集合**变化时才重新订阅，处理函数走 ref 取最新闭包，不必自己 `useMemo`
 - 认证不用管：cookie 模式浏览器自动带 cookie，localstorage 模式客户端自动拼 `?token=`（浏览器不能给 WS 加自定义头）。业务代码**不要**自己去读 token
 - 业务方法写在 `api/<feature>/<feature>.ts` 里（和 HTTP 一样），内部用客户端收发，调用点只调业务方法
@@ -78,6 +89,7 @@ await send<ChatMessageVo>('chat.send', { text })
 - 认证方式由 **`web/.env` 的 `VITE_AUTH_MODE`** 决定：`cookie`（默认）| `localstorage`，非法或缺省时回退 `cookie`（见 `web/src/auth/auth-mode.ts`）
 - token 读写只走 `web/src/auth/token-store.ts`；**cookie 模式下三个方法都是 no-op**（JS 读不到 httpOnly cookie），登录态只能靠 `GET /api/auth/me` 判断
 - 请求头与 401 只在 `web/src/api/requests.ts` 一处处理：自动挂 `Authorization`（localstorage 模式）、`credentials: 'include'`、401 触发 `setUnauthorizedHandler`（登录接口除外）
+- 登录相关的形状来自共享层：`LoginDto` / `LoginVo` / `AuthUserVo` 在 `@shared/auth/{dto,vo}/`（`AuthUserVo` 是"能出现在响应里的那几个字段"，**不是**后端的 `AuthUser` 内部模型）
 - 登录态与守卫：`auth-provider.tsx`（挂载时 `getMe` 判定）→ `useAuth()` → `require-auth.tsx`，受保护路由包在 `<Route element={<RequireAuth />}>` 里；`AuthProvider` 必须放在 `BrowserRouter` **内部**（要用 `useNavigate`）
 - 业务代码不要自己读 token、也不要自己处理 401
 

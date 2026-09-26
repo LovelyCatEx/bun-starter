@@ -1,7 +1,8 @@
 import { Elysia } from 'elysia';
 
+import { ApiResponse } from '@shared/protocol/api-response';
+
 import { ApiException } from '../exception/api-exception';
-import { ApiResponse } from '../response/api-response';
 
 export const responseInterceptor = new Elysia({ name: 'response-interceptor' })
   .onAfterHandle({ as: 'global' }, ({ responseValue }) => {
