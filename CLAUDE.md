@@ -74,7 +74,7 @@ bun run db:studio    # 打开 Drizzle Studio
 | rule | 作用域（frontmatter `paths`） | 装什么 |
 | --- | --- | --- |
 | `.claude/rules/backend.md` | `server/**`、`.env.example` | 分层与依赖方向、模块内结构、请求 / 响应、日志、配置、`index.ts`、代码风格；**专题只留指针** |
-| `.claude/rules/frontend.md` | `web/**` | 结构与别名、**页面 / 组件 / hook 的归属**、请求规范、认证、文案（i18n）、样式与主题、配置、`index.ts`、代码风格 |
+| `.claude/rules/frontend.md` | `web/**` | 结构与别名、**页面 / 组件 / hook 的归属**、请求规范、认证、浏览器通知、文案（i18n）、样式与主题、配置、`index.ts`、代码风格 |
 | `.claude/rules/shared.md` | `shared/**` | `shared/` 的边界与禁止清单、风格与严格度、改完必须跑两端 |
 | `.claude/rules/auth.md` | `server/src/modules/auth/**`、`server/docs/auth-provider.md` | `AuthProvider` 唯一扩展点、JWT 与两种传输、WS 升级的鉴权口子 |
 | `.claude/rules/database.md` | `server/src/db/**`、`server/drizzle.config.ts`、`server/drizzle/**` | 方言、启动即迁移、迁移目录在 dev 与产物里的两种来源 |
@@ -85,6 +85,16 @@ bun run db:studio    # 打开 Drizzle Studio
 - **rule 的 frontmatter 只认 `paths`**（YAML 列表，支持 glob 与 `{a,b}`），别写成 skill 的 `name` / `description`
 - 划不开的窄专题走 **skill**（按 description 匹配、用到才读）：`app-version` / `websocket` / `native-helper` / `frosted-glass` / `background-image`
 - 细则**别抄回 `backend.md`**：它对整个 `server/**` 生效，抄进去就是每读一个后端文件都要付的上下文 —— `backend.md` 顶部有张「想做什么，读哪份」的路由表
+
+**改文档自己的规矩**（踩过：把章节从 `backend.md` 搬到 `packaging.md` 之后，`.claude/` 和代码注释里那些"见 X 的「Y」"没跟着改，全部过期）：
+
+- 动了**文件位置 / 目录名 / 章节标题**之后，回头 grep 一遍引用，`rules` 互指、`skills`、**代码注释**里都会写这些东西，它们不会自己更新：
+
+  ```bash
+  grep -rn "backend\.md\|frontend\.md\|shared\.md\|auth\.md\|database\.md\|packaging\.md\|skills/" .claude CLAUDE.md server/src web/src scripts
+  ```
+
+- 文档里写"实测/实测过"的结论，必须是真跑出来的：`--asset` 只保留 basename、`notification` 桩要挂 `window` 上、`readableStreamToText` 已废弃 —— 这三条都是先写错、被测出来才改对的
 
 **专题 skill**（涉及对应改动时先读）：
 

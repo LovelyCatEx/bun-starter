@@ -8,7 +8,7 @@ paths:
 
 Vite + React + React Router + Tailwind CSS + shadcn/ui + react-i18next。默认端口 `5108`，开发时 `/api/*` 代理到后端 `5107`。
 
-命令、端口、目录概览见 `CLAUDE.md`；后端侧的规范见 `.claude/rules/backend.md`。
+命令、端口、目录概览见 `CLAUDE.md`；后端侧的规范见 `.claude/rules/` 下的 `backend` / `shared` / `auth` / `database` / `packaging`（各自按 `paths` 加载，关系见 CLAUDE.md 那张表）。
 
 ## 结构与别名
 
@@ -28,13 +28,20 @@ web/src/api/
 
 ### 页面、组件、hook 的归属（硬性）
 
-**判据只有一个：会不会被第二个页面用。** 全局那几层只放通用的，业务一律跟着页面走。
+新东西放哪，**照这两步问，不要凭感觉**：
+
+1. **会被第二个页面用吗？** 不会 → 什么都不用想，放进 `pages/<page>/components|hooks/`，别提前抽象。
+2. **会。那它是"通用能力"还是"业务功能域"？**
+   - 通用能力：浏览器 API、主题、i18n、长连接、通知这类"哪个页面都能用、跟业务无关"的东西 → `web/src/hooks/`（`use-xxx.ts` 平铺；需要配套文件时在该 hook 名下开文件夹，如 `hooks/notification/`）
+   - 业务功能域：`auth` 这种"这个系统里谁在登录 / 什么业务概念"的东西 → 自己一个文件夹（`web/src/<feature>/`），它的 hook 跟着它走
+
+判据只有这两步，别拿"它长得像一个 hook"当理由往 `hooks/` 塞业务（`auth/use-auth.ts` 就是反例），也别把通用能力塞进业务文件夹。
 
 | 放哪 | 只放什么 | 现有例子 |
 | --- | --- | --- |
 | `web/src/components/` | **全局通用组件**：跨页面复用、与具体业务无关 | `components/ui/`（shadcn 生成的原语） |
-| `web/src/hooks/` | **全局通用 hook**：跨页面复用 | `use-device` / `use-language` / `use-theme-settings` / `use-websocket` |
-| `web/src/<feature>/` | 跨页面的**功能域**自己的东西；功能自己的 hook 跟着功能走，**不要**塞进 `components/` 或 `hooks/` | `auth/`（含 `use-auth.ts`） |
+| `web/src/hooks/` | **全局通用 hook**：跨页面复用、与业务无关（浏览器能力、主题、i18n、长连接这类）。配套文件多时在该 hook 名下开文件夹 | `use-device` / `use-language` / `use-websocket`；`hooks/notification/`（`notification.ts` + `use-notification.ts`） |
+| `web/src/<feature>/` | **业务功能域**自己的东西；业务的 hook 跟着业务走，**不要**塞进 `components/` 或 `hooks/` | `auth/`（含 `use-auth.ts`） |
 | `web/src/pages/<page>/` | **只服务这个页面**的一切：页面本体 + `components/` + `hooks/` | `pages/debug/` |
 
 - `components/ui/` 是设计系统那层（shadcn 生成物），**业务组件一个都不许进去**；`components/` 根下只放跨页面的通用件
@@ -127,7 +134,23 @@ await send<ChatMessageVo>('chat.send', { text })
 - 业务方法写在 `api/<feature>/<feature>.ts` 里（和 HTTP 一样），内部用客户端收发，调用点只调业务方法
 - 开发时 `/api` 代理的 `ws: true` 在 `web/vite.config.ts` 里，删了 WS 升级请求就停在 vite 上（表现是连不上、后端毫无反应）
 
-后端侧（帧结构、`WsRequest` / `WsResponse`、parse 与错误帧）见 `.claude/rules/backend.md` 的「WebSocket」一节。
+后端侧（帧结构、`WsRequest` / `WsResponse`、parse 与错误帧）见 `.claude/skills/websocket/SKILL.md`；硬性约束在 `.claude/rules/backend.md` 的「WebSocket」一节。
+
+## 浏览器通知（`web/src/hooks/notification/`）
+
+**本地通知**：页面还活着时用系统通知提醒用户。页面关掉也要收是 Web Push（Service Worker + VAPID + 服务端存订阅），本项目不做。
+`notification.ts` 管权限与"发一条"，`use-notification.ts` 是组件入口（`useNotification()`）。
+
+- **权限只能在用户手势里申请**：接到按钮的 `onClick` 上，**不许**在 `useEffect` 里自动调 —— Safari 不弹，Chrome 会把它当"静默请求"，等于把这个 origin 唯一一次弹窗机会浪费掉。`denied` 是不可逆的：UI 必须区分"还没问过（可引导）"和"被拒了（只能去浏览器设置改）"
+- **`supported` 里含 `isSecureContext`**：dev 的 `http://localhost` 算安全上下文，但**打包产物用局域网 http 打开时通知永远不可用**（`Notification` 直接不存在），UI 要能说出原因，别给一个点了没反应的按钮
+- **页面可见且有焦点时默认不发**（`notify()` 返回 `false`），前台交给页面内的 toast；判定用 `visibilityState === 'hidden' || !hasFocus()`，只看 visibility 会漏掉"标签页可见、窗口没焦点"——那正是最该弹的时候。要前台也弹就显式 `whenFocused: true`
+- **`notify()` 返回 boolean**（真弹了才 true，弹不出不抛），调用方据此决定要不要退回 toast；`tag` 用 `<feature>.<id>`（`chat.<roomId>`），同 tag 互相替换、连发自动合并；回到页面时会收掉本页创建的通知
+- 文案是**发送那一刻的快照**：i18n 的 key 在调用方翻好再传进去（`notify({ title, body })`），之后切语言不会重发
+- **事件 → 通知的映射属于业务**：写在 `pages/<page>/hooks/use-xxx-notifications.ts`（配合 `useWebSocket({ handlers })`），全局模块里不许认识业务事件
+
+调试页的 `pages/debug/components/notification-section.tsx` 是现成用法示例（含权限、tag 合并、前台策略、点击回调四种）。
+
+**验证没有浏览器怎么办**（本仓库没有测试框架）：`notification.ts` 不 import React，所以能直接用一个**伪浏览器**跑它 —— 在 `bun` 里给 `globalThis` 装上假的 `window` / `document` / `Notification`（class 上带 `static permission`、`instances`、`close()` 计数），然后 `await import()` 这个模块，逐条断言：未授权不发、前台不发、`whenFocused` 才发、`close(tag)` 只关对上的、点击触发 `window.focus` + 回调、回到页面收掉全部、`isSecureContext=false` 时 `supported` 为假。⚠️ 桩必须把 `Notification` **挂到 `window` 上**（真实浏览器里 `window === globalThis`），只挂 `globalThis` 会让模块里那句 `'Notification' in window` 判成不支持，测出一堆假失败。
 
 ## 认证（`web/src/auth/`）
 
@@ -138,7 +161,7 @@ await send<ChatMessageVo>('chat.send', { text })
 - 登录态与守卫：`auth-provider.tsx`（挂载时 `getMe` 判定）→ `useAuth()` → `require-auth.tsx`，受保护路由包在 `<Route element={<RequireAuth />}>` 里；`AuthProvider` 必须放在 `BrowserRouter` **内部**（要用 `useNavigate`）
 - 业务代码不要自己读 token、也不要自己处理 401
 
-后端侧（JWT、cookie、放行清单）见 `.claude/rules/backend.md` 的「认证」一节。
+后端侧（JWT、cookie、放行清单、WS 升级的口子）见 `.claude/rules/auth.md`。
 
 ## 文案（i18n）
 
@@ -167,8 +190,10 @@ web/src/i18n/
 4. **key 前缀由目录决定**，文件内的 key 不许再重复目录名：`auth/login/zh-cn.ts` 里写 `title`（→ `auth.login.title`），写 `loginTitle` 是错的
 5. key 里**禁止出现 `.`**（点号是 i18next 的路径分隔符，会把 key 拆成两级）
 6. 同一个 key 在各语言文件里必须一一对应：**不许只加一种语言**，加 key 就成套加
-7. 组件里**不许 import 语言文件**、不许写死英文/中文，一律 `t('...')`
+7. 组件里**不许 import 语言文件**、不许写死英文/中文，一律 `t('...')`（唯一例外见下）
 8. 语言码全小写；`config.ts` 里的 `lowerCaseLng: true` **不要删**（见"排查"）
+
+**例外：`web/src/pages/debug/**` 不做 i18n。** 调试页是开发期自己看的、**上线前会整页删掉**，所以它的文案一律**英文硬编码** —— 这是全仓库唯一允许写死文案的地方。别给调试页加语言文件（白做），也别拿它当一个"i18n 没做全"的例子去改。
 
 ### 命名与分层
 
@@ -366,7 +391,7 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
 - 值是 **vite 构建时内联**进 `dist/assets/index-*.js` 的，改完必须重新 `vite build`（dev 下 `app.config.ts` 在依赖图里，会正常重载）
 - 注意 import 层级：`web/src/pages/x.tsx` → `../../../app.config`；相对 import 排在 `@/` 别名 import **之后**，空一行
 - 展示时**不要写死**：文案走 i18n（每个语言文件成套加 key），值传 `{ name: APP_NAME, version: APP_VERSION }`
-- 完整规则、验证与排查见 `.claude/skills/app-version/SKILL.md`；打包与产物命名见 `.claude/rules/backend.md`
+- 完整规则、验证与排查见 `.claude/skills/app-version/SKILL.md`；打包与产物命名见 `.claude/rules/packaging.md`
 
 ## `index.ts` 规范
 
@@ -382,7 +407,14 @@ export type { FooProps } from './foo.types'
 
 ## 代码风格
 
-- 单引号、**不写分号**、2 空格缩进
+- 单引号、**不写分号**、2 空格缩进。⚠️ 这条只管**手写**文件：`web/src/components/ui/**` 是 shadcn 生成物，用**双引号**（分号它也不写，实测 61 个文件一致），别照抄它的引号；反过来也别把 `server/` 的分号风格带过来 —— 两边是反的，来回切文件时最容易串味
+- 自查行尾分号（输出应当为空 —— 有输出就是被 `server/` 带串味的手写文件）：
+
+  ```bash
+  grep -rn ';$' web/src --include=*.ts --include=*.tsx | grep -v '/components/ui/'
+  ```
+
+  `grep -v` 排掉生成物，是因为上游哪天改回分号不该算在我们头上；`;$` 匹配的是"以分号结尾的行"，也正是后端每个 `import` / 语句的写法
 - `tsconfig.app.json` 开了 `noUnusedLocals` / `noUnusedParameters` / `erasableSyntaxOnly`：不要留未使用的变量、不要用 enum / namespace / parameter properties
 - `verbatimModuleSyntax`：只当类型用的 import 必须写 `import type`
 - 组件文件与组件名 PascalCase（`require-auth.tsx` / `RequireAuth`），其余文件 kebab-case

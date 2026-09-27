@@ -8,6 +8,7 @@ import { FormSection } from '@/pages/debug/components/form-section'
 import { InputSection } from '@/pages/debug/components/input-section'
 import { LayoutSection } from '@/pages/debug/components/layout-section'
 import { NavigationSection } from '@/pages/debug/components/navigation-section'
+import { NotificationSection } from '@/pages/debug/components/notification-section'
 import { OverlaySection } from '@/pages/debug/components/overlay-section'
 import { ThemeSection } from '@/pages/debug/components/theme-section'
 
@@ -74,6 +75,7 @@ export function ThemeDebugPage() {
             <NavigationSection />
             <DataSection />
             <OverlaySection />
+            <NotificationSection />
             <AiSection />
           </div>
         </main>

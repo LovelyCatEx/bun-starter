@@ -9,7 +9,7 @@ import path from 'node:path';
  * compiles to `<name>` (`<name>.exe` on Windows), and `scripts/compile.ts` embeds each
  * platform's build with `--asset` — which keeps only the basename, so all five builds land
  * under exactly the same name. That is the whole reason the lookup below can be a hard-coded
- * string instead of a search: see `.claude/rules/backend.md` 「原生产物（C / C++）」.
+ * string instead of a search: see `.claude/skills/native-helper/SKILL.md` (entry point: `.claude/rules/packaging.md`).
  *
  * A packaged release has no compiler to build with, so it carries the built helper inside the
  * binary and writes it out on first use — a program cannot be run from inside the binary. In

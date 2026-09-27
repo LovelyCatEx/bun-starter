@@ -49,13 +49,15 @@ if (!hasMigrations) {
 }
 
 console.log(`2/2 Compile ${TARGETS.length} executables — ${APP_NAME} ${APP_VERSION}`);
-// `--asset web/dist` embeds the built frontend under its own path, and the server
-// reads it back out of `Bun.embeddedFiles` at startup to serve it on its own port
-// (see server/src/common/static/embedded-static.ts). Each artifact is then this one
-// file, and it needs neither node_modules nor bun to run: `--target` cross-compiles
-// without any external toolchain, since the target's Bun runtime is embedded whole.
-// The native helpers below are the one part that does need a compiler — but only if
-// the repo has any.
+// `--asset web/dist` embeds the built frontend, and the server reads it back out of
+// `Bun.embeddedFiles` at startup to serve it on its own port (see
+// server/src/common/static/embedded-static.ts — which derives the prefix from the embedded
+// names, because bun keeps only a basename: this lands as `dist/…`, not `web/dist/…`).
+//
+// Each artifact is then this one file, and it needs neither node_modules nor bun to run:
+// `--target` cross-compiles without any external toolchain, since the target's Bun runtime
+// is embedded whole. The native helpers below are the one part that does need a compiler —
+// but only if the repo has any.
 await rm(path.join(root, 'dist-bin'), { recursive: true, force: true });
 
 const skipped: string[] = [];

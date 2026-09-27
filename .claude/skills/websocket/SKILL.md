@@ -16,7 +16,7 @@ description: WebSocket（长连接）的 Skill。当需要加一条长连接业�
 | 前端业务 | `web/src/api/<feature>/<feature>.ts` | 每个事件一个函数，内部用上面的客户端 |
 | 前端组件 | `web/src/hooks/use-websocket.ts` | `useWebSocket({ handlers })` 收推送，`connected` 控 UI |
 
-硬性约束见 `.claude/rules/backend.md` 的「WebSocket」「共享层」与 `.claude/rules/frontend.md` 的「WebSocket」；这里是"怎么做完一件事"。
+硬性约束见 `.claude/rules/backend.md` 的「WebSocket」、帧的定义见 `.claude/rules/shared.md`、前端侧见 `.claude/rules/frontend.md` 的「WebSocket」；这里是"怎么做完一件事"。
 
 ## 帧：照抄，别自己发明
 

@@ -41,10 +41,10 @@ const embedded = Array.from(Bun.embeddedFiles) as unknown as EmbeddedFile[];
 const shell = embedded.find((file) => file.name.endsWith(SHELL));
 
 /**
- * `bun build --compile --asset web/dist` embeds each file under the path it was
- * passed with (`web/dist/assets/index-abc.js`), so the runtime has to strip that
- * prefix back off. Deriving it from the shell entry means a leading `./` in the
- * asset argument cannot silently break every lookup.
+ * `--asset` only keeps a name's **basename**: `web/dist` lands in the executable as
+ * `dist/...`, not `web/dist/...` (measured; the parent directories are dropped). Which is
+ * exactly why the prefix is derived here from the shell entry instead of written down — a
+ * changed asset argument, or a leading `./`, would otherwise silently break every lookup.
  */
 const root = shell === undefined ? '' : shell.name.slice(0, -SHELL.length);
 const files = new Map<string, EmbeddedFile>();
