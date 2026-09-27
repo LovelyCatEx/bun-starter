@@ -1,9 +1,7 @@
 ---
-description: 后端（server/）开发规范。写后端代码、加业务模块、动分层与依赖方向、写 controller/service/DTO/VO/拦截器、接数据库或迁移、加配置项、改打包产物时使用。涉及 server/src 的目录结构、common 与 modules 的依赖方向、Elysia 拦截器注册顺序、统一响应与异常、日志、应用标识与单端口打包、index.ts 与代码风格。长连接（WebSocket）与原生产物（C/C++）的细节已拆进 `.claude/skills/`，本文件只留硬性约束与指针。
+description: 后端（server/）核心规范。写后端代码、加业务模块、动分层与依赖方向、写 controller/service/DTO/VO/拦截器、统一响应与异常、日志、请求 / 响应时使用。涉及 server/src 的目录结构、common 与 modules 的依赖方向、Elysia 拦截器注册顺序、index.ts 与代码风格。**认证、共享层、数据库、打包与标识各有一份单独的 rule，本文件只留指针。**
 paths:
   - "server/**"
-  - "app.config.ts"
-  - "scripts/**"
   - ".env.example"
 ---
 
@@ -11,14 +9,27 @@ paths:
 
 Bun + Elysia + Drizzle ORM + Drizzle Kit + Zod。默认端口 `5107`，开发时前端 `5108` 的 `/api/*` 代理到它。
 
-命令、端口、目录概览见 `CLAUDE.md`；前端侧的规范见 `.claude/rules/frontend.md`。
+## 想做什么，读哪份
+
+| 要做的事 | 去哪 |
+| --- | --- |
+| 加业务模块 / 写 controller、service、dto、vo / 动分层 | 本文件（下面「架构」） |
+| 统一响应、异常、拦截器 | 本文件「请求 / 响应」 |
+| 认证：登录、token、鉴权拦截器、接入自己的账号体系 | `.claude/rules/auth.md` |
+| 动 `shared/`（dto / vo、协议帧） | `.claude/rules/shared.md` |
+| 加表 / 改 schema / 写查询 / 迁移 | `.claude/rules/database.md` |
+| 打包产物、内嵌资源、应用名称与版本号 | `.claude/rules/packaging.md` + `.claude/skills/app-version/SKILL.md` |
+| 加一条长连接业务 / 动 WS 帧 | `.claude/skills/websocket/SKILL.md`（本文件只留硬约束） |
+| 引入 C / C++ 原生程序 | `.claude/skills/native-helper/SKILL.md`（入口在 `packaging.md`） |
+
+这几份 rule 都按 `paths` 自动加载（改 `shared/**` 只加载 `shared.md`，改 `scripts/**` 只加载 `packaging.md`），所以**别把细节抄回本文件**：本文件对所有 `server/**` 生效，抄进来就是每次读后端文件都要付的上下文。
 
 ## 架构：单包 + 内部功能域文件夹
 
 后端是**单包 + 内部功能域文件夹**，不再按 workspace 拆包。
 
 ```
-shared/                       # 仓库根目录：两端共用的线上契约，禁止依赖任何一端（见「共享层」）
+shared/                       # 仓库根目录：两端共用的线上契约，禁止依赖任何一端（见 `.claude/rules/shared.md`）
   protocol/                   # 与具体业务无关的传输契约
     api-response.ts           # CODE_OK / ApiResponse / PaginatedResponseBody
     page-query.ts             # PageQuery
@@ -44,7 +55,7 @@ server/src/
     service/
       log-service.ts        # LogService：唯一的日志出口（见「日志」）
     static/
-      embedded-static.ts    # 打包产物里内嵌前端的服务（见「应用标识与打包」）
+      embedded-static.ts    # 打包产物里内嵌前端的服务（见 `.claude/rules/packaging.md`）
   db/
     database.ts             # createDatabase + db 实例
     schema.ts               # Drizzle schema（当前为空）
@@ -82,7 +93,7 @@ shared/             # 两端共用的契约：谁都能 import 它，它谁都 i
 - 模块之间不要互相 import；确实要复用就先下沉到 `common`
 - 模块自己的东西一律留在模块内：装配入口 `modules/<feature>/<feature>.plugin.ts` 放模块根目录，拦截器放 `modules/<feature>/interceptor/` 包（见下）
 - 反向依赖的判定标准很简单：`grep -rn "modules/" server/src/common/` 必须没有输出
-- 依赖方向里多了一层 `shared/`（仓库根目录），它是**最底下那一层**：两端都 import 它，它谁都不 import。边界与硬规则见「共享层」
+- 依赖方向里多了一层 `shared/`（仓库根目录），它是**最底下那一层**：两端都 import 它，它谁都不 import。边界与硬规则见 `.claude/rules/shared.md`
 
 ### 模块内的结构
 
@@ -183,44 +194,6 @@ new Elysia()
   .listen(config.port)
 ```
 
-## 认证（`server/src/modules/auth/`）
-
-- 认证全部在 `modules/auth/` 内实现，`common/` 不参与（见「分层与依赖方向」）；**接入自己的账号体系看 `server/docs/auth-provider.md`**
-- 目录即「模块内的结构」的参考实现：`auth.plugin.ts`（装配入口）+ `controller/`（含 `dto` / `vo`）+ `service/` + `entity/`（空）+ `provider/`（账号校验实现）+ `interceptor/`（认证拦截器）
-- **账号校验的唯一扩展点是 `AuthProvider` 接口**（`provider/auth-provider.ts`）：实现 `authenticate(credentials)`，返回 `AuthUser` 或 `null`，数据库 / LDAP / 第三方接口随便接
-- 装配在 `main.ts` 里，工厂模式对齐 `createDatabase()`：
-
-```ts
-.use(createAuthPlugin())                     // 不注入 → 内置 admin/admin（仅开发用）
-.use(createAuthPlugin(new MyAuthProvider())) // 注入 → 内置实现完全不参与
-```
-
-- token 是 jose 的 HS256 无状态 JWT，claims 只有 `sub` / `username` / `name`；secret 与有效期来自 `AUTH_JWT_SECRET` / `AUTH_TOKEN_TTL`
-- 传输**同时接受**两种，后端不区分模式：httpOnly cookie（`AUTH_COOKIE_NAME = 'auth_token'`，`sameSite=lax`，生产自动 `secure`）+ `Authorization: Bearer <token>`
-- **WS 升级不算第三种传输**：升级请求也走同一个 `authInterceptor`（拿不到 token 直接连不上），只是浏览器不能给 WebSocket 加自定义头，所以升级请求额外接受 `?token=`（`pickToken` 里由 `isUpgrade()` 把口子限定在升级请求上 —— 普通请求把 token 拼进 URL 会漏进访问日志和 Referer）
-- 鉴权在 `modules/auth/interceptor/auth.interceptor.ts`：`derive({ as: 'global' })` 只解析身份（不通过就是 `null`），`onBeforeHandle({ as: 'global' })` 负责抛 `UnauthorizedException`；handler 里直接读 `auth`
-- 只拦 `/api/*`，静态资源与 HTML 不受影响；放行清单是 `PUBLIC_PATHS`，新增公开接口往这里加
-- 接口：`POST /api/auth/login`（返回 token + user，同时写 cookie）、`POST /api/auth/logout`、`GET /api/auth/me`
-- `AuthController.routes` 里的 `.use(authInterceptor)` **只是为了拿到 `auth` 的类型**，插件按名字去重，不会重复执行
-
-前端侧（token 存哪、401 怎么处理、路由守卫）见 `.claude/rules/frontend.md` 的「认证」一节。
-
-**cookie 的同站限制**：`SameSite=Lax` 只适用于"前后端同站"（开发时 vite 代理即同源，单端口打包同样同源）。跨站部署需要改成 `SameSite=None; Secure`。
-
-## 共享层（仓库根目录 `shared/`）
-
-两端**共用同一份代码**的线上契约。以前是两份手抄的形状（`ApiResponse`、WS 帧、DTO/VO 各一份），抄错一边的症状是"类型都对、跑起来解不开包"，所以这部分只留一份。
-
-- 分两半：`shared/protocol/` 是与业务无关的传输契约（信封、分页、WS 帧、保留事件名），`shared/<feature>/` 是每个业务模块的 dto / vo，**目录名与后端模块同名**
-- import 一律用 `@shared/...` 别名：后端走 `server/tsconfig.json` 的 `paths`，前端走 `web/vite.config.ts` 的 `resolve.alias` **加上两个 tsconfig**（`tsconfig.app.json` 给 `tsc`，`tsconfig.json` 给 Bun / vite 这类按 tsconfig 解析的运行时 —— 只改一个的症状是"typecheck 过了、跑起来 Cannot find module"）
-- **`shared/` 里禁止出现**：`node:*` / `bun` / `@elysiajs/*` / `elysia` / `react` / DOM API、`process.env`、`fetch` / `localStorage`、任何一端独有的东西。它必须是最底层：**谁都 import 得动它，它谁都 import 不了**
-- 内容只有两种：**纯类型 / 纯数据类**（字段 + 参数构造 + 无依赖的小工具方法，如 `toFrame()` / `totalPages`），以及**常量**（`CODE_OK`、`WS_PING`）。别把配置、日志、异常体系搬进来 —— `ApiException`、`LogService`、`config` 是服务端的概念，前端永远不会用到
-- 副作用是"异常不认识 code"：共享的 `WsResponse` 只收 `code` / `message`，把 `ApiException` 翻成这两个值的映射留在服务端（`common/response/ws-failure.ts`）。以后加共享类型时也会遇到同样的分界线，往这边靠
-- **风格跟 `app.config.ts`**：单引号 + 分号（后端风格），字段显式声明，不用 `enum` / 参数属性
-- **严格度按最严的那份**：`shared/` 同时被 server（`strict` + `noUncheckedIndexedAccess`）和 web（宽松）编译，所以按 server 的规矩写 —— 反过来会出现"web 能过、server 报错"
-- 改 `shared/` 必须跑两端：`cd server && bun run typecheck` + `cd web && bun run typecheck && bun run lint`，并至少验一次 `vite build`（前端要能把共享代码打进 bundle）
-- 共享层里**不要**再出现"镜像类型"（`interface` 版 + `class` 版各一个），一份就是一份
-
 ## 配置
 
 - 所有项目设置都通过环境变量，由 `src/common/config.ts` 中的 `EnvSchema`（Zod）校验，并导出 `config` 单例和 `Config` 类
@@ -277,54 +250,9 @@ return new PaginatedResponseBody(items, total, page, pageSize)
 - `id` 由客户端生成、服务端原样带回，服务端主动推送与单向通知是 `null`；只走 JSON 文本帧
 - **每个 ws 路由必须实现 `WS_PING → WS_PONG`**：前端 25s 一次心跳，靠它判断连接还活着
 - 帧的解析与构造只在共享层这一处（`WsRequest.parse` / `WsResponse.ok|push`），错误帧一律经 `wsFailure()`；**解析失败不要抛异常、也不要静默**
-- 鉴权与 HTTP 完全一样（`authInterceptor` 覆盖 ws，所以必须挂在 `/api/*` 下）；前端的心跳 / 重连 / 请求应答都在 `web/src/api/websocket.ts`，服务端不要重复实现
+- 鉴权与 HTTP 完全一样（`authInterceptor` 覆盖 ws，所以必须挂在 `/api/*` 下；见 `.claude/rules/auth.md`）；前端的心跳 / 重连 / 请求应答都在 `web/src/api/websocket.ts`，服务端不要重复实现
 
 加一条长连接业务、广播 / 订阅、前端接推送与组件侧用法、排查（连不上 / send 超时 / 一直重连 / 被 401 挡在升级）→ **`.claude/skills/websocket/SKILL.md`**
-
-## 数据库
-
-- `DATABASE_TYPE` 支持 `sqlite` / `postgres` / `mysql`；SQLite 路径按 `process.cwd()` 解析，换目录启动会换掉读到的 `.env` 与落库位置
-- schema 写在 `src/db/schema.ts`（当前留空）；**不要自己连库**，统一用 `src/db/database.ts` 的 `db`
-- **启动即把迁移跑到最新**：`createDatabase()` 里三种方言各调自己的 `migrate()`。没有迁移（schema 还空着，或编译那个产物时还没 `db:generate`）就跳过并打一行 debug —— 空库启动是脚手架的常态；**但迁移执行失败要把异常抛出去**，schema 不对的进程不该开始收请求
-- `main.ts` 里那句 `import './db/database'` 是**副作用 import，别删**：迁移必须赶在第一个请求之前跑完，不能等某个业务模块第一次 import `db`（业务模块只用 `schema.ts` 拿表定义时，`db` 可能一直没人 import）
-- 迁移目录 dev 读磁盘上的 `server/drizzle`、产物读 `--asset` 内嵌的那份，内嵌与查找的规矩见「打包」
-- 脚本 `db:generate` / `db:migrate` / `db:studio`（在 `server/` 下跑）见 `CLAUDE.md` 常用命令；`db:migrate` 是给"手动 / CI 里先迁移"用的，跑起来那份应用自己也会迁移
-
-## 应用标识与打包
-
-### 应用标识
-
-应用名称与版本号的**唯一来源**是仓库根 `app.config.ts`（`APP_NAME` / `APP_VERSION`），后端、前端、打包脚本都**直接 import** 它，没有第二份拷贝、没有 `define`、没有环境变量。`APP_NAME` 同时当显示名与产物文件名，必须是小写短横线 slug（`bun-starter`）；根 `package.json` 的 `version` 是 npm 元数据，**与应用版本无关**。
-
-改版本号的完整流程、验证与排查（"改了没生效""产物名没变""前端没更新"）→ **`.claude/skills/app-version/SKILL.md`**
-
-### 打包：单文件 + 单端口
-
-`bun run compile` = 前端 `vite build` + 每个 target 编一份原生产物 + `bun build --compile`，产出 `dist-bin/<name>-<version>-<platform>`（5 个 target，靠 Bun 内嵌各平台 runtime 交叉编译）。
-
-`--asset` 有三个来源：
-
-- **前端 `web/dist`** —— 由 `server/src/common/static/embedded-static.ts` 启动时从 `Bun.embeddedFiles` 里读出来自己服务，所以整个应用只占**一个端口**，不需要 node_modules、不需要 bun、不需要单独的前端服务器；该插件在 `Bun.embeddedFiles` 为空时（即 `bun run dev`）退化成空插件，dev 下前端仍由 vite 提供
-- **迁移 `server/drizzle`** —— 二进制旁边没有它可读，而服务端**启动就要迁移**（见「数据库」）。还没 `db:generate` 过就只警告、不加这个 `--asset`，让空 schema 的脚手架照样能打包
-- **每个 target 自己的原生 helper** —— 见「原生产物（C / C++）」
-
-**目录**（前两个）的内嵌名字只看 basename：实测 `web/dist` → `dist/…`、`server/drizzle` → `drizzle/…`，父级路径全丢 —— 所以读目录要**从 `Bun.embeddedFiles` 反推**（`index.html` / `meta/_journal.json` 那几条记录），别凭直觉写 `import.meta.dir/drizzle`。**单个文件**（helper）同样只留 basename，于是干脆按名字写死去找。两条路别混用。
-
-**前两个不需要任何工具链，只有原生 helper 需要** clang / zig —— 仓库里 `server/native/` 没有 `.c` / `.cpp` 时，整条链路跟以前一样零依赖。
-
-- 静态路由**必须返回真正的 `Response`**（见「请求 / 响应」最后一条），否则会被包装成 JSON
-- 客户端路由（如 `/login`）在服务端是未知路径，会回退到内嵌的 `index.html`；`/api/*` 的未知路径仍是 404
-- `scripts/compile.ts` 是**根目录的文件**，由根 `tsconfig.json` 检查（`types: ["bun"]` 已经带上 `node:*` 与 Bun 全局）；新增根目录 TS 文件要加进那份 `include`。三条命令各自解析 `@shared/*`：`bun run`（cwd=server）、`bun build src/main.ts`（按入口文件最近的 `server/tsconfig.json`）、`vite build`（按 `web/vite.config.ts` 的 alias）—— 改别名配置时这三条都要能过
-
-### 原生产物（C / C++）
-
-需要一段原生程序时（真 PTY、系统调用、现成的 C/C++ 库、性能热点）：`server/native/<name>.c` 编出来就叫 `<name>`（Windows 上是 `<name>.exe`），**5 个平台的产物里同名内嵌**，运行时按名字从 `Bun.embeddedFiles` 里取出来、抽到磁盘再跑。dev 有编译器就从源码编（mtime 缓存），产物没有编译器就抽内嵌那份 —— 一个入口两种来源，调用方不需要知道自己在哪。
-
-- 名字是唯一约定，三处必须一致：`server/native/<name>.c` ↔ `NATIVE_HELPERS` 里的一行 ↔ `runNativeHelper('name')`。对不上直接报错，不会静默退化
-- 缺工具链或编译失败 → **整个 target 跳过**（不静默发一个"原生能力一跑就报错"的产物）；仓库里没有 `.c` / `.cpp` 时默认链路依旧**零工具链**（前端与迁移不需要 gcc / zig）
-- ⚠️ **资源进产物 ≠ 读取端进产物**：`--asset` 是显式的，helper 一定在内；读它的代码要有人 import，否则会被 tree-shake（和「数据库」里 `db` 那个坑同理）
-
-选进程还是 `bun:ffi`、写与接入、三层调用 API、工具链与体积、抽取语义、排查与验证套路 → **`.claude/skills/native-helper/SKILL.md`**
 
 ## `index.ts` 规范（与前端一致，硬性要求）
 

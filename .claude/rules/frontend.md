@@ -2,7 +2,6 @@
 description: 前端（web/）开发规范。写前端代码、加页面/组件/请求、动样式与主题、加或改文案（i18n）、接认证时使用。涉及 web/src 的目录与 @ 别名、请求分层、react-i18next「目录即 key 前缀」的约定、Tailwind token 与四种颜色模式、应用标识、index.ts 与代码风格。
 paths:
   - "web/**"
-  - "app.config.ts"
 ---
 
 # 前端规范（`web/`）
@@ -29,14 +28,11 @@ web/src/api/
 
 ## 共享层（仓库根目录 `shared/`）
 
-**两端共用的只有"线上契约"这一层**，不是把后端的 `common/` 搬过来 —— 后端的 config / 日志 / 异常 / 拦截器是服务端基础设施，前端也有自己的基础设施（`api/requests.ts`、`auth/token-store.ts`），这两堆都不共享。
+定义、边界与禁止清单在 **`.claude/rules/shared.md`**（改 `shared/**` 时自动加载）。前端侧只要记住三条：
 
-- 分两半：`shared/protocol/` 是与业务无关的传输契约（`ApiResponse` + `CODE_OK`、`PageQuery`、WS 帧、`WS_PING` / `WS_PONG`），`shared/<feature>/` 是每个业务模块的 dto / vo，**目录名与 `web/src/api/<feature>/` 同名**
-- 前端**只当类型用**就 `import type`（如 `AuthUserVo`、`WsResponse`），零运行时开销；确实要用到常量 / 类（`CODE_OK`、`WS_PING`）才值导入
-- **不要在 `web/src/api/<feature>/` 里再写一份 dto / vo**，那是以前两份手抄形状的老做法：抄错一边的症状是"类型都对、跑起来解不开包"。要改形状就改 `shared/`，两端一起变
-- 前端**不许**改 `shared/` 里的东西去迁就前端（比如用 `localStorage`、`window`、`fetch`）：它必须能在服务端跑。具体边界与禁止清单见 `.claude/rules/backend.md` 的「共享层」
-- 改 `shared/` 之后要跑两端：`cd web && bun run typecheck && bun run lint`，以及 `bunx vite build`（证明共享代码能被打进 bundle）
-- 共享层风格是**后端风格**（单引号 + 分号），前端不要去"顺手格式化"它 —— 一个文件被两端格式化工具来回改是没完的
+- 前端**只当类型用就 `import type`**（如 `AuthUserVo`、`WsResponse`），零运行时开销；确实要用到常量 / 类（`CODE_OK`、`WS_PING`）才值导入
+- **不要在 `web/src/api/<feature>/` 里再写一份 dto / vo**：抄错一边的症状是"类型都对、跑起来解不开包"。要改形状就改 `shared/`，两端一起变
+- 前端**不许**改 `shared/` 去迁就前端（`localStorage` / `window` / `fetch` 都不许进去），也**不要去"顺手格式化"它** —— 共享层是后端风格（单引号 + 分号），被两端格式化工具来回改是没完的
 
 ## 请求规范
 

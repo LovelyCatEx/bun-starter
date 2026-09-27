@@ -22,15 +22,15 @@ Bun monorepo 脚手架：
 bun-starter/
   app.config.ts         # 应用名称 / 版本的唯一来源，前后端都直接 import
   tsconfig.json         # 只覆盖根目录工具链（app.config.ts + scripts/）—— 见「常用命令」
-  shared/               # 前后端共用的线上契约（信封 / WS 帧 / 各模块 dto、vo），见 .claude/rules/backend.md「共享层」
+  shared/               # 前后端共用的线上契约（信封 / WS 帧 / 各模块 dto、vo），见 .claude/rules/shared.md
   scripts/compile.ts    # 打包：前端 vite build + 每个 target 编原生产物 + bun build --compile → dist-bin/
-  scripts/native-helper.ts   # 交叉编译 server/native/*.c（macOS 用 clang、其余用 zig），见 .claude/rules/backend.md「原生产物（C / C++）」
+  scripts/native-helper.ts   # 交叉编译 server/native/*.c（macOS 用 clang、其余用 zig），见 .claude/rules/packaging.md 与 .claude/skills/native-helper/SKILL.md
   scripts/build-targets.ts   # 5 个交叉编译目标 + 每个目标编译原生件要知道的（架构 / triple / 扩展名）
   server/               # 后端（单包 + 内部功能域文件夹）
   server/native/        # 需要原生程序时放这里（文件名 = helper 名字），现在是可删的样例
   web/                  # 前端
   .claude/
-    rules/              # frontend.md / backend.md —— 前端与后端规范
+    rules/              # 按 paths 自动加载：backend / frontend / shared / auth / database / packaging
     skills/             # app-version / frosted-glass / background-image / websocket / native-helper
 ```
 
@@ -69,14 +69,22 @@ bun run db:studio    # 打开 Drizzle Studio
 
 ## 规范索引
 
-**按端拆开的两个规范文件 —— 写对应侧代码前必须先读：**
+**规范按"常驻 + 按路径加载"拆开**，改哪边的文件就加载哪几份：
 
-- **后端** → `.claude/rules/backend.md`
-  架构与分层依赖、共享层（`shared/` 的边界与禁止清单）、模块内结构、认证、配置、日志、请求/响应、WebSocket、数据库、应用标识与打包、`index.ts`、代码风格（长连接、原生产物这类专题的细节在对应 skill，rule 里只留约束与指针）
-- **前端** → `.claude/rules/frontend.md`
-  结构与别名、共享层、请求规范、WebSocket、认证、文案（i18n）、样式与主题、配置、应用标识、`index.ts`、代码风格
+| rule | 作用域（frontmatter `paths`） | 装什么 |
+| --- | --- | --- |
+| `.claude/rules/backend.md` | `server/**`、`.env.example` | 分层与依赖方向、模块内结构、请求 / 响应、日志、配置、`index.ts`、代码风格；**专题只留指针** |
+| `.claude/rules/frontend.md` | `web/**` | 结构与别名、请求规范、认证、文案（i18n）、样式与主题、配置、`index.ts`、代码风格 |
+| `.claude/rules/shared.md` | `shared/**` | `shared/` 的边界与禁止清单、风格与严格度、改完必须跑两端 |
+| `.claude/rules/auth.md` | `server/src/modules/auth/**`、`server/docs/auth-provider.md` | `AuthProvider` 唯一扩展点、JWT 与两种传输、WS 升级的鉴权口子 |
+| `.claude/rules/database.md` | `server/src/db/**`、`server/drizzle.config.ts`、`server/drizzle/**` | 方言、启动即迁移、迁移目录在 dev 与产物里的两种来源 |
+| `.claude/rules/packaging.md` | `scripts/**`、`app.config.ts`、`server/src/common/static/**`、`server/src/main.ts` | 单文件 + 单端口、三个 `--asset` 来源、内嵌命名规矩、应用标识 |
 
-两个 rule 都用 frontmatter 的 `paths` 限定作用域（`server/**` / `web/**`，另加 `app.config.ts` 等共享文件），只在该侧文件被读取时加载 —— **rule 的 frontmatter 只认 `paths`**（YAML 列表，支持 glob 与 `{a,b}`），别写成 skill 的 `name` / `description`。
+**为什么不合成一份**：rule 一旦被加载就是常驻上下文，而"改 `scripts/compile.ts`"和"写一个 service"要读的东西几乎不重叠。拆开与否的判据是 **`paths` 能不能划开**：`shared/**`、`server/src/db/**`、`scripts/**` 能划开；"带 ws 路由的 controller"划不开（ws 路由就写在普通 controller 文件里），所以长连接留在 `backend.md` 的硬约束 + `websocket` skill 里。
+
+- **rule 的 frontmatter 只认 `paths`**（YAML 列表，支持 glob 与 `{a,b}`），别写成 skill 的 `name` / `description`
+- 划不开的窄专题走 **skill**（按 description 匹配、用到才读）：`app-version` / `websocket` / `native-helper` / `frosted-glass` / `background-image`
+- 细则**别抄回 `backend.md`**：它对整个 `server/**` 生效，抄进去就是每读一个后端文件都要付的上下文 —— `backend.md` 顶部有张「想做什么，读哪份」的路由表
 
 **专题 skill**（涉及对应改动时先读）：
 
