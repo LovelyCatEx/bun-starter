@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Demo, Section } from '@/pages/debug/sections/section'
+import { Demo, Section } from '@/pages/debug/components/section'
 
 const chartData = [
   { month: 'Jan', desktop: 186, mobile: 80 },

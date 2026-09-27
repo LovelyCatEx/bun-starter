@@ -48,7 +48,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Demo, Section } from '@/pages/debug/sections/section'
+import { Demo, Section } from '@/pages/debug/components/section'
 
 const NAV_ITEMS = [
   {

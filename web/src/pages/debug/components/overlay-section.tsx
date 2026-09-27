@@ -104,7 +104,7 @@ import {
 } from '@/components/ui/popover'
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Demo, Section } from '@/pages/debug/sections/section'
+import { Demo, Section } from '@/pages/debug/components/section'
 
 type SheetSide = 'top' | 'right' | 'bottom' | 'left'
 

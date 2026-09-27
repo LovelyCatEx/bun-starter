@@ -67,7 +67,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Demo, Section } from '@/pages/debug/sections/section'
+import { Demo, Section } from '@/pages/debug/components/section'
 
 const FRUIT_LABELS: Record<string, string> = {
   apple: 'Apple',

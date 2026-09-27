@@ -44,7 +44,7 @@ import {
   useMessageScrollerVisibility,
 } from '@/components/ui/message-scroller'
 import { Spinner } from '@/components/ui/spinner'
-import { Demo, Section } from '@/pages/debug/sections/section'
+import { Demo, Section } from '@/pages/debug/components/section'
 
 type ChatMessage = {
   id: string

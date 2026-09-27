@@ -1,5 +1,5 @@
 ---
-description: 前端（web/）开发规范。写前端代码、加页面/组件/请求、动样式与主题、加或改文案（i18n）、接认证时使用。涉及 web/src 的目录与 @ 别名、请求分层、react-i18next「目录即 key 前缀」的约定、Tailwind token 与四种颜色模式、应用标识、index.ts 与代码风格。
+description: 前端（web/）开发规范。写前端代码、加页面/组件/hook、动样式与主题、加或改文案（i18n）、接认证时使用。涉及 web/src 的目录与 @ 别名、页面 / 组件 / hook 该放哪（页面专用建文件夹，全局两层只放通用件，业务进 hook 不进 tsx）、请求分层、react-i18next「目录即 key 前缀」的约定、Tailwind token 与四种颜色模式、应用标识、index.ts 与代码风格。
 paths:
   - "web/**"
 ---
@@ -24,6 +24,55 @@ web/src/api/
   websocket.ts            # 长连接客户端（见「WebSocket」）
   <feature>/
     <feature>.ts          # 该模块的请求方法（dto / vo 从 @shared/<feature>/ 取，不再各写一份）
+```
+
+### 页面、组件、hook 的归属（硬性）
+
+**判据只有一个：会不会被第二个页面用。** 全局那几层只放通用的，业务一律跟着页面走。
+
+| 放哪 | 只放什么 | 现有例子 |
+| --- | --- | --- |
+| `web/src/components/` | **全局通用组件**：跨页面复用、与具体业务无关 | `components/ui/`（shadcn 生成的原语） |
+| `web/src/hooks/` | **全局通用 hook**：跨页面复用 | `use-device` / `use-language` / `use-theme-settings` / `use-websocket` |
+| `web/src/<feature>/` | 跨页面的**功能域**自己的东西；功能自己的 hook 跟着功能走，**不要**塞进 `components/` 或 `hooks/` | `auth/`（含 `use-auth.ts`） |
+| `web/src/pages/<page>/` | **只服务这个页面**的一切：页面本体 + `components/` + `hooks/` | `pages/debug/` |
+
+- `components/ui/` 是设计系统那层（shadcn 生成物），**业务组件一个都不许进去**；`components/` 根下只放跨页面的通用件
+- 页面只有一个文件时**不用**建文件夹（`pages/home.tsx`、`pages/login.tsx`）；出现第一个页面专用组件 / hook 时再建，别提前抽象
+- 反过来也一样：**只被一个页面用的东西不许放全局那两层**。真被第二个页面复用了，才把它提升上去
+- 页面文件夹的形状（`pages/debug/` 就是现成例子）：
+
+```
+web/src/pages/debug/
+  theme.tsx          # 页面本体：路由指向它，只负责拼装与渲染
+  components/        # 只服务这个页面的组件（Section / Demo / 各种 section）
+  hooks/             # 只服务这个页面的 hook：这个页面的业务逻辑写在这里
+```
+
+**`.tsx` 里不许堆业务逻辑。** 组件只做"从 hook 拿状态和数据 → 渲染"；请求编排、多步状态流转、数据变换、错误分支、防抖节流全部写进 hook（页面专用的就写 `pages/<page>/hooks/`，跨页面的写 `hooks/` 或功能文件夹），hook 里调 `@/api/<feature>/<feature>.ts` 的方法，不自己发请求。
+
+- 判据：一个组件里 `useState` / `useEffect` 攒到两三个、或者出现 `await` 业务请求 → 抽 hook
+- 纯展示组件（props 进、JSX 出）不受这条约束，但它们**不许偷偷读全局状态**：props 就是全部输入
+
+```tsx
+// ❌ 页面里堆业务：请求、状态、加工、错误分支全在组件里
+export function OrdersPage() {
+  const [orders, setOrders] = useState<OrderVo[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    listOrders().then(setOrders).catch((e) => setError(e.message))
+  }, [])
+
+  const pending = orders.filter((o) => o.status === 'pending')
+
+  return <>{error ? <p>{error}</p> : pending.map((o) => <OrderRow key={o.id} order={o} />)}</>
+}
+
+// ✅ 业务在 pages/orders/hooks/use-orders.ts，组件只渲染
+const { pending, error } = useOrders()
+
+return <>{error ? <p>{error}</p> : pending.map((o) => <OrderRow key={o.id} order={o} />)}</>
 ```
 
 ## 共享层（仓库根目录 `shared/`）

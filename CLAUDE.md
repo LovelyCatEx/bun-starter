@@ -74,7 +74,7 @@ bun run db:studio    # 打开 Drizzle Studio
 | rule | 作用域（frontmatter `paths`） | 装什么 |
 | --- | --- | --- |
 | `.claude/rules/backend.md` | `server/**`、`.env.example` | 分层与依赖方向、模块内结构、请求 / 响应、日志、配置、`index.ts`、代码风格；**专题只留指针** |
-| `.claude/rules/frontend.md` | `web/**` | 结构与别名、请求规范、认证、文案（i18n）、样式与主题、配置、`index.ts`、代码风格 |
+| `.claude/rules/frontend.md` | `web/**` | 结构与别名、**页面 / 组件 / hook 的归属**、请求规范、认证、文案（i18n）、样式与主题、配置、`index.ts`、代码风格 |
 | `.claude/rules/shared.md` | `shared/**` | `shared/` 的边界与禁止清单、风格与严格度、改完必须跑两端 |
 | `.claude/rules/auth.md` | `server/src/modules/auth/**`、`server/docs/auth-provider.md` | `AuthProvider` 唯一扩展点、JWT 与两种传输、WS 升级的鉴权口子 |
 | `.claude/rules/database.md` | `server/src/db/**`、`server/drizzle.config.ts`、`server/drizzle/**` | 方言、启动即迁移、迁移目录在 dev 与产物里的两种来源 |

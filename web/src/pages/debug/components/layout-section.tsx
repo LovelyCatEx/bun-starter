@@ -85,7 +85,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
-import { Demo, Section } from '@/pages/debug/sections/section'
+import { Demo, Section } from '@/pages/debug/components/section'
 
 function CardDemo() {
   return (

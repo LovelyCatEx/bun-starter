@@ -9,7 +9,7 @@ import {
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { useThemeSettings, type ColorMode } from '@/hooks/use-theme-settings'
-import { Section } from '@/pages/debug/sections/section'
+import { Section } from '@/pages/debug/components/section'
 
 const MODES: { value: ColorMode; label: string }[] = [
   { value: 'light', label: '亮色' },
