@@ -11,6 +11,8 @@
  * focused page gets nothing by default — the in-app toast is what that case is for.
  */
 
+import { isPageActive, isPageVisible } from '../use-page-visibility'
+
 export interface NotifyInput {
   title: string
   body?: string
@@ -78,7 +80,7 @@ function onVisibilityChange() {
 
   // Back in the page: clear what we put in the system's notification centre, or it fills up
   // with things that were read minutes ago.
-  if (document.visibilityState === 'visible') closeNotifications()
+  if (isPageVisible()) closeNotifications()
 }
 
 /** The subscribe half of `useSyncExternalStore`. */
@@ -128,12 +130,9 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 export function notifyUser(input: NotifyInput): boolean {
   if (permission !== 'granted') return false
 
-  // A visible *and* focused page is looking right at it, and that is what the in-app toast is
-  // for. Checking only `visibilityState` would miss "tab visible, window not focused", which is
-  // exactly when a system notification is wanted.
-  const focused = document.visibilityState === 'visible' && document.hasFocus()
-
-  if (focused && input.whenFocused !== true) return false
+  // Someone looking right at the page gets the in-app toast instead; "visible but in another
+  // window" is *active* here in the sense that matters — see `use-page-visibility`.
+  if (isPageActive() && input.whenFocused !== true) return false
 
   try {
     const notification = new Notification(input.title, {

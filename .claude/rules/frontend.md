@@ -136,6 +136,21 @@ await send<ChatMessageVo>('chat.send', { text })
 
 后端侧（帧结构、`WsRequest` / `WsResponse`、parse 与错误帧）见 `.claude/skills/websocket/SKILL.md`；硬性约束在 `.claude/rules/backend.md` 的「WebSocket」一节。
 
+## 页面可见性（`web/src/hooks/use-page-visibility.ts`）
+
+"人还在不在这个页面里"—— 两个层次，别混：`visible`（标签页在显示）和 `focused`（这扇窗正在被用），
+`active` = 两者都满足。**要的几乎总是 `active`**。
+
+```tsx
+const { active } = usePageVisibility()
+const isHere = useIsPageActive()   // 只问这一个问题时用简写
+```
+
+- **可见但没焦点**那一档最容易被漏掉：用户在看别的窗口、这个页面还在屏幕上。系统通知该弹（所以通知模块就是这么判的），但"标记已读""暂停轮询"这类要按 `active` 算
+- 事件只是"该重读了"的信号，状态一律现读 DOM（`document.hasFocus()`）—— 少听一个事件也不会卡住，别用事件自己拼状态
+- 全局一份 store（`useSyncExternalStore` + 缓存快照，快照引用不变才不会无限重渲染）：多个组件共用一组 DOM 监听，**非 React 代码**（`notification.ts`）也能用 `isPageVisible()` / `isPageActive()`
+- **不要在组件里手写 `visibilitychange` / `focus`** —— 手写的那份迟早和这里判得不一样
+
 ## 浏览器通知（`web/src/hooks/notification/`）
 
 **本地通知**：页面还活着时用系统通知提醒用户。页面关掉也要收是 Web Push（Service Worker + VAPID + 服务端存订阅），本项目不做。
@@ -143,14 +158,14 @@ await send<ChatMessageVo>('chat.send', { text })
 
 - **权限只能在用户手势里申请**：接到按钮的 `onClick` 上，**不许**在 `useEffect` 里自动调 —— Safari 不弹，Chrome 会把它当"静默请求"，等于把这个 origin 唯一一次弹窗机会浪费掉。`denied` 是不可逆的：UI 必须区分"还没问过（可引导）"和"被拒了（只能去浏览器设置改）"
 - **`supported` 里含 `isSecureContext`**：dev 的 `http://localhost` 算安全上下文，但**打包产物用局域网 http 打开时通知永远不可用**（`Notification` 直接不存在），UI 要能说出原因，别给一个点了没反应的按钮
-- **页面可见且有焦点时默认不发**（`notify()` 返回 `false`），前台交给页面内的 toast；判定用 `visibilityState === 'hidden' || !hasFocus()`，只看 visibility 会漏掉"标签页可见、窗口没焦点"——那正是最该弹的时候。要前台也弹就显式 `whenFocused: true`
+- **页面可见且有焦点时默认不发**（`notify()` 返回 `false`），前台交给页面内的 toast；判定走 `use-page-visibility` 的 `isPageActive()`（"可见但没焦点"算不在，那正是最该弹的时候）。要前台也弹就显式 `whenFocused: true`
 - **`notify()` 返回 boolean**（真弹了才 true，弹不出不抛），调用方据此决定要不要退回 toast；`tag` 用 `<feature>.<id>`（`chat.<roomId>`），同 tag 互相替换、连发自动合并；回到页面时会收掉本页创建的通知
 - 文案是**发送那一刻的快照**：i18n 的 key 在调用方翻好再传进去（`notify({ title, body })`），之后切语言不会重发
 - **事件 → 通知的映射属于业务**：写在 `pages/<page>/hooks/use-xxx-notifications.ts`（配合 `useWebSocket({ handlers })`），全局模块里不许认识业务事件
 
 调试页的 `pages/debug/components/notification-section.tsx` 是现成用法示例（含权限、tag 合并、前台策略、点击回调四种）。
 
-**验证没有浏览器怎么办**（本仓库没有测试框架）：`notification.ts` 不 import React，所以能直接用一个**伪浏览器**跑它 —— 在 `bun` 里给 `globalThis` 装上假的 `window` / `document` / `Notification`（class 上带 `static permission`、`instances`、`close()` 计数），然后 `await import()` 这个模块，逐条断言：未授权不发、前台不发、`whenFocused` 才发、`close(tag)` 只关对上的、点击触发 `window.focus` + 回调、回到页面收掉全部、`isSecureContext=false` 时 `supported` 为假。⚠️ 桩必须把 `Notification` **挂到 `window` 上**（真实浏览器里 `window === globalThis`），只挂 `globalThis` 会让模块里那句 `'Notification' in window` 判成不支持，测出一堆假失败。
+**验证没有浏览器怎么办**（本仓库没有测试框架）：`notification.ts` 的业务判断不依赖 React（只 import 了 `use-page-visibility` 的纯函数），所以能直接用一个**伪浏览器**跑它 —— 在 `bun` 里给 `globalThis` 装上假的 `window` / `document` / `Notification`（class 上带 `static permission`、`instances`、`close()` 计数），然后 `await import()` 这个模块，逐条断言：未授权不发、前台不发、`whenFocused` 才发、`close(tag)` 只关对上的、点击触发 `window.focus` + 回调、回到页面收掉全部、`isSecureContext=false` 时 `supported` 为假。⚠️ 桩必须把 `Notification` **挂到 `window` 上**（真实浏览器里 `window === globalThis`），只挂 `globalThis` 会让模块里那句 `'Notification' in window` 判成不支持，测出一堆假失败。
 
 ## 认证（`web/src/auth/`）
 

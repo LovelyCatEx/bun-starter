@@ -9,6 +9,7 @@ import { InputSection } from '@/pages/debug/components/input-section'
 import { LayoutSection } from '@/pages/debug/components/layout-section'
 import { NavigationSection } from '@/pages/debug/components/navigation-section'
 import { NotificationSection } from '@/pages/debug/components/notification-section'
+import { PageVisibilitySection } from '@/pages/debug/components/page-visibility-section'
 import { OverlaySection } from '@/pages/debug/components/overlay-section'
 import { ThemeSection } from '@/pages/debug/components/theme-section'
 
@@ -76,6 +77,7 @@ export function ThemeDebugPage() {
             <DataSection />
             <OverlaySection />
             <NotificationSection />
+            <PageVisibilitySection />
             <AiSection />
           </div>
         </main>
