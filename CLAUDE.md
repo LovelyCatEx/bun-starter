@@ -23,7 +23,7 @@ bun-starter/
   app.config.ts         # 应用名称 / 版本的唯一来源，前后端都直接 import
   tsconfig.json         # 只覆盖根目录工具链（app.config.ts + scripts/）—— 见「常用命令」
   shared/               # 前后端共用的线上契约（信封 / WS 帧 / 各模块 dto、vo），见 .claude/rules/backend.md「共享层」
-  scripts/compile.ts    # 打包：前端 vite build + bun build --compile → dist-bin/
+  scripts/compile.ts    # 打包：前端 vite build + bun build --compile → dist-bin/（内嵌前端与 Drizzle 迁移）
   server/               # 后端（单包 + 内部功能域文件夹）
   web/                  # 前端
   .claude/
@@ -39,7 +39,7 @@ bun run dev          # 并行启动 server + web
 bun run dev:server   # 只启动后端
 bun run dev:web      # 只启动前端
 bun run build        # 构建 server + web
-bun run compile      # 构建前端 + 打包成 dist-bin/ 下的自包含可执行文件
+bun run compile      # 构建前端 + 打包成 dist-bin/ 下的自包含可执行文件（内嵌前端 + Drizzle 迁移）
 bun run typecheck    # 类型检查全部 workspace，外加根目录工具链（tsc --noEmit 用根 tsconfig.json）
 ```
 
@@ -56,10 +56,13 @@ bun run typecheck    # 类型检查全部 workspace，外加根目录工具链�
 后端数据库脚本（在 `server/` 下运行）：
 
 ```bash
-bun run db:generate  # 生成 Drizzle 迁移
-bun run db:migrate   # 执行迁移
+bun run db:generate  # 生成 Drizzle 迁移（server/drizzle/）
+bun run db:migrate   # 手动执行迁移（CI 里用；应用启动时自己也会迁移）
 bun run db:studio    # 打开 Drizzle Studio
 ```
+
+迁移目录 `server/drizzle` 会被 `bun run compile` 内嵌进可执行文件：产物启动时就把库迁移到最新，
+旁边没有这个目录也能跑。没有迁移（schema 还空着）时打包会警告一句、二进制启动时跳过迁移 —— 都是正常的。
 
 ## 规范索引
 

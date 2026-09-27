@@ -336,7 +336,10 @@ import { wsFailure } from './common/response/ws-failure'
 - SQLite 路径使用 `path.resolve(process.cwd(), ...)`，避免 Windows 相对路径解析问题
 - 当前 schema 留空，按需在 `src/db/schema.ts` 添加 Drizzle 表
 - 不要在业务代码中直接创建连接，统一使用 `src/db/database.ts` 的 `db`
-- 迁移脚本（`db:generate` / `db:migrate` / `db:studio`，在 `server/` 下运行）见 `CLAUDE.md` 的常用命令
+- **启动即把迁移跑到最新**：`createDatabase()` 里三种方言各调自己的 `migrate()`。迁移目录 dev 下是磁盘上的 `server/drizzle`（`db:generate` 生成），打包后是 `--asset server/drizzle` 内嵌进二进制的那一份 —— 内嵌路径**从 `Bun.embeddedFiles` 反推**（与「应用标识与打包」里反推前端前缀同理），别写死 `import.meta.dir/drizzle`：`--asset` 的目录名最后落在虚拟根哪个位置由 bun 决定（实测按目录 basename 内嵌成 `drizzle/…`）
+- 没有迁移目录（schema 还空着，或编译那个产物时还没 `db:generate`）就跳过并打一行 debug —— 空库启动是脚手架的常态；**但迁移执行失败要直接把异常抛出去**，schema 不对的进程不该开始收请求
+- `main.ts` 里那句 `import './db/database'` 是**副作用 import，别删**：迁移必须赶在第一个请求之前跑完，不能等某个业务模块第一次 import `db` 才发生（而且业务模块只用 `schema.ts` 拿表定义时，`db` 可能一直没人 import）
+- 迁移脚本（`db:generate` / `db:migrate` / `db:studio`，在 `server/` 下运行）见 `CLAUDE.md` 的常用命令；`db:migrate` 是给"手动/CI 里先迁移"用的，跑起来那份应用自己也会迁移
 
 ## 应用标识与打包
 
@@ -351,11 +354,12 @@ import { wsFailure } from './common/response/ws-failure'
 
 ### 打包：单文件 + 单端口
 
-`bun run compile` = 前端 `vite build` + `bun build --compile --asset web/dist`，产出 `dist-bin/<name>-<version>-<platform>`（5 个 target，靠 Bun 内嵌各平台 runtime 交叉编译，**不需要 gcc / zig**）。
+`bun run compile` = 前端 `vite build` + `bun build --compile --asset web/dist --asset server/drizzle`，产出 `dist-bin/<name>-<version>-<platform>`（5 个 target，靠 Bun 内嵌各平台 runtime 交叉编译，**不需要 gcc / zig**）。
 
 - 产物把前端 `web/dist` 内嵌进去，由 `server/src/common/static/embedded-static.ts` 在启动时从 `Bun.embeddedFiles` 里读出来自己服务 —— 因此整个应用只占**一个端口**，不需要 node_modules、不需要 bun、不需要单独的前端服务器
+- 迁移目录 `server/drizzle` 同样是内嵌资源：二进制旁边没有它可读，而服务端**启动就要迁移**（见「数据库」）。`scripts/compile.ts` 里 `server/drizzle` **还没 generate 过就只警告、不加这个 `--asset`**，让空 schema 的脚手架照样能打包
 - 该插件在 `Bun.embeddedFiles` 为空时（即 `bun run dev`）退化成空插件，dev 下前端仍由 vite 提供，行为不变
-- `--asset` 前端的路径前缀由 `index.html` 那条记录反推，别写死
+- `--asset` 内嵌的路径前缀由 `index.html` / `meta/_journal.json` 那几条记录**反推**，别写死
 - 静态路由**必须返回真正的 `Response`**（见「请求 / 响应」最后一条），否则会被包装成 JSON
 - 客户端路由（如 `/login`）在服务端是未知路径，会回退到内嵌的 `index.html`；`/api/*` 的未知路径仍是 404
 - `scripts/compile.ts` 是**根目录的文件**，由根 `tsconfig.json` 检查（`types: ["bun"]` 已经带上 `node:*` 与 Bun 全局）；新增根目录 TS 文件要加进那份 `include`。三条命令各自解析 `@shared/*`：`bun run`（cwd=server）、`bun build src/main.ts`（按入口文件最近的 `server/tsconfig.json`）、`vite build`（按 `web/vite.config.ts` 的 alias）—— 改别名配置时这三条都要能过
