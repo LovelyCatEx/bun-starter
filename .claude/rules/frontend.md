@@ -232,6 +232,18 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
   - `web/src/styles/dark.css` — 暗色三档 token
   - `web/src/styles/themes/<name>.css` — **一个主题色一个文件**（如 `sakura-pink.css`）
 
+### 颜色只能用 token（禁止硬编码）
+
+组件里**不许出现硬编码颜色**：`bg-white` / `bg-black` / `bg-[#fff]` / `bg-[rgba(...)]` / `text-white`。
+一律用语义 token（`bg-background` / `bg-card` / `bg-popover` / `bg-muted` / `bg-secondary` / `bg-primary`、
+`text-foreground` / `text-muted-foreground`、`border-border` / `border-input` / `ring-ring`…），
+这样四档暗色、每个主题色、背景图模式三件事才自动正确。
+
+**例外只有"颜色本身就是语义"的那几层**：Dialog/Drawer 的 scrim（`bg-black/10`）、背景遮罩的
+`bg-white dark:bg-black` —— 它们本来就该是黑/白，不跟主题走是有意的。但这类层必须待在"背景图那一层"
+（如遮罩的 `-z-10`）或"内容之上"（如 scrim），**不能变成某个面板里的一块硬白块**。
+判断方法与已经踩过的坑见 `.claude/skills/background-image/SKILL.md` 的规则 E。
+
 ### 颜色模式 × 主题色 = 矩阵
 
 **颜色模式 4 种**（由 `next-themes` 的 `light`/`dark` + `<html>` 上的 `data-dark-shade` 共同决定）：
@@ -249,12 +261,17 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
 
 `web/src/hooks/use-theme-settings.ts` 是唯一改主题的地方，返回：
 `mode` / `setMode`（亮色·深黑·深灰·浅灰）、`themeColor` / `setThemeColor`、
-`background` / `setBackground`、`frosted` / `setFrosted`。
+`background` / `setBackground`、`frosted` / `setFrosted`、
+`overlay` / `setOverlay`（背景图遮罩开关）、`overlayOpacity` / `setOverlayOpacity`（0~1）。
 
-- 日夜交给 next-themes（`.dark` 类），其余四个维度统一写到 `<html>` 的 data 属性
+- 状态在 `web/src/hooks/theme-settings-provider.tsx` 的 `<ThemeSettingsProvider>` 里（挂在 `main.tsx` 的 `<ThemeProvider>` 内、`BrowserRouter` 外），
+  所以**任何组件调这个 hook 拿到的都是同一份**；页面和页面里的 section 可以各调各的。在 provider 外面调会直接抛错
+- 日夜交给 next-themes（`.dark` 类），其余维度统一写到 `<html>` 的 data 属性
 - 组件样式侧对应 Tailwind 自定义变体：`frosted:`（`data-frosted`）、`bgimage:`（`data-background`）
 - **两个变体职责不重叠：`bgimage:` 管半透明（有背景图就透），`frosted:` 只加 `backdrop-blur-*`、绝不改颜色**。
   实心组件要透出去就写 `bgimage:bg-card/60`，不要写 `frosted:bg-card/60`
+- 背景遮罩透明度不写 data 属性，写的是 CSS 变量 **`--background-overlay-opacity`**（**实际生效值**：遮罩开关关掉时是 `0`，
+  不是滑块上的那个数），页面上的遮罩层和背景图模式下的边框 token 都读它
 - **不要再在页面里手写 `dataset.xxx`**，一律走这个 hook
 
 **主题色只有一个颜色**：如 `sakura-pink` = `#ff8da1` = `oklch(0.772 0.139 9.7)`。暗色模式**不换色、不改 chroma/hue**，只是把同一个颜色调暗（降低 lightness），例如 浅灰 `-0.03`、深灰 `-0.06`、深黑 `-0.10`。不要另造颜色。
@@ -285,8 +302,12 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
 这两个开关**正交**：背景图负责让组件半透明（`bgimage:`），毛玻璃只负责在它上面叠一层模糊（`frosted:`）。
 细节各有专门的 skill，改之前先读：
 
-- **背景图**（`bgimage:` 变体、开启后组件的透出/半透明处理、light/dark 的 token 选择）→ `.claude/skills/background-image/SKILL.md`
+- **背景图**（`bgimage:` 变体、开启后组件的透出/半透明处理、light/dark 的 token 选择、背景遮罩）→ `.claude/skills/background-image/SKILL.md`
 - **毛玻璃**（`frosted:` 变体只写 `backdrop-blur-*`、六条铁律、被祖先 `mask` 杀掉、第三方 CSS 无层要上 `!`）→ `.claude/skills/frosted-glass/SKILL.md`
+
+**背景遮罩**（`overlay` / `overlayOpacity`）是背景图那一层的一部分：亮色压白、暗色压黑，
+透明度由用户调，写在 `<html>` 的 `--background-overlay-opacity` 上。**它不强制生效** ——
+页面自己决定渲不渲染那一层（调试页是 `<main>` 里一个 `absolute inset-0 -z-10` 的子元素，靠 `main` 上的 `isolate` 把它夹在背景图和内容之间）。
 
 ## 配置
 

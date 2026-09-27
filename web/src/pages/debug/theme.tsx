@@ -1,15 +1,6 @@
 import { DirectionProvider } from '@/components/ui/direction'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { useThemeSettings, type ColorMode } from '@/hooks/use-theme-settings'
+import { useThemeSettings } from '@/hooks/use-theme-settings'
 import { AiSection } from '@/pages/debug/sections/ai-section'
 import { BasicSection } from '@/pages/debug/sections/basic-section'
 import { DataSection } from '@/pages/debug/sections/data-section'
@@ -18,6 +9,7 @@ import { InputSection } from '@/pages/debug/sections/input-section'
 import { LayoutSection } from '@/pages/debug/sections/layout-section'
 import { NavigationSection } from '@/pages/debug/sections/navigation-section'
 import { OverlaySection } from '@/pages/debug/sections/overlay-section'
+import { ThemeSection } from '@/pages/debug/sections/theme-section'
 
 // A hand-drawn background "image": a tiling SVG texture (graph grid + dots,
 // rings, a plus and a sparkle) layered over colour blobs. Everything is
@@ -43,26 +35,23 @@ const DEBUG_BACKGROUND = [
 ].join(', ')
 
 export function ThemeDebugPage() {
-  const {
-    mode,
-    setMode,
-    themeColor,
-    setThemeColor,
-    background,
-    setBackground,
-    frosted,
-    setFrosted,
-  } = useThemeSettings()
+  const { background, overlay } = useThemeSettings()
 
   return (
     <DirectionProvider dir="ltr" direction="ltr">
       <TooltipProvider>
+        {/* `isolate` + `-z-10` 的遮罩层：压在背景图之上、所有内容之下 */}
         <main
-          className="min-h-svh bg-background text-foreground"
-          style={
-            background ? { backgroundImage: DEBUG_BACKGROUND } : undefined
-          }
+          className="relative isolate min-h-svh bg-background text-foreground"
+          style={background ? { backgroundImage: DEBUG_BACKGROUND } : undefined}
         >
+          {background && overlay ? (
+            <div
+              data-slot="background-overlay"
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 -z-10 bg-white opacity-(--background-overlay-opacity) dark:bg-black"
+            />
+          ) : null}
           <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
             <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
               <div>
@@ -74,54 +63,10 @@ export function ThemeDebugPage() {
                   shadcn tokens.
                 </p>
               </div>
-              <div className="flex items-center gap-4">
-                <Select
-                  value={mode}
-                  onValueChange={(value) => setMode(value as ColorMode)}
-                >
-                  <SelectTrigger className="w-[130px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="light">亮色</SelectItem>
-                    <SelectItem value="deep-black">深黑</SelectItem>
-                    <SelectItem value="dark-gray">深灰</SelectItem>
-                    <SelectItem value="light-gray">浅灰</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={themeColor} onValueChange={setThemeColor}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">默认主题</SelectItem>
-                    <SelectItem value="sakura-pink">sakura-pink</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="debug-background"
-                    checked={background}
-                    onCheckedChange={setBackground}
-                  />
-                  <Label htmlFor="debug-background" className="text-sm">
-                    Background
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="debug-frosted"
-                    checked={frosted}
-                    onCheckedChange={setFrosted}
-                  />
-                  <Label htmlFor="debug-frosted" className="text-sm">
-                    Frosted
-                  </Label>
-                </div>
-              </div>
             </div>
           </header>
           <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8">
+            <ThemeSection />
             <BasicSection />
             <FormSection />
             <InputSection />

@@ -225,6 +225,7 @@ frosted:[--scroll-fade-mask:none]
 | 底色来自 CSS 变量 / 第三方库（sonner toast） | 不改变量（inline 是无条件的），改为在该元素上挂 `bgimage:bg-xx/60!` + `frosted:backdrop-blur-md!`（第三方 CSS 无层，必须用 `!` 才能压过） |
 | content 含 SubContent / fixed 定位后代（各种菜单） | 用 `before:` 伪元素写 blur（铁律 5） |
 | 祖先带 `mask` / `filter` / `opacity`（如 `scroll-fade-*`） | 后代 blur 会失效，用 `frosted:[--xxx:none]` 中和掉那个属性（铁律 6） |
+| 底色是硬编码的 `bg-white` / `bg-black` / `bg-[#…]` | 先换成 token（`bg-background` / `bg-card`…），否则它既不跟主题走、也不吃 `bgimage:`，毛玻璃更是无从谈起 → 见 `.claude/skills/background-image/SKILL.md` 规则 E |
 
 ## 排查步骤（"没生效"的时候）
 

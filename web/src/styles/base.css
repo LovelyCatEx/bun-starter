@@ -90,6 +90,49 @@
     --scrollbar-thumb: oklch(0.85 0 0);
 }
 
+/*
+ * 背景图模式：底色变成一张带花纹的图，原来那圈浅灰 / 半透明的细边框压在上面就糊掉了，
+ * 所以整组边框 token 往下压一档。**再往下一档由遮罩厚度决定**：`--background-overlay-opacity`
+ * 越大，边框越往"更深"走 —— 亮色越来越灰（压 lightness），暗色越来越实（抬不透明度）。
+ * 遮罩关掉时那个变量是 0，所以边框就停在上面说的"压一档"上（见 theme-settings-provider）。
+ *
+ * 区间压得比较窄：起点已经比常态深不少（遮罩为 0 时图案最抢眼，边框得压得住），
+ * 终点只比起点再深一点点（遮罩铺满时底色已经是纯白/纯黑，不需要更重了）。
+ *   亮色      0.78 → 0.73
+ *   深黑      24%  → 29%（--input 30% → 35%）
+ *   深灰      28%  → 33%（--input 34% → 39%）
+ *   浅灰      34%  → 39%（--input 40% → 45%）
+ * 改区间就改每行里的那两个数（第一个是 opacity=0，第二个由 `* 0.05` 决定）。
+ * 四档一起写在这里（不拆去 dark.css），改的时候一眼看全；选择器又比 dark.css 里的
+ * `.dark` / `.dark[data-dark-shade='x']` 特异性高，能稳定盖住它们。
+ */
+html[data-background='true'] {
+    --border: oklch(calc(0.78 - var(--background-overlay-opacity) * 0.05) 0 0);
+    --input: oklch(calc(0.78 - var(--background-overlay-opacity) * 0.05) 0 0);
+    --sidebar-border: oklch(calc(0.78 - var(--background-overlay-opacity) * 0.05) 0 0);
+}
+
+/* 深黑 */
+html.dark[data-background='true'] {
+    --border: oklch(1 0 0 / calc(0.24 + var(--background-overlay-opacity) * 0.05));
+    --input: oklch(1 0 0 / calc(0.30 + var(--background-overlay-opacity) * 0.05));
+    --sidebar-border: oklch(1 0 0 / calc(0.24 + var(--background-overlay-opacity) * 0.05));
+}
+
+/* 深灰 */
+html.dark[data-dark-shade='dark-gray'][data-background='true'] {
+    --border: oklch(1 0 0 / calc(0.28 + var(--background-overlay-opacity) * 0.05));
+    --input: oklch(1 0 0 / calc(0.34 + var(--background-overlay-opacity) * 0.05));
+    --sidebar-border: oklch(1 0 0 / calc(0.28 + var(--background-overlay-opacity) * 0.05));
+}
+
+/* 浅灰 */
+html.dark[data-dark-shade='light-gray'][data-background='true'] {
+    --border: oklch(1 0 0 / calc(0.34 + var(--background-overlay-opacity) * 0.05));
+    --input: oklch(1 0 0 / calc(0.40 + var(--background-overlay-opacity) * 0.05));
+    --sidebar-border: oklch(1 0 0 / calc(0.34 + var(--background-overlay-opacity) * 0.05));
+}
+
 @layer base {
     /*
      * Give every border the `--border` colour instead of letting it inherit the
