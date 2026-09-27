@@ -14,9 +14,14 @@ import { embeddedStatic } from './common/static/embedded-static';
 import './db/database';
 import { authInterceptor } from './modules/auth/interceptor/auth.interceptor';
 import { createAuthPlugin } from './modules/auth/auth.plugin';
+import {runNativeHelper} from "./common/native/native-helper.ts";
 
 // Before the first line, so nothing is lost to a missing LOG_DIR.
 LogService.init();
+
+runNativeHelper("hello-helper").then((res) => {
+    console.log(res)
+})
 
 const app = new Elysia()
   .use(cors({ origin: config.corsOrigin, credentials: true }))

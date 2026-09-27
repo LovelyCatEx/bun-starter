@@ -23,12 +23,15 @@ bun-starter/
   app.config.ts         # 应用名称 / 版本的唯一来源，前后端都直接 import
   tsconfig.json         # 只覆盖根目录工具链（app.config.ts + scripts/）—— 见「常用命令」
   shared/               # 前后端共用的线上契约（信封 / WS 帧 / 各模块 dto、vo），见 .claude/rules/backend.md「共享层」
-  scripts/compile.ts    # 打包：前端 vite build + bun build --compile → dist-bin/（内嵌前端与 Drizzle 迁移）
+  scripts/compile.ts    # 打包：前端 vite build + 每个 target 编原生产物 + bun build --compile → dist-bin/
+  scripts/native-helper.ts   # 交叉编译 server/native/*.c（macOS 用 clang、其余用 zig），见 .claude/rules/backend.md「原生产物（C / C++）」
+  scripts/build-targets.ts   # 5 个交叉编译目标 + 每个目标编译原生件要知道的（架构 / triple / 扩展名）
   server/               # 后端（单包 + 内部功能域文件夹）
+  server/native/        # 需要原生程序时放这里（文件名 = helper 名字），现在是可删的样例
   web/                  # 前端
   .claude/
     rules/              # frontend.md / backend.md —— 前端与后端规范
-    skills/             # app-version / frosted-glass / background-image
+    skills/             # app-version / frosted-glass / background-image / websocket / native-helper
 ```
 
 ## 常用命令
@@ -39,7 +42,7 @@ bun run dev          # 并行启动 server + web
 bun run dev:server   # 只启动后端
 bun run dev:web      # 只启动前端
 bun run build        # 构建 server + web
-bun run compile      # 构建前端 + 打包成 dist-bin/ 下的自包含可执行文件（内嵌前端 + Drizzle 迁移）
+bun run compile      # 构建前端 + 打包成 dist-bin/ 下的自包含可执行文件（内嵌前端 + Drizzle 迁移 + 原生 helper）
 bun run typecheck    # 类型检查全部 workspace，外加根目录工具链（tsc --noEmit 用根 tsconfig.json）
 ```
 
@@ -69,7 +72,7 @@ bun run db:studio    # 打开 Drizzle Studio
 **按端拆开的两个规范文件 —— 写对应侧代码前必须先读：**
 
 - **后端** → `.claude/rules/backend.md`
-  架构与分层依赖、共享层（`shared/` 的边界与禁止清单）、模块内结构、认证、配置、日志、请求/响应、WebSocket、数据库、应用标识与打包、`index.ts`、代码风格
+  架构与分层依赖、共享层（`shared/` 的边界与禁止清单）、模块内结构、认证、配置、日志、请求/响应、WebSocket、数据库、应用标识与打包、`index.ts`、代码风格（长连接、原生产物这类专题的细节在对应 skill，rule 里只留约束与指针）
 - **前端** → `.claude/rules/frontend.md`
   结构与别名、共享层、请求规范、WebSocket、认证、文案（i18n）、样式与主题、配置、应用标识、`index.ts`、代码风格
 
@@ -81,3 +84,4 @@ bun run db:studio    # 打开 Drizzle Studio
 - 毛玻璃（`frosted:`）组件样式 → `.claude/skills/frosted-glass/SKILL.md`
 - 背景图（`bgimage:`）组件样式 → `.claude/skills/background-image/SKILL.md`
 - 长连接（WebSocket）：加事件、写 ws 路由、组件里接推送 → `.claude/skills/websocket/SKILL.md`
+- 原生产物（C / C++）：把 .c/.cpp 编进 5 个平台产物、dev 与产物里都能跑、进程 vs `bun:ffi` → `.claude/skills/native-helper/SKILL.md`

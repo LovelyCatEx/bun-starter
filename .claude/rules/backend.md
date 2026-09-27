@@ -1,5 +1,5 @@
 ---
-description: 后端（server/）开发规范。写后端代码、加业务模块、动分层与依赖方向、写 controller/service/DTO/VO/拦截器、接数据库或迁移、加配置项、改打包产物时使用。涉及 server/src 的目录结构、common 与 modules 的依赖方向、Elysia 拦截器注册顺序、统一响应与异常、日志、应用标识与单端口打包、index.ts 与代码风格。
+description: 后端（server/）开发规范。写后端代码、加业务模块、动分层与依赖方向、写 controller/service/DTO/VO/拦截器、接数据库或迁移、加配置项、改打包产物时使用。涉及 server/src 的目录结构、common 与 modules 的依赖方向、Elysia 拦截器注册顺序、统一响应与异常、日志、应用标识与单端口打包、index.ts 与代码风格。长连接（WebSocket）与原生产物（C/C++）的细节已拆进 `.claude/skills/`，本文件只留硬性约束与指针。
 paths:
   - "server/**"
   - "app.config.ts"
@@ -269,100 +269,62 @@ return new PaginatedResponseBody(items, total, page, pageSize)
 
 - **返回 `Response` 实例可以绕过包装**：拦截器只对"不是 `Response`"的返回值做包装。要自己控制响应体/头（流、文件、HTML）时必须返回真正的 `Response`（如 `new Response(file, { headers })`），返回 `BunFile` 之类会被 JSON 序列化掉
 
-## WebSocket（帧在 `shared/protocol/ws-*.ts`，服务端补一个 `common/response/ws-failure.ts`）
+## WebSocket（长连接）
 
-长连接只有一套帧，和 HTTP 的请求 / 响应**同构** —— 学一个就等于学两个。帧本身是共享的（`@shared/protocol/ws-request`、`@shared/protocol/ws-response`、`@shared/protocol/ws-events`）：
+长连接**和 HTTP 同构**：帧是共享的（`@shared/protocol/ws-*`），`code` 与 `ApiResponse` 同一套语义（`CODE_OK` / 异常 code），同一份 service 抛的异常在两种传输下说的是同一件事 —— 学一个等于学两个。要点：
 
-| 方向 | 类 | 帧 |
-| --- | --- | --- |
-| 客户端 → 服务端 | `WsRequest` | `{ id: string \| null, event: string, data: unknown }` |
-| 服务端 → 客户端 | `WsResponse` | `{ id: string \| null, event: string, code: number, message: string, data }` |
+- 事件名 `<feature>.<action>` 小写（`chat.send`）；心跳用共享常量 `WS_PING` / `WS_PONG`，不要拿它当业务事件
+- `id` 由客户端生成、服务端原样带回，服务端主动推送与单向通知是 `null`；只走 JSON 文本帧
+- **每个 ws 路由必须实现 `WS_PING → WS_PONG`**：前端 25s 一次心跳，靠它判断连接还活着
+- 帧的解析与构造只在共享层这一处（`WsRequest.parse` / `WsResponse.ok|push`），错误帧一律经 `wsFailure()`；**解析失败不要抛异常、也不要静默**
+- 鉴权与 HTTP 完全一样（`authInterceptor` 覆盖 ws，所以必须挂在 `/api/*` 下）；前端的心跳 / 重连 / 请求应答都在 `web/src/api/websocket.ts`，服务端不要重复实现
 
-- `code` 与 HTTP 的 `ApiResponse` **同一套语义**：`CODE_OK` 成功、其余是服务端异常的 `code`，所以同一个 service 抛的异常在两种传输下说的是同一件事
-- `event` 是事件名，`<feature>.<action>` 小写：`chat.send`、`terminal.input`；心跳用共享常量 `WS_PING` / `WS_PONG`，不要写字符串字面量、也不要拿它当业务事件
-- `id` 由客户端生成、服务端原样带回，一个连接上并发多个请求也能各回各家；客户端不需要回答时 `id` 是 `null`（单向通知），服务端主动推送的 `id` 也是 `null`
-- 只走 **JSON 文本帧**，不支持二进制帧；二进制 / 非 JSON 的帧一律当非法帧处理
-
-**帧的解析与构造只在共享层这一处**，handler 里不许手拼对象；错误帧一律经 `wsFailure()`（服务端的异常 → code/message 映射）：
-
-```ts
-import { WsRequest } from '@shared/protocol/ws-request'
-import { WsResponse } from '@shared/protocol/ws-response'
-import { WS_PING, WS_PONG } from '@shared/protocol/ws-events'
-import { wsFailure } from './common/response/ws-failure'
-
-.ws('/api/ws', {
-  open(ws) {
-    ws.send(WsResponse.push('chat.message', { welcome: true }).toFrame())
-  },
-  message(ws, message) {
-    // WS 边界是不可信输入：不是 JSON、缺 event、形状不对都从 parse 挡掉
-    const request = WsRequest.parse(message)
-
-    if (request === null) {
-      ws.send(wsFailure(null, new BadRequestException('invalid frame')).toFrame())
-      return
-    }
-
-    if (request.event === WS_PING) {
-      ws.send(WsResponse.push(WS_PONG, null).toFrame())
-      return
-    }
-
-    try {
-      // 业务异常照抛（和 controller 里一样），由 wsFailure 转成错误帧
-      ws.send(WsResponse.ok(request, doSomething(request.data)).toFrame())
-    } catch (error) {
-      // ApiException 家族 → 用它自己的 code / message；其它 → 500，细节不外泄，只进日志
-      if (!(error instanceof ApiException)) {
-        LogService.error('chat', error)
-      }
-      ws.send(wsFailure(request, error).toFrame())
-    }
-  },
-})
-```
-
-- **解析失败不要抛异常、也不要静默**：回一帧 `wsFailure(null, …)`，或者直接 `ws.close(1003)`（协议错误码）
-- `WsRequest.parse<T>(frame)` 的泛型是**调用点的承诺而不是校验**：`data` 内部形状要严格校验就自己再收一道，和控制器里 `body as Partial<LoginDto>` 同一套写法
-- `wsFailure(request, error)`：`ApiException` 家族沿用它的 `code` / `message`，其它异常一律折成 `500 Internal Server Error` —— **不把内部错误发给客户端**，原始异常用 `LogService.error` 记下来（tag 用功能域名）
-- **ping/pong 是协议的一部分**：前端客户端每 25s 发一帧 `{ event: WS_PING }`，连上没有其他流量时它靠 `WS_PONG` 判断连接还活着（两个周期收不到任何帧就主动断开重连），所以 ws 路由必须实现 `WS_PING → WS_PONG`
-- 升级请求的鉴权与 HTTP 完全一样（`authInterceptor` 覆盖 ws，`ws.data.auth` 就是当前用户），见「认证」；无 token 的升级会被直接拒绝
-- 心跳、重连、请求应答这些都在前端 `web/src/api/websocket.ts` 里，服务端不要重复实现
+加一条长连接业务、广播 / 订阅、前端接推送与组件侧用法、排查（连不上 / send 超时 / 一直重连 / 被 401 挡在升级）→ **`.claude/skills/websocket/SKILL.md`**
 
 ## 数据库
 
-- `DATABASE_TYPE` 支持 `sqlite` / `postgres` / `mysql`
-- SQLite 路径使用 `path.resolve(process.cwd(), ...)`，避免 Windows 相对路径解析问题
-- 当前 schema 留空，按需在 `src/db/schema.ts` 添加 Drizzle 表
-- 不要在业务代码中直接创建连接，统一使用 `src/db/database.ts` 的 `db`
-- **启动即把迁移跑到最新**：`createDatabase()` 里三种方言各调自己的 `migrate()`。迁移目录 dev 下是磁盘上的 `server/drizzle`（`db:generate` 生成），打包后是 `--asset server/drizzle` 内嵌进二进制的那一份 —— 内嵌路径**从 `Bun.embeddedFiles` 反推**（与「应用标识与打包」里反推前端前缀同理），别写死 `import.meta.dir/drizzle`：`--asset` 的目录名最后落在虚拟根哪个位置由 bun 决定（实测按目录 basename 内嵌成 `drizzle/…`）
-- 没有迁移目录（schema 还空着，或编译那个产物时还没 `db:generate`）就跳过并打一行 debug —— 空库启动是脚手架的常态；**但迁移执行失败要直接把异常抛出去**，schema 不对的进程不该开始收请求
-- `main.ts` 里那句 `import './db/database'` 是**副作用 import，别删**：迁移必须赶在第一个请求之前跑完，不能等某个业务模块第一次 import `db` 才发生（而且业务模块只用 `schema.ts` 拿表定义时，`db` 可能一直没人 import）
-- 迁移脚本（`db:generate` / `db:migrate` / `db:studio`，在 `server/` 下运行）见 `CLAUDE.md` 的常用命令；`db:migrate` 是给"手动/CI 里先迁移"用的，跑起来那份应用自己也会迁移
+- `DATABASE_TYPE` 支持 `sqlite` / `postgres` / `mysql`；SQLite 路径按 `process.cwd()` 解析，换目录启动会换掉读到的 `.env` 与落库位置
+- schema 写在 `src/db/schema.ts`（当前留空）；**不要自己连库**，统一用 `src/db/database.ts` 的 `db`
+- **启动即把迁移跑到最新**：`createDatabase()` 里三种方言各调自己的 `migrate()`。没有迁移（schema 还空着，或编译那个产物时还没 `db:generate`）就跳过并打一行 debug —— 空库启动是脚手架的常态；**但迁移执行失败要把异常抛出去**，schema 不对的进程不该开始收请求
+- `main.ts` 里那句 `import './db/database'` 是**副作用 import，别删**：迁移必须赶在第一个请求之前跑完，不能等某个业务模块第一次 import `db`（业务模块只用 `schema.ts` 拿表定义时，`db` 可能一直没人 import）
+- 迁移目录 dev 读磁盘上的 `server/drizzle`、产物读 `--asset` 内嵌的那份，内嵌与查找的规矩见「打包」
+- 脚本 `db:generate` / `db:migrate` / `db:studio`（在 `server/` 下跑）见 `CLAUDE.md` 常用命令；`db:migrate` 是给"手动 / CI 里先迁移"用的，跑起来那份应用自己也会迁移
 
 ## 应用标识与打包
 
 ### 应用标识
 
-- 应用名称与版本号的**唯一来源**是仓库根目录的 `app.config.ts`（`APP_NAME` / `APP_VERSION`）。后端（`server/src/main.ts`）、前端（`web/src/pages/home.tsx`）、打包脚本（`scripts/compile.ts`）都**直接 import** 它，没有第二份拷贝、没有 `define`、没有环境变量
-- 它是**构建时快照**：`bun build --compile` 出来的二进制旁边没有 `package.json`，值必须编译时内联，所以两端的值都是各自那次构建时的快照，**改了不重新构建不生效**
-- 后端影响：启动日志 `bun-starter 0.1.0 — server is running at …`、`GET /health` → `{"status":"ok","name":…,"version":…}`
-- `APP_NAME` 同时当显示名与产物文件名用，必须是小写短横线 slug（`bun-starter`）
-- 根 `package.json` 的 `version` 是 npm 元数据，**与应用版本无关**
-- 改版本号的完整流程、验证与排查见 **`.claude/skills/app-version/SKILL.md`**
+应用名称与版本号的**唯一来源**是仓库根 `app.config.ts`（`APP_NAME` / `APP_VERSION`），后端、前端、打包脚本都**直接 import** 它，没有第二份拷贝、没有 `define`、没有环境变量。`APP_NAME` 同时当显示名与产物文件名，必须是小写短横线 slug（`bun-starter`）；根 `package.json` 的 `version` 是 npm 元数据，**与应用版本无关**。
+
+改版本号的完整流程、验证与排查（"改了没生效""产物名没变""前端没更新"）→ **`.claude/skills/app-version/SKILL.md`**
 
 ### 打包：单文件 + 单端口
 
-`bun run compile` = 前端 `vite build` + `bun build --compile --asset web/dist --asset server/drizzle`，产出 `dist-bin/<name>-<version>-<platform>`（5 个 target，靠 Bun 内嵌各平台 runtime 交叉编译，**不需要 gcc / zig**）。
+`bun run compile` = 前端 `vite build` + 每个 target 编一份原生产物 + `bun build --compile`，产出 `dist-bin/<name>-<version>-<platform>`（5 个 target，靠 Bun 内嵌各平台 runtime 交叉编译）。
 
-- 产物把前端 `web/dist` 内嵌进去，由 `server/src/common/static/embedded-static.ts` 在启动时从 `Bun.embeddedFiles` 里读出来自己服务 —— 因此整个应用只占**一个端口**，不需要 node_modules、不需要 bun、不需要单独的前端服务器
-- 迁移目录 `server/drizzle` 同样是内嵌资源：二进制旁边没有它可读，而服务端**启动就要迁移**（见「数据库」）。`scripts/compile.ts` 里 `server/drizzle` **还没 generate 过就只警告、不加这个 `--asset`**，让空 schema 的脚手架照样能打包
-- 该插件在 `Bun.embeddedFiles` 为空时（即 `bun run dev`）退化成空插件，dev 下前端仍由 vite 提供，行为不变
-- `--asset` 内嵌的路径前缀由 `index.html` / `meta/_journal.json` 那几条记录**反推**，别写死
+`--asset` 有三个来源：
+
+- **前端 `web/dist`** —— 由 `server/src/common/static/embedded-static.ts` 启动时从 `Bun.embeddedFiles` 里读出来自己服务，所以整个应用只占**一个端口**，不需要 node_modules、不需要 bun、不需要单独的前端服务器；该插件在 `Bun.embeddedFiles` 为空时（即 `bun run dev`）退化成空插件，dev 下前端仍由 vite 提供
+- **迁移 `server/drizzle`** —— 二进制旁边没有它可读，而服务端**启动就要迁移**（见「数据库」）。还没 `db:generate` 过就只警告、不加这个 `--asset`，让空 schema 的脚手架照样能打包
+- **每个 target 自己的原生 helper** —— 见「原生产物（C / C++）」
+
+**目录**（前两个）的内嵌名字只看 basename：实测 `web/dist` → `dist/…`、`server/drizzle` → `drizzle/…`，父级路径全丢 —— 所以读目录要**从 `Bun.embeddedFiles` 反推**（`index.html` / `meta/_journal.json` 那几条记录），别凭直觉写 `import.meta.dir/drizzle`。**单个文件**（helper）同样只留 basename，于是干脆按名字写死去找。两条路别混用。
+
+**前两个不需要任何工具链，只有原生 helper 需要** clang / zig —— 仓库里 `server/native/` 没有 `.c` / `.cpp` 时，整条链路跟以前一样零依赖。
+
 - 静态路由**必须返回真正的 `Response`**（见「请求 / 响应」最后一条），否则会被包装成 JSON
 - 客户端路由（如 `/login`）在服务端是未知路径，会回退到内嵌的 `index.html`；`/api/*` 的未知路径仍是 404
 - `scripts/compile.ts` 是**根目录的文件**，由根 `tsconfig.json` 检查（`types: ["bun"]` 已经带上 `node:*` 与 Bun 全局）；新增根目录 TS 文件要加进那份 `include`。三条命令各自解析 `@shared/*`：`bun run`（cwd=server）、`bun build src/main.ts`（按入口文件最近的 `server/tsconfig.json`）、`vite build`（按 `web/vite.config.ts` 的 alias）—— 改别名配置时这三条都要能过
+
+### 原生产物（C / C++）
+
+需要一段原生程序时（真 PTY、系统调用、现成的 C/C++ 库、性能热点）：`server/native/<name>.c` 编出来就叫 `<name>`（Windows 上是 `<name>.exe`），**5 个平台的产物里同名内嵌**，运行时按名字从 `Bun.embeddedFiles` 里取出来、抽到磁盘再跑。dev 有编译器就从源码编（mtime 缓存），产物没有编译器就抽内嵌那份 —— 一个入口两种来源，调用方不需要知道自己在哪。
+
+- 名字是唯一约定，三处必须一致：`server/native/<name>.c` ↔ `NATIVE_HELPERS` 里的一行 ↔ `runNativeHelper('name')`。对不上直接报错，不会静默退化
+- 缺工具链或编译失败 → **整个 target 跳过**（不静默发一个"原生能力一跑就报错"的产物）；仓库里没有 `.c` / `.cpp` 时默认链路依旧**零工具链**（前端与迁移不需要 gcc / zig）
+- ⚠️ **资源进产物 ≠ 读取端进产物**：`--asset` 是显式的，helper 一定在内；读它的代码要有人 import，否则会被 tree-shake（和「数据库」里 `db` 那个坑同理）
+
+选进程还是 `bun:ffi`、写与接入、三层调用 API、工具链与体积、抽取语义、排查与验证套路 → **`.claude/skills/native-helper/SKILL.md`**
 
 ## `index.ts` 规范（与前端一致，硬性要求）
 
@@ -409,3 +371,4 @@ export async function init() { /* 初始化 */ }
 - 命名：文件与类使用 PascalCase / kebab-case
 - 不提交 `dist/`、`data.db` 等构建/运行产物
 - `tsconfig` 开了 `verbatimModuleSyntax`：只当类型用的 import 必须写 `import type`
+- **别用 `Bun.readableStreamToText`**（已 deprecated，让用 `ReadableStream#text()`）：`.text()` 运行时确实有，但类型上只有 `stream/web` 的 `ReadableStream` 被补了这个方法，子进程 stdout / stderr 拿到的是全局那个。读管道/流就写 `new Response(stream).text()` —— 同一个读法、类型齐全、不碰 deprecated（`server/src/common/native/native-helper.ts` 的 `readText` 就是它）

@@ -104,6 +104,7 @@ export class ChatController {
 
 （`this.service` 就是模块里那个 `service/chat.service.ts`，和 HTTP 路由共用一个 —— ws 路由是**同一条转调链**，不要在 handler 里堆业务逻辑。）
 
+- **解析失败不要抛异常、也不要静默**：回一帧 `wsFailure(null, new BadRequestException('invalid frame'))`，或者直接 `ws.close(1003)`（协议错误码）。`WsRequest.parse<T>` 的泛型是**调用点的承诺而不是校验**，`data` 内部要严格校验就自己再收一道（和 HTTP 的 `body as XxxDto` 同一套写法）
 - **升级请求的鉴权与 HTTP 一样**（`authInterceptor` 覆盖 ws），放 `/api/*` 下就自动受保护、无 token 直接升不上来；放别的路径**没有任何鉴权**，别顺手写成 `/ws`
 - 控制器的 `{ prefix: '/api' }` **对 `.ws()` 同样生效**（已实测）：`new Elysia({ prefix: '/api' }).ws('/chat/ws', …)` 的地址是 `/api/chat/ws`，正好落在受保护范围内
 - 需要"某个人不在线也要收到"的东西**别只靠 WS**：落库 + 前端连上后拉一次历史

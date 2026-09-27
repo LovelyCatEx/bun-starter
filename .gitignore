@@ -5,8 +5,8 @@ node_modules/
 dist/
 dist-bin/
 
-# Compiled PTY helper (rebuilt from server/modules/terminal/pty/pty-helper.c)
-server/modules/terminal/pty/build/
+# Compiled native helpers (rebuilt from server/native/*.c, see scripts/native-helper.ts)
+server/native/build/
 
 # Runtime data (SQLite)
 data.db
