@@ -1,11 +1,14 @@
 @custom-variant dark (&:is(.dark *));
 
 /* Opt-in glass mode: `frosted:<utility>` only applies while <html> carries
-   data-frosted="true`. Each component opts in explicitly. */
+   data-frosted="true`. Components opt in explicitly, and only ever with
+   `backdrop-blur-*` (plus the odd structural utility) — the semi-transparent
+   fill that makes the blur visible comes from `bgimage:` below, not from here. */
 @custom-variant frosted (html[data-frosted='true'] &);
 
 /* `bgimage:<utility>` only applies while the debug page's background image is
-   on, so a component can drop its opaque fill and let it show through. */
+   on, so a component can drop its opaque fill and let it show through. This is
+   the *only* variant allowed to touch a component's fill colour. */
 @custom-variant bgimage (html[data-background='true'] &);
 
 @theme inline {

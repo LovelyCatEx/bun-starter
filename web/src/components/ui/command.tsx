@@ -23,7 +23,7 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground frosted:bg-popover/60 frosted:backdrop-blur-md",
+        "flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground bgimage:bg-popover/60 frosted:backdrop-blur-md",
         className
       )}
       {...props}

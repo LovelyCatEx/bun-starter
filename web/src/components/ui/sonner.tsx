@@ -37,7 +37,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "cn-toast frosted:bg-popover/60! frosted:backdrop-blur-md!",
+            "cn-toast bgimage:bg-popover/60! frosted:backdrop-blur-md!",
         },
       }}
       {...props}

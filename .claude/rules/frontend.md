@@ -253,6 +253,8 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
 
 - 日夜交给 next-themes（`.dark` 类），其余四个维度统一写到 `<html>` 的 data 属性
 - 组件样式侧对应 Tailwind 自定义变体：`frosted:`（`data-frosted`）、`bgimage:`（`data-background`）
+- **两个变体职责不重叠：`bgimage:` 管半透明（有背景图就透），`frosted:` 只加 `backdrop-blur-*`、绝不改颜色**。
+  实心组件要透出去就写 `bgimage:bg-card/60`，不要写 `frosted:bg-card/60`
 - **不要再在页面里手写 `dataset.xxx`**，一律走这个 hook
 
 **主题色只有一个颜色**：如 `sakura-pink` = `#ff8da1` = `oklch(0.772 0.139 9.7)`。暗色模式**不换色、不改 chroma/hue**，只是把同一个颜色调暗（降低 lightness），例如 浅灰 `-0.03`、深灰 `-0.06`、深黑 `-0.10`。不要另造颜色。
@@ -280,10 +282,11 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
 
 ### 毛玻璃 / 背景图
 
-这两块的细节各有专门的 skill，改之前先读：
+这两个开关**正交**：背景图负责让组件半透明（`bgimage:`），毛玻璃只负责在它上面叠一层模糊（`frosted:`）。
+细节各有专门的 skill，改之前先读：
 
-- **毛玻璃**（`frosted:` 变体、`backdrop-filter` 的六条铁律、被祖先 `mask` 杀掉、第三方 CSS 无层要上 `!`）→ `.claude/skills/frosted-glass/SKILL.md`
-- **背景图**（`bgimage:` 变体、开启后组件的透出/半透明处理）→ `.claude/skills/background-image/SKILL.md`
+- **背景图**（`bgimage:` 变体、开启后组件的透出/半透明处理、light/dark 的 token 选择）→ `.claude/skills/background-image/SKILL.md`
+- **毛玻璃**（`frosted:` 变体只写 `backdrop-blur-*`、六条铁律、被祖先 `mask` 杀掉、第三方 CSS 无层要上 `!`）→ `.claude/skills/frosted-glass/SKILL.md`
 
 ## 配置
 

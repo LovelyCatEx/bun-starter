@@ -13,7 +13,7 @@ function Menubar({
     <MenubarPrimitive.Root
       data-slot="menubar"
       className={cn(
-        "flex h-8 items-center gap-0.5 rounded-lg border p-[3px] frosted:bg-popover/60 frosted:backdrop-blur-md",
+        "flex h-8 items-center gap-0.5 rounded-lg border p-[3px] bgimage:bg-popover/60 frosted:backdrop-blur-md",
         className
       )}
       {...props}
@@ -77,7 +77,7 @@ function MenubarContent({
         align={align}
         alignOffset={alignOffset}
         sideOffset={sideOffset}
-        className={cn("z-50 min-w-36 origin-(--radix-menubar-content-transform-origin) overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 frosted:bg-popover/60 frosted:before:pointer-events-none frosted:before:absolute frosted:before:inset-0 frosted:before:rounded-[inherit] frosted:before:-z-10 frosted:before:backdrop-blur-md", className )}
+        className={cn("z-50 min-w-36 origin-(--radix-menubar-content-transform-origin) overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 bgimage:bg-popover/60 frosted:before:pointer-events-none frosted:before:absolute frosted:before:inset-0 frosted:before:rounded-[inherit] frosted:before:-z-10 frosted:before:backdrop-blur-md", className )}
         {...props}
       />
     </MenubarPortal>
@@ -253,7 +253,7 @@ function MenubarSubContent({
   return (
     <MenubarPrimitive.SubContent
       data-slot="menubar-sub-content"
-      className={cn("z-50 min-w-32 origin-(--radix-menubar-content-transform-origin) overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 frosted:bg-popover/60 frosted:before:pointer-events-none frosted:before:absolute frosted:before:inset-0 frosted:before:rounded-[inherit] frosted:before:-z-10 frosted:before:backdrop-blur-md", className )}
+      className={cn("z-50 min-w-32 origin-(--radix-menubar-content-transform-origin) overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 bgimage:bg-popover/60 frosted:before:pointer-events-none frosted:before:absolute frosted:before:inset-0 frosted:before:rounded-[inherit] frosted:before:-z-10 frosted:before:backdrop-blur-md", className )}
       {...props}
     />
   )
