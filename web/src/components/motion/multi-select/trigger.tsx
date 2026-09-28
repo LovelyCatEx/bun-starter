@@ -29,6 +29,8 @@ export function MultiSelectTrigger({
       ref={context.triggerRef}
       id={context.triggerId}
       data-state={context.open ? "open" : "closed"}
+      // frosted blur hook
+      data-slot="multi-select-trigger"
       onPointerDown={(event) => {
         const target = event.target as HTMLElement;
         if (
@@ -128,6 +130,8 @@ export function MultiSelectValue({
                       transform: SPRING_SWAP,
                     }
               }
+              // frosted blur hook
+              data-slot="multi-select-chip"
               className={cn(
                 "inline-flex h-7 max-w-full items-center gap-1 rounded-lg bg-muted px-2 text-xs font-medium text-foreground",
                 chipClassName,

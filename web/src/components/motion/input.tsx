@@ -120,6 +120,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
       <div
         ref={fieldRef}
+        // frosted blur hook
+        data-slot="input"
         data-state={
           hasError
             ? "error"

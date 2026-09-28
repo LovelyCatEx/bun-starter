@@ -146,6 +146,8 @@ export function ToolApproval({
     <div
       data-state={status}
       aria-busy={busy}
+      // frosted blur hook
+      data-slot="tool-approval"
       className={cn(
         "w-full overflow-hidden rounded-2xl border border-border/60 bg-muted/20 text-sm",
         className,
@@ -218,7 +220,11 @@ export function ToolApproval({
         id={detailsId}
         open={currentOpen}
       >
-        <dl className="mx-4 mb-4 grid gap-2 rounded-xl border border-border/50 bg-background/70 p-3">
+        <dl
+          // frosted blur hook
+          data-slot="tool-approval-params"
+          className="mx-4 mb-4 grid gap-2 rounded-xl border border-border/50 bg-background/70 p-3"
+        >
           {parameters.map((parameter) => (
             <div
               key={parameter.id}

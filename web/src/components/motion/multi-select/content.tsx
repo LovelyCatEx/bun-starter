@@ -110,6 +110,8 @@ export function MultiSelectContent({
     <motion.div
       ref={context.contentRef}
       data-multi-select-content=""
+      // frosted blur hook
+      data-slot="multi-select-content"
       data-side={actualSide}
       aria-hidden={!context.open}
       inert={!context.open}

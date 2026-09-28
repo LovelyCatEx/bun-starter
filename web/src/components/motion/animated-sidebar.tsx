@@ -987,6 +987,8 @@ export function AnimatedSidebarMenuSubButton({
       aria-current={isActive ? "page" : undefined}
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : undefined}
+      // frosted blur hook
+      data-slot="button"
       onClick={select}
       whileTap={context.reduce || disabled ? undefined : { scale: 0.98 }}
       transition={SPRING_PRESS}
@@ -997,6 +999,7 @@ export function AnimatedSidebarMenuSubButton({
   ) : (
     <motion.button
       type="button"
+      data-slot="button"
       disabled={disabled}
       aria-current={isActive ? "page" : undefined}
       onClick={select}
@@ -1148,6 +1151,7 @@ export function AnimatedSidebarMenuButton({
       aria-label={panel.collapsed ? textLabel : undefined}
       title={panel.collapsed ? textLabel : undefined}
       tabIndex={disabled ? -1 : undefined}
+      data-slot="button"
       onClick={select}
       whileTap={context.reduce || disabled ? undefined : { scale: 0.98 }}
       transition={SPRING_PRESS}
@@ -1158,6 +1162,7 @@ export function AnimatedSidebarMenuButton({
   ) : (
     <motion.button
       type="button"
+      data-slot="button"
       disabled={disabled}
       aria-current={isActive ? "page" : undefined}
       aria-expanded={ariaExpanded}

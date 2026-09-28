@@ -104,6 +104,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <motion.button
         ref={ref}
         type="button"
+        // frosted blur hook — see styles/frosted.css
+        data-slot="button"
         whileTap={reduce ? undefined : { scale: pressScale }}
         whileHover={reduce || !canHover ? undefined : { scale: 1.02 }}
         transition={SPRING_PRESS}
@@ -170,6 +172,7 @@ export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(
     return (
       <motion.a
         ref={ref}
+        data-slot="button"
         whileTap={reduce ? undefined : { scale: pressScale }}
         whileHover={reduce || !canHover ? undefined : { scale: 1.02 }}
         transition={SPRING_PRESS}

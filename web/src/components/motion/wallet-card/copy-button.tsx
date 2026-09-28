@@ -32,6 +32,8 @@ export function CopyButton({
   return (
     <button
       type="button"
+      // frosted blur hook
+      data-slot="button"
       aria-label={copied ? "Copied" : "Copy address"}
       onClick={(e) => {
         e.stopPropagation();

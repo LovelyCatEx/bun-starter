@@ -25,6 +25,8 @@ export function AgentDisclosure({
   return (
     <motion.div
       {...props}
+      // frosted blur hook
+      data-slot="agent-disclosure"
       aria-hidden={!open}
       inert={!open}
       initial={false}

@@ -115,6 +115,8 @@ export function ColorSelectorItem({ value, color, label, disabled = false, class
       <span
         aria-hidden="true"
         style={style}
+        // frosted blur hook
+        data-slot="color-swatch"
         className={cn(
           "relative flex size-11 items-center justify-center rounded-full border border-foreground/10 bg-muted/60",
           "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-foreground",

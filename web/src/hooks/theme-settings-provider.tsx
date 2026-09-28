@@ -10,6 +10,9 @@ import {
 /** 遮罩默认透明度：开着就有明显效果，但不至于把背景图糊死 */
 const DEFAULT_OVERLAY_OPACITY = 0.5
 
+/** 默认模糊半径（px）：跟 Tailwind 的 `backdrop-blur-md` 同档，开了有感觉但不糊成一片 */
+const DEFAULT_FROSTED_BLUR = 12
+
 /**
  * 主题设置的唯一持有者（`useThemeSettings()` 从这里取状态）。
  *
@@ -22,6 +25,8 @@ export function ThemeSettingsProvider({ children }: { children: ReactNode }) {
   const [background, setBackground] = useState(false)
   const [overlay, setOverlay] = useState(false)
   const [overlayOpacity, setOverlayOpacity] = useState(DEFAULT_OVERLAY_OPACITY)
+  const [frosted, setFrosted] = useState(false)
+  const [frostedBlur, setFrostedBlur] = useState(DEFAULT_FROSTED_BLUR)
 
   useEffect(() => {
     setTheme(mode === 'light' ? 'light' : 'dark')
@@ -39,7 +44,11 @@ export function ThemeSettingsProvider({ children }: { children: ReactNode }) {
       '--background-overlay-opacity',
       String(overlay ? overlayOpacity : 0),
     )
-  }, [themeColor, mode, background, overlay, overlayOpacity])
+    // 模糊半径只在开着时才写：`frosted.css` 那条规则的**存在**由 `data-frosted` 决定，
+    // 所以关掉时留着一个旧半径是无害的（没有规则会读它），这里就不额外抹成 0 了。
+    root.dataset.frosted = String(frosted)
+    root.style.setProperty('--frosted-blur', `${frostedBlur}px`)
+  }, [themeColor, mode, background, overlay, overlayOpacity, frosted, frostedBlur])
 
   const value: ThemeSettings = {
     mode,
@@ -52,6 +61,10 @@ export function ThemeSettingsProvider({ children }: { children: ReactNode }) {
     setOverlay,
     overlayOpacity,
     setOverlayOpacity,
+    frosted,
+    setFrosted,
+    frostedBlur,
+    setFrostedBlur,
   }
 
   return <ThemeSettingsContext.Provider value={value}>{children}</ThemeSettingsContext.Provider>

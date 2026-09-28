@@ -509,14 +509,22 @@ export function AgentToolsSection() {
       {/* ── agent-code ────────────────────────────────────────────────── */}
       <Demo label="agent-code">
         <div className="flex w-full max-w-3xl flex-col gap-4">
-          <div className="rounded-xl border border-border/60 bg-muted/40 p-3">
+          <div
+            // frosted blur hook
+            data-slot="demo-panel"
+            className="rounded-xl border border-border/60 bg-muted/40 p-3"
+          >
             <p className="mb-2 text-xs text-muted-foreground">
               AgentCode — one `pre`, no gutter, no chrome.
             </p>
             <AgentCode code={SHELL_SNIPPET} language="bash" />
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-muted/40 p-3">
+          <div
+            // frosted blur hook
+            data-slot="demo-panel"
+            className="rounded-xl border border-border/60 bg-muted/40 p-3"
+          >
             <p className="mb-2 text-xs text-muted-foreground">
               useAgentCodeTokens + AgentCodeLine — the same tokens, with a gutter of my
               own.
@@ -542,33 +550,40 @@ export function AgentToolsSection() {
             </Button>
           </div>
 
-          <AgentDisclosure
-            open={disclosureOpen}
+          {/* 底色搬到了外层：`AgentDisclosure` 自己必须留 `data-slot="agent-disclosure"`
+              （上面的 clip-path 规则认它），一个元素只能有一个 data-slot。 */}
+          <div
+            // frosted blur hook
+            data-slot="demo-panel"
             className="rounded-xl border border-border/60 bg-muted/40"
           >
-            <p className="p-3 text-sm leading-5 text-muted-foreground">
-              The reveal itself is the whole component: it animates opacity, a
-              clip-path wipe and a small offset, and it never measures the content —
-              openHeight defaults to auto, so the height is whatever the children
-              need. While closed it also carries `inert` and `aria-hidden`, so the
-              hidden content cannot be tabbed into or read out.
-            </p>
-          </AgentDisclosure>
+            <AgentDisclosure open={disclosureOpen}>
+              <p className="p-3 text-sm leading-5 text-muted-foreground">
+                The reveal itself is the whole component: it animates opacity, a
+                clip-path wipe and a small offset, and it never measures the content —
+                openHeight defaults to auto, so the height is whatever the children
+                need. While closed it also carries `inert` and `aria-hidden`, so the
+                hidden content cannot be tabbed into or read out.
+              </p>
+            </AgentDisclosure>
+          </div>
 
-          <AgentDisclosure
-            open={disclosureFixedOpen}
-            openHeight={96}
+          <div
+            // frosted blur hook
+            data-slot="demo-panel"
             className="rounded-xl border border-border/60 bg-muted/40"
           >
-            <div className="h-full overflow-y-auto p-3 text-sm leading-5 text-muted-foreground">
-              Pass openHeight when the region has to be a fixed size instead —
-              tool output, a log, anything that scrolls. Here it is 96px, and the
-              paragraph inside is taller than that, so it scrolls. The disclosure
-              still clips the whole region on the way in and out, which is the
-              difference between this and a plain conditional render: the box grows
-              and shrinks rather than popping in.
-            </div>
-          </AgentDisclosure>
+            <AgentDisclosure open={disclosureFixedOpen} openHeight={96}>
+              <div className="h-full overflow-y-auto p-3 text-sm leading-5 text-muted-foreground">
+                Pass openHeight when the region has to be a fixed size instead —
+                tool output, a log, anything that scrolls. Here it is 96px, and the
+                paragraph inside is taller than that, so it scrolls. The disclosure
+                still clips the whole region on the way in and out, which is the
+                difference between this and a plain conditional render: the box grows
+                and shrinks rather than popping in.
+              </div>
+            </AgentDisclosure>
+          </div>
         </div>
       </Demo>
 
@@ -634,7 +649,11 @@ export function AgentToolsSection() {
 
           <Citations citations={CITATIONS} idPrefix={CITATION_PREFIX} defaultOpen />
 
-          <div className="rounded-xl border border-border/60 bg-muted/40 p-3">
+          <div
+            // frosted blur hook
+            data-slot="demo-panel"
+            className="rounded-xl border border-border/60 bg-muted/40 p-3"
+          >
             <CitationList
               citations={CITATIONS.slice(0, 2)}
               idPrefix="debug-citations-plain"

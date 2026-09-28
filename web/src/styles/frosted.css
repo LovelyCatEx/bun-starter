@@ -1,0 +1,246 @@
+/*
+ * 高斯模糊。开关是 <html data-frosted="true">，半径走 --frosted-blur。
+ *
+ * 命中靠组件上的 data-slot：beUI 没给这些组件任何可识别的属性，光靠类名也认不出来
+ * （bg-primary 出现在 19 个文件里，只有 9 个是按钮）。
+ *
+ * 打标记只有一条原则：**谁画了底色，就打在谁身上**。没画底色的（Input 的字段框、Radio、
+ * OTP 格、Combobox / MultiSelect 的透明外壳、RulerSlider / WaveSlider、TodoList）照样打 ——
+ * 它们没有东西可淡，所以由本文件现给它们补一层表面（见下面第三条规则）。
+ * `AgentCode` 的 pre 是另一种：它该**全透明**（调用方传了底色也顶掉），让 blur 去糊背后那层 ——
+ * 有东西给 blur 显影就不需要自己再画一层。「代码 / 输出」这一类都按这条走（见下面那条规则）。
+ * 唯一没打的是 SignUpForm 的 <form>：它是布局容器、不是控件。
+ *
+ * **带 alpha 的表面看档位淡不淡**：`/80` 那三处面板基本等于实心，照样进 token 组；
+ * `/75` 以下的本来就够透（`/20` 再淡一层就真看不见了），只进 blur 那条。
+ *
+ * 边界的唯一一次外扩：**调试页的演示框也算表面**（`data-slot="demo-panel"`，就是
+ * `agent-tools-section.tsx` 里那 5 块 `bg-muted/40`）。组件自己不画底色的（AgentCode 的 pre）
+ * 总得有东西给 blur 显影，那层东西就是演示框本身。代价是演示框成了 backdrop root，
+ * 框里的标记只能采样框内的画面 —— 嵌套模糊不叠加，见 frontend.md「铁律一」。
+ */
+
+/* 影子变量：`--background: color-mix(… var(--background) …)` 是同元素自引用，会让声明失效。
+   定义在 html 上是为了自动跟 light / 四档暗色 / 主题色走，不用按模式抄四份。 */
+html[data-frosted='true'] {
+    --background-solid: var(--background);
+    --primary-solid: var(--primary);
+    --card-solid: var(--card);
+    --muted-solid: var(--muted);
+}
+
+/*
+ * ⚠️ 只覆盖 token，不要改成直接写 `background-color`：本文件无层级，会连 `:hover` 一起压死。
+ * 覆盖 token 则 hover / 暗色 / 主题色全自动跟着走。详细理由见 frontend.md「高斯模糊」。
+ *
+ * 62% 是手感值；`--*-foreground` 一个都不碰，所以按钮上的文字仍然不透明。
+ */
+html[data-frosted='true'] [data-slot='button'] {
+    backdrop-filter: blur(var(--frosted-blur, 12px));
+    --primary: color-mix(in oklab, var(--primary-solid) 62%, transparent);
+    --card: color-mix(in oklab, var(--card-solid) 62%, transparent);
+    --muted: color-mix(in oklab, var(--muted-solid) 62%, transparent);
+}
+
+/* 模糊本身：所有打了标记的表面（按钮在上面那条里，它自己的 token 集合不一样）。 */
+html[data-frosted='true'] :is(
+    [data-slot='input'],
+    [data-slot='checkbox'],
+    [data-slot='radio'],
+    [data-slot='switch'],
+    [data-slot='select-trigger'],
+    [data-slot='select-content'],
+    [data-slot='select-item'],
+    [data-slot='select-morph-trigger'],
+    [data-slot='select-morph-content'],
+    [data-slot='select-morph-item'],
+    [data-slot='combobox-trigger'],
+    [data-slot='combobox-content'],
+    [data-slot='combobox-item'],
+    [data-slot='multi-select-trigger'],
+    [data-slot='multi-select-content'],
+    [data-slot='multi-select-item'],
+    [data-slot='multi-select-chip'],
+    [data-slot='otp-slot'],
+    [data-slot='color-swatch'],
+    [data-slot='slider-track'],
+    [data-slot='ruler-slider'],
+    [data-slot='wave-slider'],
+    [data-slot='wheel-picker'],
+    [data-slot='approval-card'],
+    [data-slot='tool-approval'],
+    [data-slot='tool-approval-params'],
+    [data-slot='tool-result-output'],
+    [data-slot='todo-list'],
+    [data-slot='code-block'],
+    [data-slot='agent-code'],
+    [data-slot='file-diff-content'],
+    [data-slot='citations-mark'],
+    [data-slot='citations-count'],
+    [data-slot='image-generation'],
+    [data-slot='image-generation-resolution'],
+    /* 唯一一个不在 `components/` 里的 slot：调试页的演示框，只加模糊不淡底色（`/40` 本来就够透） */
+    [data-slot='demo-panel']
+) {
+    backdrop-filter: blur(var(--frosted-blur, 12px));
+}
+
+/*
+ * 表面是 --background。只有这几个可以碰它 —— 它们的子树里没有把 --background 当文字色用的地方。
+ *
+ * 分两半：前半是**自己就画 `bg-background`** 的（面板、外框、勾选框的未选中态）；
+ * 后半是**自己一点底色都没有**的，靠下面那条规则现补一层。
+ */
+html[data-frosted='true'] :is(
+    [data-slot='checkbox'],
+    [data-slot='select-trigger'],
+    [data-slot='select-content'],
+    [data-slot='select-morph-trigger'],
+    [data-slot='select-morph-content'],
+    [data-slot='combobox-content'],
+    [data-slot='multi-select-content'],
+    [data-slot='input'],
+    [data-slot='radio'],
+    [data-slot='otp-slot'],
+    [data-slot='combobox-trigger'],
+    [data-slot='multi-select-trigger'],
+    [data-slot='ruler-slider'],
+    [data-slot='wave-slider']
+) {
+    --background: color-mix(in oklab, var(--background-solid) 62%, transparent);
+}
+
+/*
+ * 给「没有任何底色」的那些补一层表面：它们原本只有边框 / 圈 / 格子，开模糊时**没有东西可淡** ——
+ * `--background` 被淡成 62% 也无处施加，看上去跟没开一样。
+ *
+ * 分两档，差别只在**谁能压过谁**：
+ *
+ * 1. 兜底档（这条）：写进 `@layer utilities`、整条选择器套 `:where()`（权重 0），
+ *    于是**只要元素上带了 `bg-*`，utility 就赢，这一条不生效**。补底色是兜底，
+ *    不该盖掉别人明确的底色 —— 踩过两次：approval-card 给 Input 传 `bg-background/70`、
+ *    ToolApprovalCode 给 AgentCode 传 `bg-muted/30`。
+ * 2. 强压档（下一条）：无层级，压过一切 utility。只有自己写了 `bg-transparent` 的那两个
+ *    （Combobox / MultiSelect 的触发外壳 —— 一个"空"utility，不是底色）需要它，
+ *    否则兜底永远不生效。
+ *
+ * ⚠️ 这是本文件里少数几处直接写 `background-color` 的地方。**别把这个做法推广到有底色的 slot 上** ——
+ * 那边一律走上面的 token 覆盖（那样 hover / 暗色 / 主题色才会跟着走）。
+ * `AgentCode` 的 pre 也不在里面：它背后总有东西（父面板 / 演示框）给 blur 显影，
+ * 自己保持透明反而对 —— 加了这层就等于把它变成一块实心板。
+ *
+ * 补哪一层要跟**同节邻居的表面**对齐，不能一律 `--background`：
+ * `--background` 在暗色下是 `oklch(0.145)`（近黑），补出来的是一块黑板；
+ * agent-tools 那几个面板用的都是 `--muted`（暗色 `oklch(0.269)`），
+ * 所以 `todo-list` 补 `--muted`、并且进上面那条 `--muted` 淡出组，
+ * 才跟 approval-card / tool-result / file-diff 看着是一家人。
+ */
+@layer utilities {
+    :where(html[data-frosted='true'])
+        :where(
+            [data-slot='input'],
+            [data-slot='radio'],
+            [data-slot='otp-slot'],
+            [data-slot='ruler-slider'],
+            [data-slot='wave-slider']
+        ) {
+        background-color: var(--background);
+    }
+
+    :where(html[data-frosted='true']) :where([data-slot='todo-list']) {
+        background-color: var(--muted);
+    }
+}
+
+html[data-frosted='true']
+    :is([data-slot='combobox-trigger'], [data-slot='multi-select-trigger']) {
+    background-color: var(--background);
+}
+
+/*
+ * **「代码 / 输出」这一类表面一律全透明**：开模糊时它们自己不该再画一层底色，
+ * 显影交给背后的东西（参数面板、页面背景图、演示框）。留一层底色的症状就是
+ * 暗色模式下"黑色一层"压在代码上 —— 用户报了两轮。
+ *
+ * - `agent-code`：`AgentCode` 自己没底色，但调用方会传 —— `ToolApprovalCode` 传的就是
+ *   `bg-muted/30`，盖上就等于把 pre 变成一块实心板，blur 被它自己挡掉
+ * - `tool-result-output`：`bg-muted/80`，本来是"淡一档"那一组的，实测在暗色 + 亮背景图下
+ *   还是一块黑板，挪到这里
+ * - `demo-panel`：调试页给这些组件垫的那层 `bg-muted/40`，同样是黑板（只保留它的模糊）
+ *
+ * 无层级 → 压得过一切 utility，不用 `!important`（这里没有内联样式要斗）。
+ * 面板 / 卡片类（approval-card、image-generation、code-block、file-diff-content…）**不在这里**：
+ * 它们照旧走上面那条"淡一档"，那是有边界、有内容层的容器，需要一点底色才看得出是个面板。
+ */
+html[data-frosted='true']
+    :is(
+        [data-slot='agent-code'],
+        [data-slot='tool-result-output'],
+        [data-slot='demo-panel']
+    ) {
+    background-color: transparent;
+}
+
+/*
+ * 底色撤掉之后得给块补回**边框**，否则"框"就没了 —— 用户报的正是这句
+ * （「tool-result 展开之后是有边框的啊」）。原来那圈边界是 `bg-muted/80` 这块实心板的边缘，
+ * 撤了底色就看不出这是块代码区了。
+ *
+ * 只补在**块**上（输出的内容块）：`agent-code` 是 `pre` 本身、`ToolApprovalCode` 已经自带
+ * `border-border/50`、调试页那 5 块演示框在 JSX 里就写了 `border-border/60` —— 那些都不用补。
+ * 60% 跟演示框的写法对齐，深浅一致。
+ */
+html[data-frosted='true'] [data-slot='tool-result-output'] {
+    border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+/*
+ * 表面是 --muted：选中 / 悬停的高亮块、chip、五条轨道、几个 bg-muted 面板，
+ * 外加 `bg-muted/80` 那两处（80% 基本等于实心，淡完约 50%）。
+ * （第三处 `tool-result-output` 已经挪到下面「代码 / 输出一律全透明」那条去了。）
+ *
+ * ⚠️ 这一组只碰 --muted，别再往里加 --background 或 --foreground：滑块的填充和把手是
+ * `bg-foreground`，气泡和 FluidSlider 的填充标签是 `bg-foreground text-background` ——
+ * 那两处靠 --foreground 当底色、--background 当文字色，覆盖了会让填充上的字变半透明。
+ */
+html[data-frosted='true'] :is(
+    [data-slot='select-item'],
+    [data-slot='select-morph-item'],
+    [data-slot='combobox-item'],
+    [data-slot='multi-select-item'],
+    [data-slot='multi-select-chip'],
+    [data-slot='slider-track'],
+    [data-slot='approval-card'],
+    [data-slot='citations-count'],
+    [data-slot='image-generation'],
+    [data-slot='code-block'],
+    [data-slot='file-diff-content'],
+    /* 自己没底色，靠上面的兜底档补这一层（补的就是 --muted，所以必须在这组里） */
+    [data-slot='todo-list']
+) {
+    --muted: color-mix(in oklab, var(--muted-solid) 62%, transparent);
+}
+
+/*
+ * 折叠容器的展开态会把 clip-path 写进内联 `style`，而 `clip-path` 和 `mask` 一样是 backdrop root ——
+ * 里面所有打了标记的表面（ToolResult 的输出块、FileDiff 的内容、ToolApproval 的参数面板、
+ * ToolApprovalCode 的 pre）全都糊不了。这里顶掉它。
+ *
+ * 必须 `!important`：那个值由 framer-motion 写在 `style=""` 上，内联样式只有 `!important` 能压。
+ * 代价是开模糊时这个折叠失去"从上方擦出"的动画，还剩高度 + 透明度两条 —— 内容照样被
+ * `height: 0` + `overflow-hidden` 裁掉，所以关着的时候不会漏出来。
+ * `clip-path: none` 之后这个元素不再是 backdrop root，后代的模糊就采样得到外面了。
+ */
+html[data-frosted='true'] [data-slot='agent-disclosure'] {
+    clip-path: none !important;
+}
+
+/* 开态的开关轨道是 --primary。未选中态走 bg-muted-foreground/60，本来就只有 60%。 */
+html[data-frosted='true'] [data-slot='switch'] {
+    --primary: color-mix(in oklab, var(--primary-solid) 62%, transparent);
+}
+
+/* 滚轮选择器的表面是 --card。 */
+html[data-frosted='true'] [data-slot='wheel-picker'] {
+    --card: color-mix(in oklab, var(--card-solid) 62%, transparent);
+}

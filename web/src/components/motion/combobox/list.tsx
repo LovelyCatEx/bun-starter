@@ -166,6 +166,8 @@ export function ComboboxItem({
         <motion.span
           aria-hidden
           layoutId={context.activeLayoutId}
+          // frosted blur hook
+          data-slot="combobox-item"
           className="absolute inset-0 -z-10 rounded-lg bg-muted"
           transition={context.reduce ? { duration: 0 } : SPRING_LAYOUT}
         />

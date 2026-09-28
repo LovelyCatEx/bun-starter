@@ -51,6 +51,8 @@ export function Switch({
         <motion.button
           id={id}
           type="button"
+          // frosted blur hook
+          data-slot="switch"
           role="switch"
           aria-checked={checked}
           aria-label={ariaLabel}

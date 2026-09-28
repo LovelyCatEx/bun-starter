@@ -146,6 +146,8 @@ export const HoldActionButton = forwardRef<
     <motion.button
       ref={ref}
       type="button"
+      // frosted blur hook
+      data-slot="button"
       disabled={disabled}
       aria-label={typeof children === "string" ? children : undefined}
       onPointerDown={handlePointerDown}

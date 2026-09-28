@@ -50,6 +50,8 @@ export function Checkbox({
       <motion.button
         id={id}
         type="button"
+        // frosted blur hook
+        data-slot="checkbox"
         role="checkbox"
         aria-checked={indeterminate ? "mixed" : checked}
         aria-label={ariaLabel}

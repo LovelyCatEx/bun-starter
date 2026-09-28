@@ -286,6 +286,8 @@ export function ApprovalCard({
     <div
       data-state={status}
       aria-busy={busy}
+      // frosted blur hook
+      data-slot="approval-card"
       className={cn(
         "w-full overflow-hidden rounded-2xl bg-muted p-4 text-sm",
         className,

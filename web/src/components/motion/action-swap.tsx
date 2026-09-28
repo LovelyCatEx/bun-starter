@@ -306,6 +306,8 @@ export function ActionSwapButton({
   return (
     <motion.button
       type="button"
+      // frosted blur hook
+      data-slot="button"
       disabled={disabled}
       whileTap={reduce || disabled ? undefined : { scale: 0.97 }}
       transition={SPRING_PRESS}

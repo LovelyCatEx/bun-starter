@@ -94,6 +94,8 @@ export const ExpandingArrowButton = forwardRef<
     <motion.button
       ref={ref}
       type="button"
+      // frosted blur hook
+      data-slot="button"
       disabled={disabled}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -102,7 +104,10 @@ export const ExpandingArrowButton = forwardRef<
       whileTap={reduce || disabled ? undefined : { scale: 0.97 }}
       transition={SPRING_PRESS}
       className={cn(
-        "relative inline-flex h-16 min-w-72 items-center overflow-hidden rounded-[22px] bg-neutral-950 p-1.5 text-white select-none",
+        // `bg-primary` rather than the original literal `bg-neutral-950`: the
+        // frosted rule only fades tokens, so a hardcoded colour gets blur with no
+        // translucency. Near-black in light mode, follows theme/dark shades.
+        "relative inline-flex h-16 min-w-72 items-center overflow-hidden rounded-[22px] bg-primary p-1.5 text-primary-foreground select-none",
         "outline-none focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         "disabled:pointer-events-none disabled:opacity-50",
         className,

@@ -45,7 +45,7 @@ web/src/api/
 | `web/src/pages/<page>/` | **只服务这个页面**的一切：页面本体 + `components/` + `hooks/` | `pages/debug/` |
 
 - `components/` 下是设计系统那一层：**`motion/`（交互与动效，单个组件的多文件版放同名子目录）、`agents/`（对话与 agent 相关）、`charts/`（图表）三个目录是 beUI 生成物，业务组件一个都不许进去**；`components/` 根下只放跨页面的通用件
-- beUI 的组件**不要 fork 内部实现**：要改样式就传 `className`，要改行为优先看有没有现成 prop —— 生成物被上游覆盖时手改会丢。要加自己的变体，包一层再导出
+- beUI 的组件**可以直接改**（重装时会被覆盖，改动清单见下面「引入与维护」一节）；加自己的变体还是优先包一层再导出，别把业务逻辑写进生成物
 - 页面只有一个文件时**不用**建文件夹（`pages/home.tsx`、`pages/login.tsx`）；出现第一个页面专用组件 / hook 时再建，别提前抽象
 - 反过来也一样：**只被一个页面用的东西不许放全局那两层**。真被第二个页面复用了，才把它提升上去
 - 页面文件夹的形状（`pages/debug/` 就是现成例子）：
@@ -88,7 +88,7 @@ cd web && ./node_modules/.bin/shadcn add <slug> [<slug> ...] --yes --overwrite
     它会照着这里重建 `components/ui/`** —— 那等于又开了一层组件体系。真要用这种组件，
     装完立刻把它挪进 `components/` 下合适的目录并改掉 import
 
-**⚠️ 已实测的两个"装完必坏"，每次重装都会回来。**
+**⚠️ 两个上游自带的"装完必坏"，每次重装都会回来。**
 
 1. **CLI 会把同名文件的 import 改错。** 不同 slug 依赖的文件 **basename 相同**时，CLI 把生成的
    `import` 指向组件目录里那份，而真正的源在 `lib/` 下。实测命中 **2 处**：
@@ -106,14 +106,16 @@ cd web && ./node_modules/.bin/shadcn add <slug> [<slug> ...] --yes --overwrite
 
 所以**重装之后必须 `bun run typecheck`**，上面两条都会在这里现形。
 
-**不要手改生成物内部实现。** 要调样式传 `className`，要调行为先找现成 prop；非改不可就包一层。
-上游一更新，直接落在生成物里的改动会被覆盖 —— 上面那两条修正是**例外**，它们是把上游源码
-改回上游本意（`text-shimmer`）或在类型层面对齐（`parallax`），重装后要重做。
+**改生成物是允许的**，直接改就行，不用再包一层。唯一的实际约束是**重装会丢**：
+`shadcn add --overwrite` 会把文件覆盖回上游版本。所以每处改动都留一条探针，
+重装后扫一遍下面这几条。
 
-**还有第三条例外，是唯一一条"改样式"的：`motion/switch.tsx` 的旋钮。** 上游写的是
-`bg-background` —— 那是**页面底色**的 token，而旋钮坐在 `bg-primary` 的轨道上，两个不同的
-表面。后果是深色档里主题色一上（sakura-pink 深黑 `--primary` = `oklch(0.64 0.139 9.7)`），
-旋钮永远是 `oklch(0.145)` 的**近黑**，看着像粉底上一个黑洞。**这跟主题色无关、也修不好：
+上面两条是"上游的坑"，下面两条是"我们的改动"：
+
+**3. `motion/switch.tsx` 的旋钮配色。** 上游写的是 `bg-background` —— 那是**页面底色**的
+token，而旋钮坐在 `bg-primary` 的轨道上，两个不同的表面。后果是深色档里主题色一上
+（sakura-pink 深黑 `--primary` = `oklch(0.64 0.139 9.7)`），旋钮永远是 `oklch(0.145)` 的
+**近黑**，看着像粉底上一个黑洞。**这跟主题色无关、也修不好：
 `--background` 只在 `base.css` 的 `:root` 与 `dark.css` 的三档里定义，主题文件一个都不碰它**
 （主题只写 `--primary` / `--primary-foreground` / `--ring` / `--sidebar-*` 六个）。
 
@@ -128,15 +130,31 @@ checked ? "bg-primary-foreground" : "bg-background",
 text-primary-foreground`，range-slider 的旋钮（`range-slider-bubble.tsx:93`）坐在
 `bg-foreground` 的填充上所以用 `bg-background` —— **旋钮 = 它所坐的那个东西的对比色**。
 switch 是唯一破了这条的组件，所以改它不算另立一套。
+代价说清楚：深黑 + sakura 档 ΔL 从 0.495 掉到 0.315（旋钮近黑→近白）。仍高于上游本来就在跑的
+亮色 + sakura 档（0.218），所以在这个设计系统自己容忍的范围内。
 
-⚠️ **这条 `typecheck` 抓不到**（另外两条会报错，它只是"悄悄变回上游"）。重装后自己确认一下：
+⚠️ **这条 `typecheck` 抓不到**（上面两条会报错，它只是"悄悄变回上游"）。
 
 ```bash
 grep -n 'bg-primary-foreground' web/src/components/motion/switch.tsx   # 空 = 被冲掉了
 ```
 
-代价说清楚：深黑 + sakura 档 ΔL 从 0.495 掉到 0.315（旋钮近黑→近白）。仍高于上游本来就在跑的
-亮色 + sakura 档（0.218），所以在这个设计系统自己容忍的范围内。
+**4. 高斯模糊的 `data-slot`（三组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处，
+`agents/` 下 agent-tools 9 个文件 12 处；另加调试页演示框 1 处 × 5 个，见下）。**
+高斯模糊靠这个属性命中组件（beUI 的 Button 没有任何可选的属性，光靠类名认不出来 —— 理由见下面
+「高斯模糊」一节）。**只加属性、不加任何样式**，样式全在 `styles/frosted.css`。
+
+```bash
+grep -rho 'data-slot="[a-z-]*"' web/src/components/motion web/src/components/agents --include='*.tsx' \
+  | sort | uniq -c | sort -rn
+# 除了 data-slot="button"（16）和表单那一组（27），还会看到 sidebar-* / preview-rail-* /
+# digit-swap 之类**跟模糊无关**的旧标记 —— 那些是组件自己的 DOM 语义，别去动
+# （`demo-panel` 不在这个 grep 里：它打在调试页的 section 文件上，不在 `components/` 下）
+```
+
+这个属性是"我是按钮"的**身份标记**，不是样式补丁；哪怕某个组件现在还是 `bg-transparent`
+（`icon-button` / `copy-button` / `expandable-control` 就是），也照样打上，省得它哪天有了底色
+再回来补。所以**每加一个按钮组件就要多打一处**。
 
 **在 beUI 之上写自己的动效时，跟着它自己的三条走**（上游 `AGENTS.md` 的约定，别另立一套）：
 
@@ -406,6 +424,9 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
   - `web/src/styles/base.css` — 浅色 token（`:root`）、`@theme inline`、`@custom-variant`、`@layer base`、滚动条
   - `web/src/styles/dark.css` — 暗色三档 token
   - `web/src/styles/themes/<name>.css` — **一个主题色一个文件**（如 `sakura-pink.css`）
+  - `web/src/styles/frosted.css` — **不是 token，是"按开关改组件外观"的规则**（高斯模糊）。
+    它是无层级（unlayered）的，所以压得过 `@layer utilities` —— 这条既要利用、也是最大的坑，
+    见下面「高斯模糊」一节
 
 ### 颜色只能用 token（禁止硬编码）
 
@@ -427,10 +448,14 @@ beUI 的图表与反馈组件按语义取色（涨=success、跌=warning、危�
 **别**用 `text-emerald-600 dark:text-emerald-400` —— 后者不跟主题色、也不跟暗色档位走。
 token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰继承 `.dark`，不单独定义）。
 
-> ⚠️ 生成物里**故意留着**的硬编码色，是**改不得**的：`morphing-tabs`、`not-found/{terminal,glitch,spotlight}`
-> 是固定设计（终端窗口、暗场聚光灯），`charts/*` 的调色板与 `chromatic-text-reveal` 的彩虹是组件身份，
-> `expanding-arrow-button` 的深色导轨 + lime 强调同理。重新 `shadcn add` 会把这些连同上面的 token 化
-> **一起冲掉**（见「beUI 组件（生成物）」一节的说明），别手贱去"顺手修"。
+> ⚠️ 生成物里那些**故意留着**的硬编码色**不是漏网的**，别顺手"修"成 token：`morphing-tabs`、
+> `not-found/{terminal,glitch,spotlight}` 是固定设计（终端窗口、暗场聚光灯），`charts/*` 的调色板
+> 与 `chromatic-text-reveal` 的彩虹是组件身份。
+>
+> `expanding-arrow-button` 的底色**已经** token 化了（原本 `bg-neutral-950 text-white`，现在
+> `bg-primary text-primary-foreground`）—— 高斯模糊只淡出 *token*，硬编码的底色打了 `data-slot`
+> 也只有 blur、没有半透明。它的 **lime 强调块（`bg-lime-300 text-neutral-950`）仍然硬编码**，
+> 那是品牌强调、不是表面，别跟着改。
 
 ### 颜色模式 × 主题色 = 矩阵
 
@@ -453,17 +478,20 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 - `mode` / `setMode`（亮色·深黑·深灰·浅灰）、`themeColor` / `setThemeColor`
 - `background` / `setBackground`（背景图开关）、`overlay` / `setOverlay`（遮罩开关）、
   `overlayOpacity` / `setOverlayOpacity`（0~1，**滑块上的值**；实际生效值见 provider）
+- `frosted` / `setFrosted`（高斯模糊开关）、`frostedBlur` / `setFrostedBlur`（半径，单位 px）
 
 - 状态在 `web/src/hooks/theme-settings-provider.tsx` 的 `<ThemeSettingsProvider>` 里（挂在 `main.tsx` 的 `<ThemeProvider>` 内、`BrowserRouter` 外），
   所以**任何组件调这个 hook 拿到的都是同一份**；页面和页面里的 section 可以各调各的。在 provider 外面调会直接抛错
 - 日夜交给 next-themes（`.dark` 类），其余维度统一写到 `<html>` 的 data 属性：
-  `data-theme`（主题色）/ `data-dark-shade`（灰度）/ `data-background`（背景图），
-  外加 `--background-overlay-opacity`（遮罩**实际生效**透明度，开关关掉时就是 0）
+  `data-theme`（主题色）/ `data-dark-shade`（灰度）/ `data-background`（背景图）/
+  `data-frosted`（高斯模糊），外加 `--background-overlay-opacity`（遮罩**实际生效**透明度，
+  开关关掉时就是 0）与 `--frosted-blur`（模糊半径）
 - 都挂 `<html>` 而不是页面容器，是因为 beUI 的浮层（popover / menu / tooltip / toast）会 portal 到 `body`
 - **不要再在页面里手写 `dataset.xxx`**，一律走这个 hook
 - **组件侧只有一个可选的自定义变体：`bgimage:`**（见下面「背景图」一节）。它是个**工具**、
   **没有任何 beUI 组件默认使用它** —— 组件现在就是 beUI 原生样式，没有"跟着开关自动变外观"的机制；
   要改某个组件的外观就传 `className`，要让它透出背景图才挂 `bgimage:`
+  （**例外**：高斯模糊是纯 CSS 按 `[data-slot]` 命中的，见下面「高斯模糊」一节）
 
 **主题色只有一个颜色**：如 `sakura-pink` = `#ff8da1` = `oklch(0.772 0.139 9.7)`。暗色模式**不换色、不改 chroma/hue**，只是把同一个颜色调暗（降低 lightness），例如 浅灰 `-0.03`、深灰 `-0.06`、深黑 `-0.10`。不要另造颜色。
 
@@ -493,7 +521,7 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 调试页可以开一层**背景图 + 遮罩**，两层都在 `web/src/pages/debug/components/background-layer.tsx` 里。
 图案不是图片文件，是内联 SVG data URI + 几个径向渐变（色标全带 alpha、叠在 `bg-background` 上），
 所以**一份就同时成立在亮色与四档暗色下**，没有第二个素材要维护。
-做法是**机制层**，生成物一个字都不动：
+做法全在**机制层**，生成物一个字节都不用碰（这样重装 beUI 也冲不掉）：
 
 - `<html data-background="true">` 由 `useThemeSettings()` 写；**画那两层的只有调试页**
   （首页 / 登录页保持干净底色）。层级固定两层：`-z-20` 图案 / `-z-10` 遮罩 / `0` 内容，
@@ -541,21 +569,295 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 
 #### 这一节刻意不做的事
 
-- **没有独立的毛玻璃 / 模糊开关**（上一版有 `frosted:`）：特性缩到一个变体，这一节就装得下。
-  真要回到"全组件归一化"那套，旧的两份 skill 在 `git show c8d485b:.claude/skills/` 里
 - **不归一化生成物自带的玻璃**：`dock` / `animated-toast-stack` / `project-folder` 这些自带
-  `bg-card/80 backdrop-blur-xl` 的地方**保持上游写法**，那就是它的设计。要调就**传 `className`**，
-  别改生成物内部（上游一更新就被冲掉）
+  `bg-card/80 backdrop-blur-xl` 的地方**保持上游写法**，那就是它的设计，跟这个开关是两回事。
+  要调就传 `className`，不用动生成物
 
-以后真要加模糊，记住两条仍然成立的老坑：
+### 高斯模糊（`data-frosted`）
 
-- **祖先带 `mask` / `filter` / `opacity`，后代的 `backdrop-filter` 会整个失效** ——
-  最典型的是 `scroll-fade-*` 这类滚动边缘淡出（它就是个 `mask`）。
-  症状是"单独看组件有效果、放进列表里就没了"，只看组件本身永远查不出来
-- **弹层的 content 可能是 `position: fixed`（beUI 有 12 个组件用 `@floating-ui/dom` 定位）**，
-  把 `backdrop-filter` 加在这种容器本体上会**改变 fixed 后代的包含块**，位置就飘了。
-  要模糊就挂在 `before:` 伪元素上（`before:absolute before:inset-0 before:rounded-[inherit] before:-z-10 before:backdrop-blur-md`），
-  `rounded-[inherit]` 不能省 —— 伪元素默认是个矩形，圆角面板上会露出四个直角
+开关是 `<html data-frosted="true">`（**与 `data-background` 平级、互不依赖**），半径走
+`--frosted-blur`。规则全在 `web/src/styles/frosted.css`，命中靠生成物上的 `data-slot` 属性。
+现在有三组组件，**都是按调试页的 section 一节点出来的**，各自一份「覆盖范围」小节的表格；
+外加一组不在 `components/` 里的：
+
+| 组 | 位置 | 处数 | 表面用到的 token |
+| --- | --- | --- | --- |
+| 按钮家族 | `motion/` 下 10 个文件 | 16 | `--primary` / `--card` / `--muted` |
+| 表单控件 | `motion/` 下 21 个文件 | 27 | `--background` 为主，得分档 |
+| agent-tools | `agents/` 下 9 个文件 | 12 | 大多是**本来就带 alpha** 的面板 |
+| 调试页演示框 | `pages/debug/components/agent-tools-section.tsx` | 5 | `bg-muted/40`，本来就够透 → 只模糊 |
+
+#### 为什么不能纯 CSS 命中按钮
+
+beUI 的 `Button` **没有 `data-slot` / `data-variant`**，渲染出来就是个裸 `<button>`（`motion.button`）。
+想靠类名签名认按钮全都误伤，实测：
+
+| 候选签名 | 命中 |
+| --- | --- |
+| `bg-primary` | **19 个文件，只有 9 个是按钮**（`radio` / `tabs` / `checkbox` / `switch` / `bounce-sidebar` / `table/*` 都在用） |
+| `select-none` + `font-medium` | **11 个非按钮文件**（`code-block` / `context-menu` / `table-header` / `project-folder` …） |
+
+类名签名还有个更坏的失效方式：beUI 哪天改个类名，规则**静默失效**、没有任何报错 ——
+比"重装后被冲掉"更难发现。所以在生成物里加了**一个属性**（见下），其余全靠 CSS。
+
+#### 核心：覆盖 **token**，不要覆盖 `background-color`
+
+这条是本仓库最容易写错的地方。`base.css` / `frosted.css` 里的规则都是**无层级**（unlayered）的，
+而无层级声明**压过所有 `@layer`**（含 `@layer utilities`）—— 所以一旦直接写 `background-color`，
+它会连 `:hover` 一起压死，按钮的悬停反馈直接消失。上一版就是被这个坑逼得到处用 `!important`。
+
+**例外**（`frosted.css` 里也标了 ⚠️）是给**一点底色都没有**的 slot 现补一层
+`background-color`。不补这一层，那个 token 被淡成 62% 也**无处施加**，开了模糊跟没开一样。
+补哪一层要跟**同节邻居**对齐：表单控件补 `--background`（暗色 `oklch(0.145)`），
+agent-tools 的 `todo-list` 补 `--muted`（暗色 `oklch(0.269)`）—— 一律 `--background`
+会让它在暗色下变成一块黑板、跟同节的几个面板不像一家人（实测抓到过）。
+这条拆成了**两档**，差别只在"谁能压过谁"：
+
+| 档 | 怎么写 | 谁赢 | 用在 |
+| --- | --- | --- | --- |
+| 兜底 | 写进 `@layer utilities`，整条选择器套 `:where()`（权重 0） | 元素上**只要带 `bg-*`（组件的或调用方传的都算），utility 就赢**，这层不生效 | 其余所有补底色的 slot |
+| 强压 | 无层级 | 压过一切 utility | 只有 `combobox-trigger` / `multi-select-trigger` —— 它们自己写了 `bg-transparent`（一个"空" utility、不是底色） |
+
+分成两档是因为**第一档单独用不够、第二档单独用太狠**，两边都被实测抓到过：兜底档如果也写成无层级，
+`ToolApprovalCode` 传给 `AgentCode` 的 `bg-muted/30`、approval-card 传给 `Input` 的
+`bg-background/70` 会被无声盖掉（补底色本来就只是兜底）；强压档如果覆盖全体，那两个
+`bg-transparent` 的触发外壳永远补不上。**别把这个做法推广到有底色的 slot 上**，也别把兜底档改成无层级。
+
+**改法**是只在按钮身上重定义它用的那个底色 token。产物里（`dist/assets/index-*.css`）：
+
+```css
+.bg-primary{background-color:var(--primary)}
+.hover\:bg-primary\/90:hover{background-color:color-mix(in oklab, var(--primary) 90%, transparent)}
+```
+
+读的是**同一个变量**，所以 hover / `/NN` / 暗色 / 主题色全部自动跟着走，**不需要逐状态规则、也不需要 `!important`**：
+
+```css
+html[data-frosted='true'] [data-slot='button'] {
+    backdrop-filter: blur(var(--frosted-blur, 12px));
+    --primary: color-mix(in oklab, var(--primary-solid) 62%, transparent);
+    --card:    color-mix(in oklab, var(--card-solid)    62%, transparent);
+    --muted:   color-mix(in oklab, var(--muted-solid)   62%, transparent);
+}
+```
+
+- `--*-solid` 影子变量是为了**避免自引用**：`--primary: color-mix(… var(--primary) …)` 是同元素上的
+  循环引用，整条声明会失效。影子变量定义在 `html` 上，自动跟踪 light / 四档暗色 / 主题色
+- 只覆盖这三个，是照 `base.tsx` 四个 variant 实际用的底色来的：`primary`→`bg-primary`、
+  `secondary`→`bg-card`、`ghost`/`outline`→`bg-transparent`（本就透明，只吃模糊、底色不动）。
+  用不到的 token 覆盖了也无害
+- `--primary-foreground` **一个字不碰**，所以主按钮上的文字仍然不透明
+- 产物确认（lightningcss 自动加了 `-webkit-` 前缀与 `@supports (color:color-mix(…))` 的降级：
+  不支持 `color-mix` 的浏览器里 `--primary` 停在实心值 → 不透明 + 模糊，不会变成"没底色"）：
+
+  ```bash
+  f=$(ls dist/assets/*.css | head -1)
+  grep -o "html\[data-frosted=true\] \[data-slot=button\]{[^}]*}" "$f"
+  ```
+
+- **副作用**：覆盖 `--primary` 会影响该元素上**所有**读它的 utility（`.text-primary{color:var(--primary)}`、
+  `.from-primary` …）。四个内置 variant 用的是 `text-primary-foreground`（另一个 token），所以没事；
+  但给 `Button` 传 `className="text-primary"` 会得到半透明文字
+
+#### 覆盖范围：按钮家族的 `data-slot="button"`
+
+上面那条规则全靠这个属性命中，所以它是**生成物改动**（重装会丢，探针见上面「引入与维护」第 4 条）。
+
+**覆盖范围 = 导出名以 `Button` 结尾的组件**（客观判据，不用逐个讨论）。`button/` 四个
+（`Button` / `ButtonLink` / `StatefulButton` / `MagneticButton` / `MetallicButton`）里只有
+`base.tsx` 需要打 —— 其余三个是 `<Button>` 的包装，自动继承。另外 9 个文件**各有自己的根元素**
+（beUI 常把一套 variant 表复制进组件里，`action-swap.tsx:147` 就是 `base.tsx` 的一份副本），
+所以必须逐处打：
+
+| 文件 | 处数 | 说明 |
+| --- | --- | --- |
+| `button/base.tsx` | 2 | `<motion.button>` + `<motion.a>`（`ButtonLink`） |
+| `action-swap.tsx` | 1 | `-blur` / `-roll` / `-cascade` 三个包装都转发到它 |
+| `slide-action-button.tsx` | 2 | 外壳是 `div`（`bg-muted` 的轨道），滑块才是 `button` —— 两个都要，只打滑块的话它采样的是不透明轨道，糊了也看不见 |
+| `swap/controls.tsx` | 2 | `FlipButton`（本来就有 Tailwind 的 `backdrop-blur`，会被无层级的本规则顶掉）+ `ActionButton` |
+| `animated-sidebar.tsx` | 4 | `MenuButton` / `MenuSubButton` 各有两个根（给 href 就是 `<a>`） |
+| `expanding-arrow-button.tsx` | 1 | 它的底色被 token 化了，见下面那一段 |
+| `availability-scheduler/icon-button.tsx` | 1 | `bg-transparent`，只有 hover 时可见 |
+| `wallet-card/copy-button.tsx` | 1 | 同上 |
+| `expandable-control.tsx` | 1 | 同上 |
+
+合计 **10 个文件 16 处**。`<div>` 上那个属性标记的是"这是按钮表面"，不是 DOM 语义 ——
+CSS 只认属性名，`slide-action-button` 的轨道用它正好。
+
+**只加属性，不加样式** —— 样式全在 `frosted.css` 里。
+
+**硬编码底色的组件：光加属性没用。** 覆盖的是 token，所以一个写死颜色的按钮加了
+`data-slot` 只会拿到 `backdrop-filter`、底色还是实心，等于没效果。`expanding-arrow-button`
+就是这个情况（原本 `bg-neutral-950 text-white`），已经**改成 `bg-primary text-primary-foreground`**：
+亮色下 `--primary` 就是 `oklch(0.205 0 0)`（近黑）、`--primary-foreground` 是 `oklch(0.985 0 0)`，
+跟原来的观感基本一致；代价是它从此跟主题色和暗色档走（sakura 下变粉、暗色下翻白）。
+**它的 lime 强调块保持硬编码** —— 那是品牌强调，不是表面。以后遇到同类组件，先看它的底色是
+token 还是字面量，是字面量就得先决定要不要 token 化，别打了属性就以为完事。
+
+#### 覆盖范围：表单控件的第二组 `data-slot`（21 个文件 27 处）
+
+按钮那套"覆盖三个 token"照搬不过来。表单控件的表面用到了 **`--background`**，而
+**`--background` 和 `--foreground` 同时是文字色** —— 滑块的气泡就是 `bg-foreground text-background`
+（填充色当底、页面底色当字）。所以这一组分了三档，**别合并**：
+
+| 这一组的表面是 | 覆盖 | 打了哪些 slot |
+| --- | --- | --- |
+| `--background` | `--background` | `select-trigger` / `select-content` / `select-morph-trigger` / `select-morph-content` / `combobox-content` / `multi-select-content` / `checkbox` |
+| `--muted` | `--muted`，**绝不动 `--background` / `--foreground`** | `select-item` / `select-morph-item` / `combobox-item` / `multi-select-item` / `multi-select-chip` / `slider-track` |
+| 单个 | `--primary`：`switch`（开态轨道）；`--card`：`wheel-picker` | — |
+| **本来没有底色** | `--background` | `input` / `radio` / `otp-slot` / `combobox-trigger` / `multi-select-trigger` / `ruler-slider` / `wave-slider`，**由 `frosted.css` 现补一层 `background-color`**，见下 |
+
+**打标记的判据只有一条：谁画了底色，就打在谁身上。** 几个不显然的地方：
+
+- `select-item` 打在**条目本身**（选中 / hover 时它自己 `bg-muted`）；但 `combobox-item` /
+  `multi-select-item` 打的是**那条滑动的高亮条**（`absolute inset-0 -z-10` 的 `motion.span`）——
+  这两家的条目本身是透明的，只有高亮块有底色。`multi-select-chip` 打的是 chip
+- **六条滑块的轨道共用一个名字 `slider-track`**（不是一组件一个名字）：它们都是 `bg-muted`，
+  共用一条规则。`RangeSlider` / `BubbleSlider` / `FluidSlider` / `InlineSlider` 四条打轨道，
+  `RulerSlider` / `WaveSlider` 打根元素
+- **本来没底色的那几个：光打标记没用。** `input` / `radio` / `otp-slot` /
+  `combobox-trigger` / `multi-select-trigger` / `ruler-slider` / `wave-slider` 自己一点底色
+  都没有（只有边框 / 圈 / 格子，或者显式 `bg-transparent`），`--background` 被淡成 62% 也
+  **无处施加** —— 表现是"这个控件开了模糊完全没变化"（被实测抓到的就是 Input 那个
+  `label="Read only"` 的 Demo）。所以由 `frosted.css` 现给它们补一层 `background-color`
+  （**兜底档**，见上面「唯一的例外」：调用方自己传了 `bg-*` 就让调用方赢）。
+  **关掉模糊时这一层不存在**，所以它们的默认外观一个像素都没变
+  （顺带纠一条：`backdrop-filter` 在透明元素上确实还在，但它糊的是背景画面本身，
+  没有底色去"显影"时肉眼基本看不出来 —— 别指望光靠 blur 出效果）
+- `color-swatch` 只吃模糊不补：它 `bg-muted/60` 本来就有透明度
+- 唯一没打标记的是 `SignUpForm` 的 `<form>`：它是布局容器、不是控件
+- **改之前先看这条**：往 `slider-track` 那一档加 `--background` 或 `--foreground`，滑块气泡上的
+  数字、`FluidSlider` 填充里的标签会变成半透明。分档就是为这个存在的
+- **副作用同按钮**：这一档里覆盖 `--background` 也会影响该元素上**所有**读它的 utility
+  （`.text-background{color:var(--background)}`）。这两家的子树里恰好没有，所以安全 ——
+  以后往 `select-content` / `combobox-content` 里加用 `text-background` 的子元素，得回来重挑
+
+#### 覆盖范围：agent-tools 的第三组 `data-slot`（`agents/` 下 9 个文件 12 处）
+
+按调试页 `Agent tools` 一节逐个过出来的。**这一组大半是"本来就写了 alpha"的面板，所以要按档位
+判断**（前两组没这个问题：按钮和表单控件的底色都是实心 token）：
+
+> **「代码 / 输出」那一类（pre、输出块、演示框）一律全透明，只留模糊 —— 它们背后总有东西显影。
+> 其余按档位：`/80` 那种基本等于实心 → 照样淡；`/75` 及以下的本来就够透 → 只进模糊那条规则；
+> 一点底色都没有的 → 兜底档补一层。**
+> （三轮都报在这里：`bg-muted/20` 被淡成 12% 是"看着全透"；`bg-muted/80` 不淡则"看着没变"；
+> 暗色 + 亮背景图下，代码块上那层淡过的底色**还是一块黑板** —— 见下面「代码 / 输出一律全透明」。）
+
+| slot | 打在哪 | 表面 | 怎么处理 |
+| --- | --- | --- | --- |
+| `approval-card` | `approval-card/index.tsx` 的外壳 `div` | `bg-muted` 实心 | 淡 `--muted` |
+| `image-generation` | `image-generation.tsx` 的 `role="img"` 框（自己带 `isolate`） | `bg-muted` 实心 | 淡 `--muted` |
+| `citations-count` | `citations.tsx` 标题右侧的计数徽章 | `bg-muted` 实心 | 淡 `--muted` |
+| `tool-result-output` | `ToolResultOutput` 的内容块 | `bg-muted/80` | **全透明**（先归在"淡一档"，实测暗色 + 亮图下仍是黑板，挪到「代码 / 输出」那条） |
+| `code-block` | `code-block.tsx` 的外壳 `div` | `bg-muted/80` | 淡 `--muted`（约 50%） |
+| `file-diff-content` | `file-diff.tsx` 的内容块 | `bg-muted/80` | 淡 `--muted`（约 50%） |
+| `tool-approval` | 外壳 `div` | `bg-muted/20` | 只模糊 |
+| `tool-approval-params` | 展开后的参数 `dl` | `bg-background/70` | 只模糊 |
+| `citations-mark` | 正文里的行内引用角标 `<a>` | `bg-muted/60` | 只模糊 |
+| `image-generation-resolution` | 分辨率徽章 | `bg-background/75` | 只模糊 |
+| `todo-list` | `todo-list.tsx` 的外壳 | **一点底色都没有** | 兜底档补 **`--muted`**（不是 `--background`：暗色下 `--background` 会补出一块黑板） |
+| `agent-code` | `AgentCode` 的 `pre` | **一点底色都没有，且永远有东西在它背后** | **全透明**（调用方传了 `bg-muted/30` 也顶掉），只吃模糊 |
+| `demo-panel` | 调试页里那 5 块 `bg-muted/40` 演示框（agent-code ×2 / agent-disclosure ×2 / citations ×1） | `bg-muted/40` | **全透明 + 模糊**（`/40` 的灰在暗色下同样是黑板；**唯一一个不在 `components/` 下的 slot**，见下面「边界外扩」） |
+
+不显然的几处：
+
+- `agent-code` **只打 `AgentCode` 自己那个 `pre`，也不补底色** —— 它背后总有东西
+  （`ToolApprovalCode` 背后是参数面板、调试页里背后是演示框的 `bg-muted/40`），
+  `backdrop-filter` 会把那层一起糊掉，自己再画一层反而变成实心板。**别的 slot 别照抄这条**：
+  它们背后不一定有东西（`todo-list` 后面就是空的页面）
+- `ToolApprovalCode` 的 `bg-muted/30` 属于"别人画的底色"，交给上面「唯一的例外」那套让路规则处理
+- `tool-result` 的**根元素、`agent-disclosure` 整体都没打**：自己一点底色都没有、又只是布局容器
+  （同 `SignUpForm` 的 `<form>`）。`tool-result` 里画底色的是 `ToolResultOutput`
+- `image-generation` 的分辨率徽章在**画底色的那个框内部**，而那个框自己带 `isolate` —— 这里正是
+  想要的效果：徽章糊的是它背后那张图（见「两条物理铁律」里"组件自己的 `isolate` 要分位置"）
+- **硬编码的强调色一律不动**（同 `expanding-arrow-button` 的 lime）：状态徽章的
+  `bg-{amber,blue,emerald,rose}-500/10`（approval-card / tool-approval）、code-block 高亮行的
+  `bg-blue-500/[0.07]`、file-diff 增删行的 `bg-emerald-500/[0.07]` / `bg-rose-500/[0.07]` ——
+  都是 7~10% 的语义色叠层（"这一段是新增"），不是表面，本来就透
+
+#### 边界外扩：调试页的演示框也算表面（`demo-panel`）
+
+「谁画了底色就打谁身上」这条在 `AgentCode` 上撞了墙：那个 `pre` 自己**一个底色都没有**
+（也不该有，加了就成实心板），而给它显影的那层底色是**调试页写的**演示框 `bg-muted/40` ——
+用户报的"agent-code 的背景依然不是 blur"，指的就是这块演示框。
+
+所以把 `agent-tools-section.tsx` 里那 5 块 `bg-muted/40` 打上 `data-slot="demo-panel"`：
+
+- **只进模糊那条规则**，不淡底色：`/40` 本来就够透（按上面那条档位判据）
+- `agent-disclosure` 那两块**把底色搬到了外层 div**：`AgentDisclosure` 自己必须留着
+  `data-slot="agent-disclosure"`（`clip-path` 那条规则认它），而**一个元素只能有一个 `data-slot`**
+- **代价**：演示框自己成了 backdrop root，框里的标记只能采样框内的画面（同「嵌套的模糊不叠加」）。
+  框内 `agent-code` 的 `pre` 因此采不到外面的画面了 —— 但它本来就透明，靠外壳显影即可，
+  肉眼看不出差别。**实测过**：棋盘格里的 `bg-muted/40` 盒子，打标记的那块被抹平、同 class
+  没打标记的那块棋子清清楚楚
+- **别把这个 slot 用到产品组件上**：它只为"调试页的演示框"存在，作用域是
+  `pages/debug/components/`。`buttons-section.tsx:371` 那块 `bg-muted/40` 是 `Liquid`
+  的胶囊底（填充由 SVG filter 画），**没打**：那是另一节的表面，要收得单独过一遍那节
+
+#### 两条物理铁律
+
+- **祖先带 `mask` / `filter` / `opacity < 1` / `isolation: isolate` 会形成 backdrop root，
+  后代的 `backdrop-filter` 只能采样这个 root 内部的画面**，而这类容器通常自己没有底色
+  → 糊了等于没糊。症状是"组件自己写对了但完全没效果"，只看组件本身永远查不出来。
+  分三种情况看：
+  - **调试页 `<main>` 的 `isolate` 是对的、别动**：背景图那两层（`-z-20` / `-z-10`）就画在
+    `<main>` 里面，所以它们在同一个 root 内、采得到（那个玻璃 header 就是靠它）
+  - **`Demo` 定高块原来也用 `isolate`，是纯多余**：框里没有背景图层，后代什么都采不到 ——
+    整页 **61 个**定高 Demo 里的模糊全是死的。已改成 `relative z-0`（`z-index: 0` 一样造
+    stacking context，但**不在 backdrop root 的触发列表里**）。判断"能不能换"就看目的：
+    要的只是关住负 `z-index` / 造层叠上下文，`z-0` 就够；只有真要隔离混合模式时才用 `isolate`
+  - **组件自己的 `isolate` 要分位置**：`image-generation` / `tabs` / `morphing-tabs` /
+    `popover` / `expandable-action-bar` / `swipeable-list` / `adaptive-stepper` 都有。
+    加在**画底色的那个元素自己**身上没事（它自己的模糊照常采样父 root），
+    加在**没底色的容器**上会把后代的模糊全部吃掉
+  - **嵌套的模糊不叠加**：`backdrop-filter` 自己也在触发列表里，所以**里层只能采到外层内部的
+    画面**。`tool-approval-params`（在 `tool-approval` 外壳里）、approval-card 里的 `input`
+    就是这种 —— 它们对着外层那点几乎空白的底色模糊，等于没糊，但底色照样是半透明的，
+    看着就是"透、但不糊"。想让它真糊只能把内层的底色撤掉、只留外层
+    （**这条是照规范推的，没在浏览器里逐像素比对过** —— 真遇到"这一层透但不糊"先往这里想）
+  - **`clip-path` 也在触发列表里，而且最容易漏**（`mask` 的同族）。`AgentDisclosure` 展开时
+    由 framer-motion 往 `style=""` 写 `clip-path: inset(0 0 0% 0)` —— 一个视觉上什么都没裁的
+    值，照样让它变成 backdrop root，于是**折叠里的四个表面全都糊不了**（ToolResult 的输出块、
+    FileDiff 的内容、ToolApproval 的参数面板、ToolApprovalCode 的 pre）。已用一条
+    `clip-path: none !important` 顶掉（见 `frosted.css`）——内联样式只有 `!important` 压得住；
+    代价是开模糊时这个折叠没有"擦出"动画了，高度 + 透明度还在。**实测过**（棋盘格对比截图：
+    套 `clip-path` 的格子清晰、顶掉之后被抹平）
+  - 同类还有：`popover` / `popover-morph`（morph 的 clip 是功能本身）、`tabs` 的滚动遮罩、
+    `action-swap:182` 的 `inset(0 -999px)`、`message-bubble` 的渐隐 mask、
+    `agent-activity` / `range-slider-ruler` 的 `mask-image`。**这些先别动** —— 它们的 clip/mask
+    是设计的一部分，且里面目前没有打了标记的表面。真要往里放表面，先判断 blur 是不是死的
+- **弹层不要把 `backdrop-filter` 加在容器本体上**：它会改变 `position: fixed` 后代的包含块
+  （beUI 有 12 个组件用 `@floating-ui/dom` 定位，二级菜单的定位基准会从视口变成父菜单，再被裁掉）。
+  要模糊就挂 `before:` 伪元素上，且 **`rounded-[inherit]` 不能省** —— 伪元素默认是矩形，
+  圆角面板上会露出四个直角。对按钮不适用（按钮没有 fixed 后代），以后做弹层时记得
+
+#### 边界：什么算"按钮"、什么不算
+
+判据是**导出名以 `Button` 结尾**（见上面那张表，10 个文件）。**不是**"所有自绘的
+可点元素"：`overflow-actions` / `adaptive-stepper` / `breadcrumb` / `swap/token-picker` 这些
+也长着 `bg-muted`，但它们是**列表行 / 选择器 / 折叠触发器**，不是按钮 —— 打上去只会让它们在
+开模糊时莫名其妙变半透明。要收谁进来，先决定它算不算按钮，别按"有没有底色"来筛。
+
+（表单那一组正好相反：**收谁**是照调试页 `Forms & inputs` 一节逐个过出来的，
+**打在哪**才用"这个元素画了底色没有"来定。两个问题的判据不一样，别互相套。）
+
+#### 这一版不做
+
+- 不给 `Button` 加 `data-variant`：不需要 —— 覆盖 token 这条路不用知道它是哪个 variant。
+  哪天真需要按 variant 区别对待再加
+- **表单里没打的**：`SignUpForm` 的 `<form>`（布局容器，不是控件）；`ColorSelectorItem` 的
+  `bg-muted/60` 与 signup-form 的密码强度条 `bg-muted-foreground/20` —— 本来就只有 60% / 20%，
+  再乘 62% 只会更淡，跟"不透明改半透明"这条规则无关
+- 滑块的**填充和把手**（`bg-foreground` / `bg-background`）保持实心：它们是"值"，不是"表面"。
+  要连它们一起淡，得先给它们一个跟文字色脱钩的 token
+- **agent-tools 里没打的**：`tool-result` 的根元素、`agent-disclosure`（没底色的布局容器，
+  同 `SignUpForm` 的 `<form>` —— 调试页那两块演示框的底色是搬到了**外层** `demo-panel` 上，
+  组件本身照样没打）；`tool-approval` 那两个按钮（"Allow once" / "Always allow"）
+  —— 它们是组件内部的 `<motion.button>`，不是导出名以 `Button` 结尾的组件，按上面「边界」
+  那节的判据不收（顺带："Allow once" 是 `bg-foreground text-background`，淡 `--foreground`
+  会连它的文字一起变半透明，收进来之前得先给它一个独立 token）
+- 旧的两份 skill 不重新引入（特性缩到一个文件装得下），要回看
+  `git show c8d485b:.claude/skills/{frosted-glass,background-image}/SKILL.md`
 
 ## 配置
 

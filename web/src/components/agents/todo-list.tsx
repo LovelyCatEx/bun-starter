@@ -259,6 +259,8 @@ export function TodoList({
   return (
     <section
       aria-label="Agent task list"
+      // frosted blur hook
+      data-slot="todo-list"
       className={cn(
         "w-full overflow-hidden rounded-2xl border border-border/70",
         className,

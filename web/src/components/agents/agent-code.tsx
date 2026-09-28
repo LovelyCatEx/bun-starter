@@ -153,6 +153,8 @@ export function AgentCode({
 
   return (
     <pre
+      // frosted blur hook
+      data-slot="agent-code"
       className={cn(
         "m-0 overflow-x-auto whitespace-pre font-mono text-xs leading-5 text-foreground/85",
         className,

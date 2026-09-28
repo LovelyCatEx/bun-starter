@@ -67,6 +67,8 @@ export function FluidSlider({
       {...trackProps}
       animate={reduce ? undefined : { scale: dragging ? 1.03 : 1 }}
       transition={SPRING_PRESS}
+      // frosted blur hook
+      data-slot="slider-track"
       className={cn(
         "relative flex h-12 w-full touch-none overflow-hidden rounded-full bg-muted",
         TOUCH_GESTURE_CLASS,

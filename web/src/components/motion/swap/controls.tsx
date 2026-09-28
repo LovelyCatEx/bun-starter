@@ -22,6 +22,8 @@ export function FlipButton({
     <div className="relative -my-4 flex justify-center" style={{ zIndex: 1 }}>
       <motion.button
         type="button"
+        // frosted blur hook — supersedes the `backdrop-blur` below when it is on
+        data-slot="button"
         onClick={onClick}
         aria-label="Reverse direction"
         whileTap={reduce ? undefined : { scale: 0.9 }}
@@ -62,6 +64,8 @@ export function ActionButton({
   return (
     <motion.button
       type="button"
+      // frosted blur hook
+      data-slot="button"
       whileTap={disabled || reduce ? undefined : { scale: 0.97 }}
       transition={SPRING_PRESS}
       disabled={disabled}

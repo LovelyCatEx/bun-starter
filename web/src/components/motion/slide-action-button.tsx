@@ -128,6 +128,9 @@ export function SlideActionButton({
   return (
     <div
       ref={trackRef}
+      // The track is the visible surface, so it carries the hook too — an opaque
+      // track would leave the thumb nothing to sample.
+      data-slot="button"
       className={cn(
         "relative h-16 w-72 overflow-hidden rounded-[22px] bg-muted p-1",
         "ring-1 ring-primary/10",
@@ -167,6 +170,7 @@ export function SlideActionButton({
       <motion.button
         ref={thumbRef}
         type="button"
+        data-slot="button"
         aria-label={typeof children === "string" ? children : "Slide action"}
         drag={completed ? false : "x"}
         dragConstraints={{ left: 0, right: maxDistance }}

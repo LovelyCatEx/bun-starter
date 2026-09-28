@@ -23,6 +23,8 @@ export function ComboboxTrigger({ children, className }: ComboboxTriggerProps) {
       ref={context.triggerRef}
       id={context.triggerId}
       data-state={context.open ? "open" : "closed"}
+      // frosted blur hook
+      data-slot="combobox-trigger"
       onPointerDown={(event) => {
         if (context.disabled || event.target === context.inputRef.current) return;
         event.preventDefault();

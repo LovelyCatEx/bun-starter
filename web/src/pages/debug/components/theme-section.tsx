@@ -37,13 +37,18 @@ function FieldLabel({ children }: { children: string }) {
 /**
  * 常驻在调试页最上面的一节，翻分类也翻不走。
  *
- * 四个开关：**颜色模式**（四档，写 `data-dark-shade`）、**主题色**（`data-theme`，
+ * 五个开关：**颜色模式**（四档，写 `data-dark-shade`）、**主题色**（`data-theme`，
  * 对应 `src/styles/themes/<name>.css`）、**背景图**（`data-background`）与它上面的**遮罩**
- * （透明度走 `--background-overlay-opacity`）。
+ * （透明度走 `--background-overlay-opacity`），以及**高斯模糊**（`data-frosted`，
+ * 半径走 `--frosted-blur`）。
  *
  * 注意背景图是个**半成品工具**而不是"开一下全站变玻璃"：组件保持 beUI 原生的实心底色，
  * 图案只在页面与 `Section` 的留白处看得到。要让某个元素透出来，得在它的 className 上写
  * `bgimage:`（下面那个示例就是唯一一处示范）。
+ *
+ * **模糊跟背景图是两条独立的路**：模糊不看 `bgimage:`，而是按 `[data-slot='button']`
+ * 命中 beUI 的按钮（`frosted.css`）。所以只开模糊、不开背景图时，按钮会半透明但背后是纯色 ——
+ * 没有可糊的东西。两个都开才是真正的毛玻璃。
  */
 export function ThemeSection() {
   const {
@@ -57,12 +62,16 @@ export function ThemeSection() {
     setOverlay,
     overlayOpacity,
     setOverlayOpacity,
+    frosted,
+    setFrosted,
+    frostedBlur,
+    setFrostedBlur,
   } = useThemeSettings()
 
   return (
     <Section
       title="Theme"
-      description="颜色模式（四档）、主题色、背景图与遮罩。四个开关都直接改 <html> 上的 data 属性／CSS 变量——颜色与主题色全站组件立刻跟着变；背景图只画在调试页这一层，组件要透出它得自己写 bgimage:。"
+      description="颜色模式（四档）、主题色、背景图与遮罩、高斯模糊。所有开关都直接改 <html> 上的 data 属性／CSS 变量——颜色与主题色全站组件立刻跟着变；背景图只画在调试页这一层（组件要透出它得自己写 bgimage:）；模糊命中 beUI 的按钮。"
     >
       <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
         <div className="flex items-center gap-2">
@@ -139,6 +148,44 @@ export function ThemeSection() {
           <p className="text-xs text-muted-foreground">
             「白 / 黑」是遮罩的压色方向：亮色压白、另外三档压黑。遮罩越厚，背景图模式下的边框
             跟着越深（`--border` 与 `--border-strong` 都走这条）。
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <FieldLabel>Blur</FieldLabel>
+          <Switch
+            checked={frosted}
+            onCheckedChange={setFrosted}
+            ariaLabel="Frosted blur"
+          />
+        </div>
+
+        {/* 模糊跟背景图是两件独立的事：只开 Blur 时按钮会半透明，但背后是纯色、没有可糊的东西 */}
+        <div className="flex w-full max-w-md flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <FieldLabel>Blur radius</FieldLabel>
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              {frostedBlur}px
+            </span>
+          </div>
+          <RangeSlider
+            aria-label="Blur radius"
+            showTicks={false}
+            value={frostedBlur}
+            onValueChange={setFrostedBlur}
+            min={0}
+            max={32}
+            step={4}
+            disabled={!frosted}
+            formatValueText={(value) => `${value}px`}
+          />
+          <p className="text-xs text-muted-foreground">
+            作用于<em>导出名以 Button 结尾的组件</em>（Stateful / Metallic / HoldAction / SlideAction /
+            ActionSwap 系列 / ExpandingArrow / IconButton / CopyButton …）。它靠{' '}
+            <code className="font-mono text-xs">[data-slot=&apos;button&apos;]</code> 命中、覆盖的是底色{' '}
+            <em>token</em> 而不是 <code className="font-mono text-xs">background-color</code>，
+            所以 hover / 暗色 / 主题色全都自动跟着走。本来透明的按钮（ghost / icon / copy）
+            只有在 hover 时才看得出糊。
           </p>
         </div>
       </div>

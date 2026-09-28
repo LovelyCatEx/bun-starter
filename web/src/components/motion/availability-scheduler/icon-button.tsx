@@ -29,6 +29,8 @@ export function IconButton({
     <motion.button
       {...rest}
       type="button"
+      // frosted blur hook
+      data-slot="button"
       aria-label={label}
       aria-expanded={expanded}
       onClick={onClick}

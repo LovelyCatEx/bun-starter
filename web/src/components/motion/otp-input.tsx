@@ -254,6 +254,8 @@ export function OTPInput({
                 key={`${uid}-${i}`}
                 data-active={isActive}
                 data-filled={char !== ""}
+                // frosted blur hook
+                data-slot="otp-slot"
                 className={cn(
                   "relative grid h-14 w-12 place-items-center overflow-hidden rounded-xl border text-xl font-semibold tabular-nums transition-colors duration-200",
                   showSuccess

@@ -36,9 +36,14 @@ export function Section({
  * 传了 `height` 就换成**定高块**，给那些自己有布局、撑开会把整页拉爆的组件
  * （chat-app / animated-sidebar / availability-scheduler / wallet-card 这些）。
  *
- * 定高块上加 `isolate`（`isolation: isolate`）是有意的：那些组件的内部会用
- * `absolute` + 负 `z-index` 做分层，`isolate` 把它们关在这块区域里，
- * 不然会跑到页面更下面的层去、被别的东西盖住。
+ * 定高块上加 `relative z-0` 是有意的：那些组件的内部会用 `absolute` + 负 `z-index`
+ * 做分层，靠这个 stacking context 把它们关在这块区域里，不然会跑到页面更下面的层去、
+ * 被别的东西盖住。
+ *
+ * ⚠️ **别把它换成 `isolate`。** `isolation: isolate` 也能造 stacking context，但它同时是
+ * 一个 **backdrop root** —— 后代的高斯模糊就只能采样这个框**内部**的画面，而框本身没有底色，
+ * 于是"组件写对了、模糊却完全看不见"。`relative z-0` 造的 stacking context 不在 backdrop
+ * root 的触发列表里，所以两件事都能满足。同理，别在这块上加 `filter` / `opacity` / `mask`。
  */
 export function Demo({
   label,
@@ -63,7 +68,7 @@ export function Demo({
         style={framed ? { height } : undefined}
         className={cn(
           framed
-            ? 'relative isolate w-full overflow-hidden rounded-lg border border-dashed'
+            ? 'relative z-0 w-full overflow-hidden rounded-lg border border-dashed'
             : 'flex flex-wrap items-center gap-3',
           className,
         )}

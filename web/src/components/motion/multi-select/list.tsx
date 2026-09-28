@@ -180,6 +180,8 @@ export function MultiSelectItem({
         <motion.span
           aria-hidden="true"
           layoutId={context.activeLayoutId}
+          // frosted blur hook
+          data-slot="multi-select-item"
           className="absolute inset-0 -z-10 rounded-lg bg-muted"
           transition={context.reduce ? { duration: 0 } : SPRING_LAYOUT}
         />

@@ -108,6 +108,8 @@ export function ComboboxContent({
     <motion.div
       ref={context.contentRef}
       data-combobox-content=""
+      // frosted blur hook
+      data-slot="combobox-content"
       data-side={actualSide}
       aria-hidden={!context.open}
       inert={!context.open}

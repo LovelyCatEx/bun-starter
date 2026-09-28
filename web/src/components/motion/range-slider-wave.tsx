@@ -48,6 +48,8 @@ export function WaveSlider({ bars = BARS, className, ...options }: WaveSliderPro
   return (
     <div
       {...trackProps}
+      // frosted blur hook
+      data-slot="wave-slider"
       className={cn(
         "relative flex h-20 w-full touch-none items-center justify-between gap-1",
         TOUCH_GESTURE_CLASS,

@@ -69,6 +69,8 @@ export function RangeSlider({ showTicks = true, className, ...options }: RangeSl
   return (
     <div
       {...trackProps}
+      // frosted blur hook
+      data-slot="slider-track"
       className={cn(
         "relative flex h-10 w-full touch-none items-center overflow-hidden rounded-lg bg-muted",
         TOUCH_GESTURE_CLASS,

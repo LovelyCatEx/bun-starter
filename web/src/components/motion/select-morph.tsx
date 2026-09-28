@@ -240,6 +240,8 @@ export function MorphSelectTrigger({
             aria-expanded={ctx.open}
             aria-controls={ctx.listId}
             onClick={() => ctx.setOpen(true)}
+            // frosted blur hook
+            data-slot="select-morph-trigger"
             transition={ctx.reduce ? { duration: 0 } : MORPH}
             style={{ borderRadius: 12 }}
             className={cn(
@@ -288,6 +290,8 @@ export function MorphSelectContent({
             id={ctx.listId}
             role="listbox"
             aria-labelledby={ctx.triggerId}
+            // frosted blur hook
+            data-slot="select-morph-content"
             transition={ctx.reduce ? { duration: 0 } : MORPH}
             style={{ borderRadius: 12 }}
             className={cn(
@@ -368,6 +372,8 @@ export function MorphSelectItem({
         aria-selected={selected}
         disabled={disabled}
         onClick={() => ctx.select(value)}
+        // frosted blur hook
+        data-slot="select-morph-item"
         className={cn(
           "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm outline-none transition-colors",
           selected

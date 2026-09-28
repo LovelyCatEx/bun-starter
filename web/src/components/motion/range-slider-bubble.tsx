@@ -76,6 +76,8 @@ export function BubbleSlider({ format, className, ...options }: BubbleSliderProp
     >
       <div
         {...trackProps}
+        // frosted blur hook
+        data-slot="slider-track"
         className={cn(
           "relative h-2 w-full touch-none rounded-full bg-muted",
           TOUCH_GESTURE_CLASS,

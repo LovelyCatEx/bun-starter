@@ -104,6 +104,8 @@ export function CodeBlock({
     <div
       data-state={status}
       aria-busy={streaming}
+      // frosted blur hook
+      data-slot="code-block"
       className={cn(
         "w-full overflow-hidden rounded-2xl bg-muted/80 text-sm",
         className,

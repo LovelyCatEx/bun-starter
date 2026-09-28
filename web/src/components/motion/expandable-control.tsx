@@ -115,6 +115,8 @@ export function ExpandableButton({
         {...props}
         layout
         type={type}
+        // frosted blur hook
+        data-slot="button"
         aria-label={ariaLabel ?? (typeof label === "string" ? label : undefined)}
         aria-expanded={isExpanded}
         disabled={disabled}

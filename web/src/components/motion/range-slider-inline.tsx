@@ -271,6 +271,8 @@ export function InlineSlider({
       onPointerUp={endGesture}
       onPointerCancel={endGesture}
       onLostPointerCapture={endGesture}
+      // frosted blur hook
+      data-slot="slider-track"
       className={cn(
         "relative h-10 w-full touch-none select-none overflow-hidden rounded-lg bg-muted",
         TOUCH_GESTURE_CLASS,

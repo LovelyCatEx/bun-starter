@@ -489,6 +489,8 @@ export function WheelPicker({
     const pad = (height - itemHeight) / 2;
     return (
       <div
+        // frosted blur hook
+        data-slot="wheel-picker"
         className={cn(
           "relative overflow-hidden rounded-2xl border border-border bg-card",
           disabled && "pointer-events-none opacity-50",
@@ -544,6 +546,8 @@ export function WheelPicker({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      // frosted blur hook
+      data-slot="wheel-picker"
       className={cn(
         "relative touch-none overflow-hidden rounded-2xl border border-border bg-card outline-none focus-visible:ring-2 focus-visible:ring-foreground/20",
         // The drum owns the whole gesture; iOS must not open its callout or

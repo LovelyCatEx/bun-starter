@@ -125,6 +125,8 @@ export function RulerSlider({
   return (
     <div
       {...rootProps}
+      // frosted blur hook
+      data-slot="ruler-slider"
       className={cn(
         "relative w-full touch-none overflow-hidden",
         TOUCH_GESTURE_CLASS,

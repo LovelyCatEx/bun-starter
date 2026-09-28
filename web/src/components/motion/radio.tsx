@@ -115,6 +115,8 @@ export function RadioGroupItem({
       <motion.button
         id={id}
         type="button"
+        // frosted blur hook
+        data-slot="radio"
         role="radio"
         aria-checked={selected}
         disabled={disabled}
