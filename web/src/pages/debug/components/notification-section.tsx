@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/motion/button'
 import { useNotification } from '@/hooks/notification/use-notification'
 import { Section } from '@/pages/debug/components/section'
 

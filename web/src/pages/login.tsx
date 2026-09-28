@@ -1,21 +1,12 @@
 import { useState } from 'react'
 import type { SubmitEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
 
 import { useAuth } from '@/auth/use-auth'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Button } from '@/components/motion/button'
+import { Input } from '@/components/motion/input'
 import { useLanguage } from '@/hooks/use-language'
+import { useToast } from '@/hooks/use-toast'
 
 interface LoginLocationState {
   from?: string
@@ -24,6 +15,7 @@ interface LoginLocationState {
 export function LoginPage() {
   const { t, toggleLanguage } = useLanguage()
   const { login } = useAuth()
+  const toast = useToast()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -42,6 +34,7 @@ export function LoginPage() {
       await login(username, password)
       navigate(from, { replace: true })
     } catch (err) {
+      // 文案在这里就翻好：toast 弹出那一刻的快照，之后切语言不改写已经弹出来的那条
       toast.error(
         t('auth.login.failed', {
           error: err instanceof Error ? err.message : 'unknown error',
@@ -54,53 +47,51 @@ export function LoginPage() {
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>{t('auth.login.title')}</CardTitle>
-          <CardDescription>{t('auth.login.description')}</CardDescription>
-        </CardHeader>
+      {/* 容器与 home.tsx 那张卡片同款（beUI 没有 card 原语，手写 token；见那边的注释） */}
+      <div className="w-full max-w-md overflow-hidden rounded-xl border border-border bg-card text-sm text-card-foreground">
+        <div className="grid auto-rows-min items-start gap-1 p-4">
+          <h1 className="font-heading text-base font-medium leading-snug">
+            {t('auth.login.title')}
+          </h1>
+          <p className="text-sm text-muted-foreground">{t('auth.login.description')}</p>
+        </div>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">{t('auth.login.username')}</Label>
-              <Input
-                id="username"
-                name="username"
-                autoComplete="username"
-                autoFocus
-                required
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-              />
-            </div>
+          <div className="space-y-4 px-4 pb-4">
+            {/* beUI 的 Input 自带 label（并且把 htmlFor 接到自己的 id 上），不用再写 Label */}
+            <Input
+              id="username"
+              name="username"
+              label={t('auth.login.username')}
+              autoComplete="username"
+              autoFocus
+              required
+              value={username}
+              onChange={setUsername}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="password">{t('auth.login.password')}</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
-          </CardContent>
+            <Input
+              id="password"
+              name="password"
+              label={t('auth.login.password')}
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={setPassword}
+            />
+          </div>
 
-          <CardFooter className="mt-6 justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 border-t bg-muted/50 p-4">
             <Button variant="ghost" type="button" onClick={toggleLanguage}>
               {t('common.switchTo')}
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting
-                ? t('auth.login.submitting')
-                : t('auth.login.submit')}
+              {submitting ? t('auth.login.submitting') : t('auth.login.submit')}
             </Button>
-          </CardFooter>
+          </div>
         </form>
-      </Card>
+      </div>
     </main>
   )
 }

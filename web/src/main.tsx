@@ -6,19 +6,20 @@ import './index.css'
 import './i18n/config'
 import App from './App.tsx'
 import { AuthProvider } from './auth/auth-provider'
-import { Toaster } from './components/ui/sonner'
 import { ThemeSettingsProvider } from './hooks/theme-settings-provider'
+import { ToastProvider } from './hooks/toast-provider'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <ThemeSettingsProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <App />
-            <Toaster />
-          </AuthProvider>
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </BrowserRouter>
+        </ToastProvider>
       </ThemeSettingsProvider>
     </ThemeProvider>
   </StrictMode>,

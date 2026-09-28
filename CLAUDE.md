@@ -9,7 +9,7 @@
 Bun monorepo 脚手架：
 
 - `server/` — 后端（Bun + Elysia + Drizzle ORM + Drizzle Kit + Zod）
-- `web/` — 前端（Vite + React + React Router + Tailwind CSS + shadcn/ui + react-i18next）
+- `web/` — 前端（Vite + React + React Router + Tailwind CSS + beUI + react-i18next）
 
 默认端口：
 
@@ -31,7 +31,7 @@ bun-starter/
   web/                  # 前端
   .claude/
     rules/              # 按 paths 自动加载：backend / frontend / shared / auth / database / packaging
-    skills/             # app-version / frosted-glass / background-image / websocket / native-helper
+    skills/             # app-version / websocket / native-helper
 ```
 
 ## 常用命令
@@ -83,7 +83,7 @@ bun run db:studio    # 打开 Drizzle Studio
 **为什么不合成一份**：rule 一旦被加载就是常驻上下文，而"改 `scripts/compile.ts`"和"写一个 service"要读的东西几乎不重叠。拆开与否的判据是 **`paths` 能不能划开**：`shared/**`、`server/src/db/**`、`scripts/**` 能划开；"带 ws 路由的 controller"划不开（ws 路由就写在普通 controller 文件里），所以长连接留在 `backend.md` 的硬约束 + `websocket` skill 里。
 
 - **rule 的 frontmatter 只认 `paths`**（YAML 列表，支持 glob 与 `{a,b}`），别写成 skill 的 `name` / `description`
-- 划不开的窄专题走 **skill**（按 description 匹配、用到才读）：`app-version` / `websocket` / `native-helper` / `frosted-glass` / `background-image`
+- 划不开的窄专题走 **skill**（按 description 匹配、用到才读）：`app-version` / `websocket` / `native-helper`
 - 细则**别抄回 `backend.md`**：它对整个 `server/**` 生效，抄进去就是每读一个后端文件都要付的上下文 —— `backend.md` 顶部有张「想做什么，读哪份」的路由表
 
 **改文档自己的规矩**（踩过：把章节从 `backend.md` 搬到 `packaging.md` 之后，`.claude/` 和代码注释里那些"见 X 的「Y」"没跟着改，全部过期）：
@@ -99,7 +99,5 @@ bun run db:studio    # 打开 Drizzle Studio
 **专题 skill**（涉及对应改动时先读）：
 
 - 改应用名称 / 版本号 → `.claude/skills/app-version/SKILL.md`
-- 毛玻璃（`frosted:`）组件样式 → `.claude/skills/frosted-glass/SKILL.md`
-- 背景图（`bgimage:`）组件样式 → `.claude/skills/background-image/SKILL.md`
 - 长连接（WebSocket）：加事件、写 ws 路由、组件里接推送 → `.claude/skills/websocket/SKILL.md`
 - 原生产物（C / C++）：把 .c/.cpp 编进 5 个平台产物、dev 与产物里都能跑、进程 vs `bun:ffi` → `.claude/skills/native-helper/SKILL.md`

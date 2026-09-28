@@ -1,18 +1,8 @@
 @custom-variant dark (&:is(.dark *));
 
-/* Opt-in glass mode: `frosted:<utility>` only applies while <html> carries
-   data-frosted="true`. Components opt in explicitly, and only ever with
-   `backdrop-blur-*` (plus the odd structural utility) — the semi-transparent
-   fill that makes the blur visible comes from `bgimage:` below, not from here. */
-@custom-variant frosted (html[data-frosted='true'] &);
-
-/* `bgimage:<utility>` only applies while the debug page's background image is
-   on, so a component can drop its opaque fill and let it show through. This is
-   the *only* variant allowed to touch a component's fill colour. */
-@custom-variant bgimage (html[data-background='true'] &);
-
 @theme inline {
     --font-heading: var(--font-sans);
+    --font-display: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
@@ -30,7 +20,12 @@
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
+    --color-border-strong: var(--border-strong);
     --color-destructive: var(--destructive);
+    /* beUI 的图表 / 反馈组件按语义取色（涨=success、跌=warning），我们这边补上这两档。
+       它们跟 --destructive 一样是"颜色本身就是语义"的 token，四档暗色里各自调明度。 */
+    --color-success: var(--success);
+    --color-warning: var(--warning);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -52,6 +47,36 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    /* beUI 的 marquee 组件用的：它自己用 inline style 覆盖 animationDuration，
+       这里的 30s 只是 `animate-marquee` 能被生成出来的兜底值。 */
+    --animate-marquee: marquee 30s linear infinite;
+    --animate-marquee-vertical: marquee-vertical 30s linear infinite;
+}
+
+/*
+ * Marquee: beUI 的 marquee 并排放两条内容完全相同的轨道，各自位移自己宽度的 100%。
+ * 一条完全移出视口时另一条正好补上，而两条内容一致，所以每轮迭代的"跳回起点"
+ * 在视觉上是无缝的 —— 位移量必须是 100%（自身宽度），不能写成 -50%（那是"单轨道内
+ * 复制内容"写法的值，用在这里会让半条轨道空掉）。
+ * 定义在 `@theme` 外面是有意的：keyframes 写在 `@theme` 里只有用到该动画时才输出，
+ * 而这里的名字要跟 `--animate-marquee*` 对得上，放外面更容易一起看。
+ */
+@keyframes marquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+@keyframes marquee-vertical {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(-100%);
+    }
 }
 
 :root {
@@ -70,7 +95,10 @@
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
+    --success: oklch(0.55 0.16 152);
+    --warning: oklch(0.70 0.16 72);
     --border: oklch(0.922 0 0);
+    --border-strong: oklch(0.87 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
     --chart-1: oklch(0.87 0 0);
@@ -88,49 +116,6 @@
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
     --scrollbar-thumb: oklch(0.85 0 0);
-}
-
-/*
- * 背景图模式：底色变成一张带花纹的图，原来那圈浅灰 / 半透明的细边框压在上面就糊掉了，
- * 所以整组边框 token 往下压一档。**再往下一档由遮罩厚度决定**：`--background-overlay-opacity`
- * 越大，边框越往"更深"走 —— 亮色越来越灰（压 lightness），暗色越来越实（抬不透明度）。
- * 遮罩关掉时那个变量是 0，所以边框就停在上面说的"压一档"上（见 theme-settings-provider）。
- *
- * 区间压得比较窄：起点已经比常态深不少（遮罩为 0 时图案最抢眼，边框得压得住），
- * 终点只比起点再深一点点（遮罩铺满时底色已经是纯白/纯黑，不需要更重了）。
- *   亮色      0.78 → 0.73
- *   深黑      24%  → 29%（--input 30% → 35%）
- *   深灰      28%  → 33%（--input 34% → 39%）
- *   浅灰      34%  → 39%（--input 40% → 45%）
- * 改区间就改每行里的那两个数（第一个是 opacity=0，第二个由 `* 0.05` 决定）。
- * 四档一起写在这里（不拆去 dark.css），改的时候一眼看全；选择器又比 dark.css 里的
- * `.dark` / `.dark[data-dark-shade='x']` 特异性高，能稳定盖住它们。
- */
-html[data-background='true'] {
-    --border: oklch(calc(0.78 - var(--background-overlay-opacity) * 0.05) 0 0);
-    --input: oklch(calc(0.78 - var(--background-overlay-opacity) * 0.05) 0 0);
-    --sidebar-border: oklch(calc(0.78 - var(--background-overlay-opacity) * 0.05) 0 0);
-}
-
-/* 深黑 */
-html.dark[data-background='true'] {
-    --border: oklch(1 0 0 / calc(0.24 + var(--background-overlay-opacity) * 0.05));
-    --input: oklch(1 0 0 / calc(0.30 + var(--background-overlay-opacity) * 0.05));
-    --sidebar-border: oklch(1 0 0 / calc(0.24 + var(--background-overlay-opacity) * 0.05));
-}
-
-/* 深灰 */
-html.dark[data-dark-shade='dark-gray'][data-background='true'] {
-    --border: oklch(1 0 0 / calc(0.28 + var(--background-overlay-opacity) * 0.05));
-    --input: oklch(1 0 0 / calc(0.34 + var(--background-overlay-opacity) * 0.05));
-    --sidebar-border: oklch(1 0 0 / calc(0.28 + var(--background-overlay-opacity) * 0.05));
-}
-
-/* 浅灰 */
-html.dark[data-dark-shade='light-gray'][data-background='true'] {
-    --border: oklch(1 0 0 / calc(0.34 + var(--background-overlay-opacity) * 0.05));
-    --input: oklch(1 0 0 / calc(0.40 + var(--background-overlay-opacity) * 0.05));
-    --sidebar-border: oklch(1 0 0 / calc(0.34 + var(--background-overlay-opacity) * 0.05));
 }
 
 @layer base {

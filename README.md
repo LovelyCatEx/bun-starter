@@ -1,3 +1,4 @@
+
 # bun-starter
 
 Monorepo template powered by Bun.
@@ -15,7 +16,7 @@ The backend is a single package organized into internal feature folders:
 
 ```bash
 bun install
-cp .env.example server/.env
+cp server/.env.example server/.env
 bun run dev
 ```
 

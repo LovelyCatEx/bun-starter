@@ -6,7 +6,7 @@ paths:
 
 # 前端规范（`web/`）
 
-Vite + React + React Router + Tailwind CSS + shadcn/ui + react-i18next。默认端口 `5108`，开发时 `/api/*` 代理到后端 `5107`。
+Vite + React + React Router + Tailwind CSS + beUI + react-i18next。默认端口 `5108`，开发时 `/api/*` 代理到后端 `5107`。
 
 命令、端口、目录概览见 `CLAUDE.md`；后端侧的规范见 `.claude/rules/` 下的 `backend` / `shared` / `auth` / `database` / `packaging`（各自按 `paths` 加载，关系见 CLAUDE.md 那张表）。
 
@@ -39,12 +39,13 @@ web/src/api/
 
 | 放哪 | 只放什么 | 现有例子 |
 | --- | --- | --- |
-| `web/src/components/` | **全局通用组件**：跨页面复用、与具体业务无关 | `components/ui/`（shadcn 生成的原语） |
+| `web/src/components/` | **全局通用组件**：跨页面复用、与具体业务无关 | `components/{motion,agents,charts}/`（beUI 生成物） |
 | `web/src/hooks/` | **全局通用 hook**：跨页面复用、与业务无关（浏览器能力、主题、i18n、长连接这类）。配套文件多时在该 hook 名下开文件夹 | `use-device` / `use-language` / `use-websocket`；`hooks/notification/`（`notification.ts` + `use-notification.ts`） |
 | `web/src/<feature>/` | **业务功能域**自己的东西；业务的 hook 跟着业务走，**不要**塞进 `components/` 或 `hooks/` | `auth/`（含 `use-auth.ts`） |
 | `web/src/pages/<page>/` | **只服务这个页面**的一切：页面本体 + `components/` + `hooks/` | `pages/debug/` |
 
-- `components/ui/` 是设计系统那层（shadcn 生成物），**业务组件一个都不许进去**；`components/` 根下只放跨页面的通用件
+- `components/` 下是设计系统那一层：**`motion/`（交互与动效，单个组件的多文件版放同名子目录）、`agents/`（对话与 agent 相关）、`charts/`（图表）三个目录是 beUI 生成物，业务组件一个都不许进去**；`components/` 根下只放跨页面的通用件
+- beUI 的组件**不要 fork 内部实现**：要改样式就传 `className`，要改行为优先看有没有现成 prop —— 生成物被上游覆盖时手改会丢。要加自己的变体，包一层再导出
 - 页面只有一个文件时**不用**建文件夹（`pages/home.tsx`、`pages/login.tsx`）；出现第一个页面专用组件 / hook 时再建，别提前抽象
 - 反过来也一样：**只被一个页面用的东西不许放全局那两层**。真被第二个页面复用了，才把它提升上去
 - 页面文件夹的形状（`pages/debug/` 就是现成例子）：
@@ -57,6 +58,95 @@ web/src/pages/debug/
 ```
 
 **`.tsx` 里不许堆业务逻辑。** 组件只做"从 hook 拿状态和数据 → 渲染"；请求编排、多步状态流转、数据变换、错误分支、防抖节流全部写进 hook（页面专用的就写 `pages/<page>/hooks/`，跨页面的写 `hooks/` 或功能文件夹），hook 里调 `@/api/<feature>/<feature>.ts` 的方法，不自己发请求。
+
+### beUI 组件（生成物）：引入与维护
+
+组件层是 **beUI**（`@beui` shadcn registry，`https://beui.dev/r/{name}.json`），
+已全量引入到 `web/src/components/{motion,agents,charts}/` + `web/src/lib/`。
+**beUI 组件不建立在任何 shadcn 原语之上**（registry 里每条 `registryDependencies` 都是空的），
+所以要加组件就是"再装一个"，不存在"在哪个原语上改"。
+
+**装一个组件**：
+
+```bash
+cd web && ./node_modules/.bin/shadcn add <slug> [<slug> ...] --yes --overwrite
+```
+
+- 用**本地 CLI**（`shadcn` 在 `web/package.json` 里），别用 `bunx shadcn@latest`：版本飘了行为就飘
+- 多个 slug 写一条命令，公共依赖它自己去重，不会反复问
+- ⚠️ **`--yes` 不抑制"这个文件已存在，覆盖吗"**（多个 slug 依赖同一个公共文件时必问），
+  非交互场景会直接卡死 —— 要加 `--overwrite`
+- `web/components.json` 的别名要盯住两个：
+  - **`aliases.lib` 必须是 `@/lib`**：beUI 的 `files[].target` 写的是 `@lib/ease.ts` 这类，
+    CLI 按 `aliases.lib` 解析落点，而组件内部 import 的是 `@/lib/ease`。配错的话文件落到别处、
+    组件按 `@/lib/...` 找不到 —— **一装就全红**，且报错看起来像"文件没生成"
+  - **`aliases.utils` 必须是 `@/lib/utils`**（`cn` 所在的模块）。它以前指着 `@/utils`，
+    而那个目录已经不存在了 —— 留着的话下次 `shadcn add` 会凭空重建一个 `web/src/utils/`，
+    于是仓库里多出第二个 `cn`
+  - `aliases.ui`（`@/components/ui`）现在**是个空指向**：beUI 每个文件都带显式 `target`，
+    用不到这个别名。**但如果你用 CLI 装一个「普通 shadcn 组件」（不带 target 的那种），
+    它会照着这里重建 `components/ui/`** —— 那等于又开了一层组件体系。真要用这种组件，
+    装完立刻把它挪进 `components/` 下合适的目录并改掉 import
+
+**⚠️ 已实测的两个"装完必坏"，每次重装都会回来。**
+
+1. **CLI 会把同名文件的 import 改错。** 不同 slug 依赖的文件 **basename 相同**时，CLI 把生成的
+   `import` 指向组件目录里那份，而真正的源在 `lib/` 下。实测命中 **2 处**：
+   `motion/text-shimmer.tsx` 和 `agents/loading-states/reasoning-text.tsx` 里的
+   `} from "@/components/motion/text-shimmer"` —— **自己导入自己**，而那三个常量其实在
+   `lib/text-shimmer.ts`。改回 `@/lib/text-shimmer` 即可。
+   （核对过 registry 源码，上游写的是对的，是 CLI 改写引入的。）见到
+   `Cannot find module` / `has no exported member` / `Circular definition of import alias`
+   先怀疑这一类，别怀疑组件本身。
+2. **`motion/parallax.tsx` 有一个 motion 13 不认的选项。** 上游源码里有 `layoutEffect: false`
+   （按 framer-motion 11 的语义写的），而本仓库的 motion 13 的 `UseScrollOptions` 里
+   **没有**这个键、整个包里也搜不到这个字符串 —— 它现在是**惰性的**。那一行带着
+   `// @ts-expect-error` 和说明留在原地：既是唯一的意图记录，也是个探针，
+   哪天上游或 motion 对上了，它会反过来报"未使用的 expect-error"，提醒可以删。
+
+所以**重装之后必须 `bun run typecheck`**，上面两条都会在这里现形。
+
+**不要手改生成物内部实现。** 要调样式传 `className`，要调行为先找现成 prop；非改不可就包一层。
+上游一更新，直接落在生成物里的改动会被覆盖 —— 上面那两条修正是**例外**，它们是把上游源码
+改回上游本意（`text-shimmer`）或在类型层面对齐（`parallax`），重装后要重做。
+
+**还有第三条例外，是唯一一条"改样式"的：`motion/switch.tsx` 的旋钮。** 上游写的是
+`bg-background` —— 那是**页面底色**的 token，而旋钮坐在 `bg-primary` 的轨道上，两个不同的
+表面。后果是深色档里主题色一上（sakura-pink 深黑 `--primary` = `oklch(0.64 0.139 9.7)`），
+旋钮永远是 `oklch(0.145)` 的**近黑**，看着像粉底上一个黑洞。**这跟主题色无关、也修不好：
+`--background` 只在 `base.css` 的 `:root` 与 `dark.css` 的三档里定义，主题文件一个都不碰它**
+（主题只写 `--primary` / `--primary-foreground` / `--ring` / `--sidebar-*` 六个）。
+
+改法是让旋钮跟它坐的表面配对，勾选态用 `--primary-foreground`；未勾选态（轨道是
+`--muted-foreground/60`，中性色）保持 `bg-background` 不动：
+
+```tsx
+checked ? "bg-primary-foreground" : "bg-background",
+```
+
+这不是"我们的偏好"，是 beUI 自己的规矩：`overflow-actions.tsx` 用 `bg-primary
+text-primary-foreground`，range-slider 的旋钮（`range-slider-bubble.tsx:93`）坐在
+`bg-foreground` 的填充上所以用 `bg-background` —— **旋钮 = 它所坐的那个东西的对比色**。
+switch 是唯一破了这条的组件，所以改它不算另立一套。
+
+⚠️ **这条 `typecheck` 抓不到**（另外两条会报错，它只是"悄悄变回上游"）。重装后自己确认一下：
+
+```bash
+grep -n 'bg-primary-foreground' web/src/components/motion/switch.tsx   # 空 = 被冲掉了
+```
+
+代价说清楚：深黑 + sakura 档 ΔL 从 0.495 掉到 0.315（旋钮近黑→近白）。仍高于上游本来就在跑的
+亮色 + sakura 档（0.218），所以在这个设计系统自己容忍的范围内。
+
+**在 beUI 之上写自己的动效时，跟着它自己的三条走**（上游 `AGENTS.md` 的约定，别另立一套）：
+
+- 新的 animation 用 `motion/react` 的 **`useReducedMotion()`** 门一下 —— 组件库自己全都这么写，
+  外面套的动画不门就会变成"库尊重了减弱动效、你加的没尊重"
+- 磁吸 / 倾斜这类**装饰性** hover 效果，用 **`useHoverCapable()`** 挡掉触屏（它同时看指针类型和
+  `prefers-reduced-motion`）—— 在 **`@/lib/hooks/use-hover-capable`**，是注册表装的 helper，
+  别自己写 `matchMedia('(hover: hover)')`
+- 只动 **`transform` / `opacity`**，不动 layout 属性（`width` / `height` / `top` / `margin`）。
+  这条和本仓库的性能取向一致：动画跑在合成层，不触发布局重排
 
 - 判据：一个组件里 `useState` / `useEffect` 攒到两三个、或者出现 `await` 业务请求 → 抽 hook
 - 纯展示组件（props 进、JSX 出）不受这条约束，但它们**不许偷偷读全局状态**：props 就是全部输入
@@ -322,12 +412,25 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
 组件里**不许出现硬编码颜色**：`bg-white` / `bg-black` / `bg-[#fff]` / `bg-[rgba(...)]` / `text-white`。
 一律用语义 token（`bg-background` / `bg-card` / `bg-popover` / `bg-muted` / `bg-secondary` / `bg-primary`、
 `text-foreground` / `text-muted-foreground`、`border-border` / `border-input` / `ring-ring`…），
-这样四档暗色、每个主题色、背景图模式三件事才自动正确。
+这样四档暗色、每个主题色两件事才自动正确。
 
-**例外只有"颜色本身就是语义"的那几层**：Dialog/Drawer 的 scrim（`bg-black/10`）、背景遮罩的
-`bg-white dark:bg-black` —— 它们本来就该是黑/白，不跟主题走是有意的。但这类层必须待在"背景图那一层"
-（如遮罩的 `-z-10`）或"内容之上"（如 scrim），**不能变成某个面板里的一块硬白块**。
-判断方法与已经踩过的坑见 `.claude/skills/background-image/SKILL.md` 的规则 E。
+**例外是"颜色本身就是语义"的那几层**：`drawer` / `animated-sidebar` 的抽屉 scrim、`attachment-upload`
+的图片预览遮罩（`bg-black/40` 这类）—— 它们本来就该是黑，不跟主题走是有意的。
+但这类层必须是**盖在内容之上的全屏层**，**不能变成某个面板里的一块硬白块**。
+判据就一句：把这个颜色换成 `bg-card`，**它还是它吗？** 不是 → 语义层，保留；是 → 面子，换 token。
+
+**第二条例外：状态色走 `--success` / `--warning`，不要写 `emerald-*` / `amber-*`。**
+beUI 的图表与反馈组件按语义取色（涨=success、跌=warning、危险=destructive），这几个 token
+与 `--destructive` 同性质 —— **颜色本身就是语义**：不跟主题色走，四档暗色里只按"背景越深、明度越高"
+调一档（`--destructive` / `--success` / `--warning` 在 `dark.css` 都有一个提亮值）。
+用 `text-success` / `bg-success/10` / `fill-warning` 这类写法，
+**别**用 `text-emerald-600 dark:text-emerald-400` —— 后者不跟主题色、也不跟暗色档位走。
+token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰继承 `.dark`，不单独定义）。
+
+> ⚠️ 生成物里**故意留着**的硬编码色，是**改不得**的：`morphing-tabs`、`not-found/{terminal,glitch,spotlight}`
+> 是固定设计（终端窗口、暗场聚光灯），`charts/*` 的调色板与 `chromatic-text-reveal` 的彩虹是组件身份，
+> `expanding-arrow-button` 的深色导轨 + lime 强调同理。重新 `shadcn add` 会把这些连同上面的 token 化
+> **一起冲掉**（见「beUI 组件（生成物）」一节的说明），别手贱去"顺手修"。
 
 ### 颜色模式 × 主题色 = 矩阵
 
@@ -340,24 +443,21 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
 | 深灰 | `dark-gray` | `.dark[data-dark-shade='dark-gray']` |
 | 浅灰 | `light-gray` | `.dark[data-dark-shade='light-gray']` |
 
-- `data-theme`（主题色）和 `data-dark-shade`（灰度）都挂在 `<html>` 上，保证 Portal 内容（Dialog/Select 等）也能继承
+- `data-theme`（主题色）和 `data-dark-shade`（灰度）都挂在 `<html>` 上，保证 Portal 内容
+  （beUI 的 popover / menu / tooltip / toast 都会 portal 到 `body`）也能继承
 
 ### 统一入口：`useThemeSettings()`
 
 `web/src/hooks/use-theme-settings.ts` 是唯一改主题的地方，返回：
-`mode` / `setMode`（亮色·深黑·深灰·浅灰）、`themeColor` / `setThemeColor`、
-`background` / `setBackground`、`frosted` / `setFrosted`、
-`overlay` / `setOverlay`（背景图遮罩开关）、`overlayOpacity` / `setOverlayOpacity`（0~1）。
+`mode` / `setMode`（亮色·深黑·深灰·浅灰）、`themeColor` / `setThemeColor`。
 
 - 状态在 `web/src/hooks/theme-settings-provider.tsx` 的 `<ThemeSettingsProvider>` 里（挂在 `main.tsx` 的 `<ThemeProvider>` 内、`BrowserRouter` 外），
   所以**任何组件调这个 hook 拿到的都是同一份**；页面和页面里的 section 可以各调各的。在 provider 外面调会直接抛错
 - 日夜交给 next-themes（`.dark` 类），其余维度统一写到 `<html>` 的 data 属性
-- 组件样式侧对应 Tailwind 自定义变体：`frosted:`（`data-frosted`）、`bgimage:`（`data-background`）
-- **两个变体职责不重叠：`bgimage:` 管半透明（有背景图就透），`frosted:` 只加 `backdrop-blur-*`、绝不改颜色**。
-  实心组件要透出去就写 `bgimage:bg-card/60`，不要写 `frosted:bg-card/60`
-- 背景遮罩透明度不写 data 属性，写的是 CSS 变量 **`--background-overlay-opacity`**（**实际生效值**：遮罩开关关掉时是 `0`，
-  不是滑块上的那个数），页面上的遮罩层和背景图模式下的边框 token 都读它
 - **不要再在页面里手写 `dataset.xxx`**，一律走这个 hook
+- **组件侧没有对应的自定义变体。** 以前还有 `frosted:`（毛玻璃）和 `bgimage:`（背景图）两个 Tailwind 变体，
+  配套「背景图 / 高斯模糊 / 遮罩」三个开关 —— 那套已整体删除，`base.css` 里的两个 `@custom-variant` 也删了。
+  组件现在就是 beUI 原生样式，**不再有任何"跟着页面开关变外观"的机制**；要改某个组件的外观就传 `className`
 
 **主题色只有一个颜色**：如 `sakura-pink` = `#ff8da1` = `oklch(0.772 0.139 9.7)`。暗色模式**不换色、不改 chroma/hue**，只是把同一个颜色调暗（降低 lightness），例如 浅灰 `-0.03`、深灰 `-0.06`、深黑 `-0.10`。不要另造颜色。
 
@@ -377,22 +477,28 @@ rm -rf .i18n-check src/__i18n-check.ts   # 临时产物必须清掉，不要提�
 ### 全局基础样式（`base.css` 的 `@layer base`）
 
 - `*, ::before, ::after, ::backdrop { border-color: var(--border) }` — 修 Tailwind v4 默认 `currentColor` 边框
-- `html { color: var(--foreground) }` — 让 Radix Portal 到 `body` 的内容（Dialog/Menu/Tooltip/Toast）也能继承前景色
+- `html { color: var(--foreground) }` — 让 Portal 到 `body` 的内容（beUI 的 popover / menu / tooltip / toast）也能继承前景色
 - 滚动条：`*` 上 `scrollbar-width: thin` + `scrollbar-color: var(--scrollbar-thumb) transparent`，配合 `::-webkit-scrollbar` 的 8px 扁平 thumb、透明 track；hover 用 `--muted-foreground`
 - `@utility scrollbar-none` — 需要隐藏滚动条时用
 - 每个颜色模式都必须定义 `--scrollbar-thumb`（`base.css` 的 `:root` 与 `dark.css` 各档）
 
-### 毛玻璃 / 背景图
+### 玻璃：beUI 原样，不要自己加
 
-这两个开关**正交**：背景图负责让组件半透明（`bgimage:`），毛玻璃只负责在它上面叠一层模糊（`frosted:`）。
-细节各有专门的 skill，改之前先读：
+**生成物自带半透明 + 模糊的地方（`bg-card/80 backdrop-blur-xl` 这类）保持原样**，
+那是组件的设计、也是它默认的观感。以前这里有一段"把上游玻璃归一化成开关驱动"的流程
+（配 `frosted:` / `bgimage:` 两个变体），**随背景图功能一起删了** —— 现在没有开关，
+也就没有要归一化的东西。
 
-- **背景图**（`bgimage:` 变体、开启后组件的透出/半透明处理、light/dark 的 token 选择、背景遮罩）→ `.claude/skills/background-image/SKILL.md`
-- **毛玻璃**（`frosted:` 变体只写 `backdrop-blur-*`、六条铁律、被祖先 `mask` 杀掉、第三方 CSS 无层要上 `!`）→ `.claude/skills/frosted-glass/SKILL.md`
+要调某个组件的玻璃感：**传 `className` 覆盖**，别改生成物内部（上游一更新就被冲掉）。
+排查"模糊没生效"时记住两条仍然成立的老坑：
 
-**背景遮罩**（`overlay` / `overlayOpacity`）是背景图那一层的一部分：亮色压白、暗色压黑，
-透明度由用户调，写在 `<html>` 的 `--background-overlay-opacity` 上。**它不强制生效** ——
-页面自己决定渲不渲染那一层（调试页是 `<main>` 里一个 `absolute inset-0 -z-10` 的子元素，靠 `main` 上的 `isolate` 把它夹在背景图和内容之间）。
+- **祖先带 `mask` / `filter` / `opacity`，后代的 `backdrop-filter` 会整个失效** ——
+  最典型的是 `scroll-fade-*` 这类滚动边缘淡出（它就是个 `mask`）。
+  症状是"单独看组件有效果、放进列表里就没了"，只看组件本身永远查不出来
+- **弹层的 content 可能是 `position: fixed`（beUI 有 12 个组件用 `@floating-ui/dom` 定位）**，
+  把 `backdrop-filter` 加在这种容器本体上会**改变 fixed 后代的包含块**，位置就飘了。
+  要模糊就挂在 `before:` 伪元素上（`before:absolute before:inset-0 before:rounded-[inherit] before:-z-10 before:backdrop-blur-md`），
+  `rounded-[inherit]` 不能省 —— 伪元素默认是个矩形，圆角面板上会露出四个直角
 
 ## 配置
 
@@ -422,14 +528,16 @@ export type { FooProps } from './foo.types'
 
 ## 代码风格
 
-- 单引号、**不写分号**、2 空格缩进。⚠️ 这条只管**手写**文件：`web/src/components/ui/**` 是 shadcn 生成物，用**双引号**（分号它也不写，实测 61 个文件一致），别照抄它的引号；反过来也别把 `server/` 的分号风格带过来 —— 两边是反的，来回切文件时最容易串味
+- 单引号、**不写分号**、2 空格缩进。⚠️ 这条只管**手写**文件：`web/src/components/{motion,agents,charts}/**` 和 `web/src/lib/**` 是 beUI 生成物，用**双引号 + 分号**（与 shadcn 那种"双引号但不写分号"不同，实测 218 个生成文件全部双引号、12403 行以分号结尾），别照抄它的引号，也别照抄它的分号；反过来也别把 `server/` 的分号风格带过来 —— 两边是反的，来回切文件时最容易串味
 - 自查行尾分号（输出应当为空 —— 有输出就是被 `server/` 带串味的手写文件）：
 
   ```bash
-  grep -rn ';$' web/src --include=*.ts --include=*.tsx | grep -v '/components/ui/'
+  grep -rn ';$' web/src --include="*.ts" --include="*.tsx" \
+    | grep -vE '/components/(motion|agents|charts)/|/lib/'
   ```
 
-  `grep -v` 排掉生成物，是因为上游哪天改回分号不该算在我们头上；`;$` 匹配的是"以分号结尾的行"，也正是后端每个 `import` / 语句的写法
+  ⚠️ `--include` 的值**一定要加引号**：不加的话 zsh 会先把 `*.ts` 当 glob 展开，报 `no matches found` 直接不执行（这个坑踩过三次）
+  那条 `grep -v` 排掉生成物，是因为上游哪天改了风格不该算在我们头上；`;$` 匹配的是"以分号结尾的行"，也正是后端每个 `import` / 语句的写法
 - `tsconfig.app.json` 开了 `noUnusedLocals` / `noUnusedParameters` / `erasableSyntaxOnly`：不要留未使用的变量、不要用 enum / namespace / parameter properties
 - `verbatimModuleSyntax`：只当类型用的 import 必须写 `import type`
 - 组件文件与组件名 PascalCase（`require-auth.tsx` / `RequireAuth`），其余文件 kebab-case
