@@ -449,15 +449,21 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 ### 统一入口：`useThemeSettings()`
 
 `web/src/hooks/use-theme-settings.ts` 是唯一改主题的地方，返回：
-`mode` / `setMode`（亮色·深黑·深灰·浅灰）、`themeColor` / `setThemeColor`。
+
+- `mode` / `setMode`（亮色·深黑·深灰·浅灰）、`themeColor` / `setThemeColor`
+- `background` / `setBackground`（背景图开关）、`overlay` / `setOverlay`（遮罩开关）、
+  `overlayOpacity` / `setOverlayOpacity`（0~1，**滑块上的值**；实际生效值见 provider）
 
 - 状态在 `web/src/hooks/theme-settings-provider.tsx` 的 `<ThemeSettingsProvider>` 里（挂在 `main.tsx` 的 `<ThemeProvider>` 内、`BrowserRouter` 外），
   所以**任何组件调这个 hook 拿到的都是同一份**；页面和页面里的 section 可以各调各的。在 provider 外面调会直接抛错
-- 日夜交给 next-themes（`.dark` 类），其余维度统一写到 `<html>` 的 data 属性
+- 日夜交给 next-themes（`.dark` 类），其余维度统一写到 `<html>` 的 data 属性：
+  `data-theme`（主题色）/ `data-dark-shade`（灰度）/ `data-background`（背景图），
+  外加 `--background-overlay-opacity`（遮罩**实际生效**透明度，开关关掉时就是 0）
+- 都挂 `<html>` 而不是页面容器，是因为 beUI 的浮层（popover / menu / tooltip / toast）会 portal 到 `body`
 - **不要再在页面里手写 `dataset.xxx`**，一律走这个 hook
-- **组件侧没有对应的自定义变体。** 以前还有 `frosted:`（毛玻璃）和 `bgimage:`（背景图）两个 Tailwind 变体，
-  配套「背景图 / 高斯模糊 / 遮罩」三个开关 —— 那套已整体删除，`base.css` 里的两个 `@custom-variant` 也删了。
-  组件现在就是 beUI 原生样式，**不再有任何"跟着页面开关变外观"的机制**；要改某个组件的外观就传 `className`
+- **组件侧只有一个可选的自定义变体：`bgimage:`**（见下面「背景图」一节）。它是个**工具**、
+  **没有任何 beUI 组件默认使用它** —— 组件现在就是 beUI 原生样式，没有"跟着开关自动变外观"的机制；
+  要改某个组件的外观就传 `className`，要让它透出背景图才挂 `bgimage:`
 
 **主题色只有一个颜色**：如 `sakura-pink` = `#ff8da1` = `oklch(0.772 0.139 9.7)`。暗色模式**不换色、不改 chroma/hue**，只是把同一个颜色调暗（降低 lightness），例如 浅灰 `-0.03`、深灰 `-0.06`、深黑 `-0.10`。不要另造颜色。
 
@@ -482,15 +488,66 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 - `@utility scrollbar-none` — 需要隐藏滚动条时用
 - 每个颜色模式都必须定义 `--scrollbar-thumb`（`base.css` 的 `:root` 与 `dark.css` 各档）
 
-### 玻璃：beUI 原样，不要自己加
+### 背景图（`bgimage:`）与遮罩
 
-**生成物自带半透明 + 模糊的地方（`bg-card/80 backdrop-blur-xl` 这类）保持原样**，
-那是组件的设计、也是它默认的观感。以前这里有一段"把上游玻璃归一化成开关驱动"的流程
-（配 `frosted:` / `bgimage:` 两个变体），**随背景图功能一起删了** —— 现在没有开关，
-也就没有要归一化的东西。
+调试页可以开一层**背景图 + 遮罩**，两层都在 `web/src/pages/debug/components/background-layer.tsx` 里。
+图案不是图片文件，是内联 SVG data URI + 几个径向渐变（色标全带 alpha、叠在 `bg-background` 上），
+所以**一份就同时成立在亮色与四档暗色下**，没有第二个素材要维护。
+做法是**机制层**，生成物一个字都不动：
 
-要调某个组件的玻璃感：**传 `className` 覆盖**，别改生成物内部（上游一更新就被冲掉）。
-排查"模糊没生效"时记住两条仍然成立的老坑：
+- `<html data-background="true">` 由 `useThemeSettings()` 写；**画那两层的只有调试页**
+  （首页 / 登录页保持干净底色）。层级固定两层：`-z-20` 图案 / `-z-10` 遮罩 / `0` 内容，
+  前提是 `<main>` 上有 **`isolate`** —— 少了它负 `z-index` 会退到页面背景之后，看着像"没生效"
+- 遮罩亮色压白、暗色压黑（`bg-white dark:bg-black`），厚度走 `<html>` 上的
+  `--background-overlay-opacity`
+- 组件**保持 beUI 原生**，不透出背景图。要让某个元素透出来，在它的 className 上写
+  **`bgimage:bg-card/60`** —— `bgimage:` 是 `base.css` 里的 `@custom-variant`，只在
+  `data-background='true'` 时生效
+
+**`bgimage:` 是工具、不是自动机制，而且全仓库只有调试页一个调用点**（`theme-section.tsx` 的示例块）。
+那个调用点**不能删**：Tailwind v4 对没有消费者的 utility 不生成 CSS，删了它，变体在源码里看着好好的、
+产物里是空的（这个仓库被"静默不生成 CSS"坑过）。给 beUI 组件挂 `bgimage:` 是允许的，
+**不用改生成物、重装冲不掉** —— 这正是这一版跟上一版（把 `bgimage:` / `frosted:` 写进 ~60 个生成物）的
+区别，也是那套东西被删掉的原因。
+
+挑 token 只用**两种模式都不透明**的（`--card` / `--muted`）：`/60` 是等比降透明度、颜色不变。
+**不要**拿 `--background` 去替换一个"暗色下本来就是浅灰半透明"的控件 —— 它在暗色下是近黑，
+会把那个控件变成"黑色半透明"。
+
+#### 背景图模式下的边框：只压 `--border` 与 `--border-strong`
+
+背景图带花纹，原来那圈浅灰细边框压上去会糊掉。`base.css` 里四条规则把这两个 token 压深一档，
+**再往下一档由遮罩厚度决定**（区间故意只有 5 个点，也就是 `+ o * 0.05`）：
+
+| 模式 | 选择器 | `--border` | `--border-strong` |
+| --- | --- | --- | --- |
+| 亮色 | `html[data-background='true']` | `0.922` → `0.78` | `0.87` → `0.73` |
+| 深黑 | `html.dark[data-dark-shade='deep-black'][data-background='true']` | `10%` → `24%` | `20%` → `34%` |
+| 深灰 | `html.dark[data-dark-shade='dark-gray'][data-background='true']` | `14%` → `28%` | `20%` → `34%` |
+| 浅灰 | `html.dark[data-dark-shade='light-gray'][data-background='true']` | `20%` → `34%` | `26%` → `40%` |
+
+- 暗色三块必须写成 `html.dark[data-dark-shade='x'][data-background='true']`（`(0,3,1)`），
+  才压得过 `dark.css` 的 `.dark`（`(0,1,0)`）与 `.dark[data-dark-shade='x']`（`(0,2,0)`）
+- `var(--background-overlay-opacity, 0)` 里的 **`, 0` 不能省**：裸 `var()` 在首帧会让整条
+  `calc()` 在计算值阶段整个失效（该变量与 `data-background` 由同一个 effect 写入，不会有中间态）
+- 只覆盖这两个 token，是**实测**的决定：`--border` 有 167 处读者；`--border-strong` 有
+  **10 个生成物文件、12 处，其中 5 处是 hover 边框**（`select` / `select-morph` / `multi-select` /
+  `combobox` 的 trigger + `morphing-search`）—— 不跟着压深的话，图案上悬停看不到反馈。
+  `--input` 与 `--sidebar-border` 在 beUI 里**消费者是 0**（`border-input` / `bg-input` / `ring-input`
+  一处都没有），所以不进这套规则
+- 四档写在一起、不回 `dark.css`：改区间时一眼看全
+- **有意不跟这套规则**的：14 个文件用 `ring-foreground` 画环（`ring-border` 只有 2 处）；
+  33 处 `disabled:opacity-*`、6 个 `mask-image` 包裹会压平后代的 `backdrop-filter`
+
+#### 这一节刻意不做的事
+
+- **没有独立的毛玻璃 / 模糊开关**（上一版有 `frosted:`）：特性缩到一个变体，这一节就装得下。
+  真要回到"全组件归一化"那套，旧的两份 skill 在 `git show c8d485b:.claude/skills/` 里
+- **不归一化生成物自带的玻璃**：`dock` / `animated-toast-stack` / `project-folder` 这些自带
+  `bg-card/80 backdrop-blur-xl` 的地方**保持上游写法**，那就是它的设计。要调就**传 `className`**，
+  别改生成物内部（上游一更新就被冲掉）
+
+以后真要加模糊，记住两条仍然成立的老坑：
 
 - **祖先带 `mask` / `filter` / `opacity`，后代的 `backdrop-filter` 会整个失效** ——
   最典型的是 `scroll-fade-*` 这类滚动边缘淡出（它就是个 `mask`）。

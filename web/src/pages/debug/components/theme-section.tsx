@@ -1,3 +1,4 @@
+import { RangeSlider } from '@/components/motion/range-slider'
 import {
   Select,
   SelectContent,
@@ -7,6 +8,7 @@ import {
 } from '@/components/motion/select'
 import { ShaderBackground } from '@/components/motion/shader-background'
 import { SharedLayoutBg } from '@/components/motion/shared-layout-bg'
+import { Switch } from '@/components/motion/switch'
 import { ThemeToggle } from '@/components/motion/theme-toggle'
 import { useThemeSettings, type ColorMode } from '@/hooks/use-theme-settings'
 import { Demo, Section } from '@/pages/debug/components/section'
@@ -35,18 +37,32 @@ function FieldLabel({ children }: { children: string }) {
 /**
  * 常驻在调试页最上面的一节，翻分类也翻不走。
  *
- * 只有两个开关：**颜色模式**（四档，写 `data-dark-shade`）和**主题色**（`data-theme`，
- * 对应 `src/styles/themes/<name>.css`）。以前的「背景图 / 高斯模糊 / 遮罩」三个开关
- * 连同那套 `bgimage:` / `frosted:` 变体一起删掉了 —— 组件现在就是 beUI 原生样式，
- * 不再跟着页面开关变外观。
+ * 四个开关：**颜色模式**（四档，写 `data-dark-shade`）、**主题色**（`data-theme`，
+ * 对应 `src/styles/themes/<name>.css`）、**背景图**（`data-background`）与它上面的**遮罩**
+ * （透明度走 `--background-overlay-opacity`）。
+ *
+ * 注意背景图是个**半成品工具**而不是"开一下全站变玻璃"：组件保持 beUI 原生的实心底色，
+ * 图案只在页面与 `Section` 的留白处看得到。要让某个元素透出来，得在它的 className 上写
+ * `bgimage:`（下面那个示例就是唯一一处示范）。
  */
 export function ThemeSection() {
-  const { mode, setMode, themeColor, setThemeColor } = useThemeSettings()
+  const {
+    mode,
+    setMode,
+    themeColor,
+    setThemeColor,
+    background,
+    setBackground,
+    overlay,
+    setOverlay,
+    overlayOpacity,
+    setOverlayOpacity,
+  } = useThemeSettings()
 
   return (
     <Section
       title="Theme"
-      description="颜色模式（亮色 / 深黑 / 深灰 / 浅灰）与主题色。这两个开关直接改 <html> 上的 data 属性，全站组件立刻跟着变。"
+      description="颜色模式（四档）、主题色、背景图与遮罩。四个开关都直接改 <html> 上的 data 属性／CSS 变量——颜色与主题色全站组件立刻跟着变；背景图只画在调试页这一层，组件要透出它得自己写 bgimage:。"
     >
       <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
         <div className="flex items-center gap-2">
@@ -80,7 +96,73 @@ export function ThemeSection() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* beUI 的 Switch 自带 label，但这两行的措辞要跟下面的说明对齐，所以自己写 */}
+        <div className="flex items-center gap-2">
+          <FieldLabel>Background</FieldLabel>
+          <Switch
+            checked={background}
+            onCheckedChange={setBackground}
+            ariaLabel="Background image"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <FieldLabel>Overlay</FieldLabel>
+          <Switch
+            checked={overlay}
+            onCheckedChange={setOverlay}
+            disabled={!background}
+            ariaLabel="Background overlay"
+          />
+        </div>
+
+        {/* 遮罩是背景图那一层的东西，所以两个开关都得开才可调 */}
+        <div className="flex w-full max-w-md flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <FieldLabel>Overlay opacity</FieldLabel>
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              {Math.round(overlayOpacity * 100)}% · {mode === 'light' ? '白' : '黑'}
+            </span>
+          </div>
+          <RangeSlider
+            aria-label="Overlay opacity"
+            showTicks={false}
+            value={Math.round(overlayOpacity * 100)}
+            onValueChange={(value) => setOverlayOpacity(value / 100)}
+            min={0}
+            max={100}
+            step={5}
+            disabled={!background || !overlay}
+            formatValueText={(value) => `${value}%`}
+          />
+          <p className="text-xs text-muted-foreground">
+            「白 / 黑」是遮罩的压色方向：亮色压白、另外三档压黑。遮罩越厚，背景图模式下的边框
+            跟着越深（`--border` 与 `--border-strong` 都走这条）。
+          </p>
+        </div>
       </div>
+
+      {/*
+        `bgimage:` 在全仓库的**唯一调用点**。它不只是个示例：Tailwind v4 对没有消费者的
+        utility 不生成 CSS，有了这一处，构建产物里才会真的出现
+        `html[data-background=true] .bgimage\:bg-card\/60` 那条规则 —— 否则这个变体在源码里
+        看着好好的，产物里是空的（这个仓库被"静默不生成 CSS"坑过）。
+
+        两层底色都写上是故意的：`bg-card` 是关掉背景图时的实心底，`bgimage:bg-card/60` 是
+        打开时覆盖它的半透明版。token 挑 `--card` 是因为它在四种模式下都不透明。
+      */}
+      <Demo label="bgimage: (唯一调用点)">
+        <div className="w-full rounded-xl border bg-card p-4 bgimage:bg-card/60">
+          <p className="text-sm text-card-foreground">
+            这个块写的是 <code className="font-mono text-xs">bg-card bgimage:bg-card/60</code>
+            。把上面的 Background 打开，它变半透明、背后的图案透出来；关掉就回实心。
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            组件想透出背景图，就是给它挂这么一个类 —— 不用改生成物，重装 beUI 也冲不掉。
+          </p>
+        </div>
+      </Demo>
 
       {/* ── beUI 自带的三件"外壳" ───────────────────────────────── */}
 

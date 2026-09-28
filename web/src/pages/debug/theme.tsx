@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { AgentToolsSection } from '@/pages/debug/components/agent-tools-section'
 import { AgentsSection } from '@/pages/debug/components/agents-section'
+import { BackgroundLayer } from '@/pages/debug/components/background-layer'
 import { ButtonsSection } from '@/pages/debug/components/buttons-section'
 import { ChartsSection } from '@/pages/debug/components/charts-section'
 import { DataSection } from '@/pages/debug/components/data-section'
@@ -60,7 +61,9 @@ export function ThemeDebugPage() {
   }, [selected])
 
   return (
-    <main className="min-h-svh bg-background text-foreground">
+    /* `relative isolate` 是背景图那两层的前提：`isolate` 把它们的负 z-index 关在这页里 */
+    <main className="relative isolate min-h-svh bg-background text-foreground">
+      <BackgroundLayer />
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
           <div>
@@ -83,7 +86,7 @@ export function ThemeDebugPage() {
             上面 header 约 68px，所以 `top-20`（80px）刚好留出间距。
           */}
           <div className="lg:sticky lg:top-20 lg:max-h-[calc(100svh-6rem)] lg:self-start lg:overflow-y-auto">
-            <SectionNav items={SECTIONS} value={selected} onChange={setSelected} />
+            <SectionNav items={SECTIONS} value={selected}   onChange={(id) => setSelected(id as SectionId)} />
           </div>
           {/* `minmax(0,1fr)` 配 `min-w-0`：不然宽表格 / 图表会把这一列顶爆，整页横向滚动 */}
           <div className="min-w-0">
