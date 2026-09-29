@@ -290,6 +290,7 @@ export function NotificationStack({
       <span className="absolute inset-x-0 bottom-0 block p-3">
         <motion.span
           aria-hidden="true"
+          data-slot="notification-stack"
           layout
           initial={false}
           transition={backgroundTransition}
@@ -308,6 +309,7 @@ export function NotificationStack({
             return (
               <motion.span
                 key={item.id}
+                data-slot="notification-stack-card"
                 layout="position"
                 initial={false}
                 animate={{

@@ -140,7 +140,8 @@ grep -n 'bg-primary-foreground' web/src/components/motion/switch.tsx   # 空 = �
 ```
 
 **4. 高斯模糊的 `data-slot`（三组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处，
-`agents/` 下 agent-tools 9 个文件 12 处；另加 `motion/context-menu.tsx` 1 处与调试页演示框
+`agents/` 下 agent-tools 9 个文件 12 处；另加 `motion/context-menu.tsx` 1 处、
+`motion/animated-toast-stack.tsx` 2 处、`motion/notification-stack.tsx` 2 处与调试页演示框
 1 处 × 5 个，见下）。**
 高斯模糊靠这个属性命中组件（beUI 的 Button 没有任何可选的属性，光靠类名认不出来 —— 理由见下面
 「高斯模糊」一节）。**只加属性、不加任何样式**，样式全在 `styles/frosted.css`。
@@ -573,9 +574,10 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 
 #### 这一节刻意不做的事
 
-- **不归一化生成物自带的玻璃**：`dock` / `animated-toast-stack` / `project-folder` 这些自带
-  `bg-card/80 backdrop-blur-xl` 的地方**保持上游写法**，那就是它的设计，跟这个开关是两回事。
-  要调就传 `className`，不用动生成物
+- **不归一化生成物自带的玻璃**：`dock` / `project-folder` 这些自带 `bg-card/80 backdrop-blur-xl`
+  的地方**保持上游写法**，那就是它的设计，跟这个开关是两回事。要调就传 `className`，不用动生成物。
+  （`animated-toast-stack` 原来是这一类的，**已经收编**：`bg-card/95` 那块-glass 在暗色下就是
+  一块不透明的板，用户点名要它跟着模糊 —— 见「提示条」一节）
 
 ### 高斯模糊（`data-frosted`）
 
@@ -590,6 +592,8 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 | 表单控件 | `motion/` 下 21 个文件 | 27 | `--background` 为主，得分档 |
 | agent-tools | `agents/` 下 9 个文件 | 12 | 大多是**本来就带 alpha** 的面板 |
 | 弹层：右键菜单 | `motion/context-menu.tsx` | 1 | `--card`，**另外要先拆掉外层的 `filter`**，见下 |
+| 弹层：通知堆叠 | `motion/notification-stack.tsx` | 2 | 底衬 `--muted` + 卡片 `--background` |
+| 弹层：提示条 | `motion/animated-toast-stack.tsx` | 2 | 卡片 `--card`（`/95`），**模糊挂在 `<li>` 上**，见下 |
 | 调试页演示框 | `pages/debug/components/agent-tools-section.tsx` | 5 | `bg-muted/40`，本来就够透 → 只模糊 |
 
 #### 为什么不能纯 CSS 命中按钮
@@ -831,6 +835,41 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
 ⚠️ 同一个坑还有一处：`motion/popover-morph.tsx:336` 挂着
 `[filter:drop-shadow(0_10px_18px_rgba(0,0,0,0.14))]`，里面若放打了标记的表面同样糊不了。
 **这节先不动**，做到 `Overlay` 那一节的 popover 时一起处理。
+
+#### 通知堆叠（`notification-stack` + `notification-stack-card`）
+
+`NotificationStack` 是个 `motion.button`，里面两层各打一个标记，token 不一样：
+
+| slot | 打在哪 | 底色 | 处理 |
+| --- | --- | --- | --- |
+| `notification-stack` | 卡片**下面那层** `rounded-3xl bg-muted` 的底衬 | `--muted` 实心 | 淡 `--muted` + 模糊 |
+| `notification-stack-card` | 每一张卡片（`bg-background`） | `--background` 实心 | 淡 `--background` + 模糊 |
+
+- 两个都要打：底衬是折叠态看到的那个"背景"，卡片是展开态看到的主体。只打底衬的话，
+  展开后几张不透明的卡片就成了一块黑板（同 `tool-result` 那次）
+- 卡片上由 framer-motion 写的 `clip-path: inset(0px …px round 16px)` **不用管**（同右键菜单：
+  面板自己就是带 blur 的那层，clip-path 只挡后代）
+- **没打的**：`items` 为空时的那个 `bg-muted/70` 空状态（另一个分支、调试页看不到；
+  按档位判据 `/70` 只该加模糊，真要收得单独给它一个 slot）；卡片内部的图标徽章
+  （`bg-muted` / `bg-muted/60`）和操作胶囊（`bg-muted/80`）—— 它们是卡片**上面**的小件，
+  背后是卡片不是页面，等真看着不顺眼再收
+
+#### 提示条（`toast` + `toast-stack-item`）
+
+`AnimatedToastStack` 的卡片上游本来就带玻璃（`bg-card/95 … backdrop-blur-xl`），但 95% 的
+底色把它盖死了 —— 就是"不透明背景"的观感。这个**不能只淡底色**：
+
+- 卡片外面的 `<li>` 上有 framer-motion 写的 `filter: blur(0px)`（入场的"糊着浮现"动画，
+  收尾值不是 `none`，照样是 backdrop root）→ 卡片的 `backdrop-blur-xl` 采不到页面。
+  **实测**（30px 棋盘格）：只淡 `--card` 那格大格子看得见（blur 是死的）
+- 改法是**把模糊挂到 `<li>` 自己身上**（`data-slot="toast-stack-item"`），不是顶掉它的 `filter`：
+  元素自己的 `filter` 不挡自己的 `backdrop-filter`，所以**入场的模糊动画保住了**
+  （顶掉就没了，同 `agent-disclosure` 那种代价）。卡片只负责淡 `--card` + 当那层"显影"
+- 卡片自己那条上游 `backdrop-blur-xl` 用 `backdrop-filter: none` 收掉：它采的是已经糊过一遍的
+  li 内部，叠上去是两遍模糊、半径也不受 `--frosted-blur` 控制（**实测**：不收的话滑块拉到 0
+  它还在糊）。这也是 `animated-toast-stack` 从"自带玻璃、不归一化"那组里挪出来的原因
+- 顺带量到一条负面结论：li 上的 `will-change: transform` **不是** backdrop root 触发器
+  （只顶掉 `filter` 的那一格已经能糊了）
 
 #### 物理铁律
 

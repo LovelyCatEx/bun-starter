@@ -345,6 +345,7 @@ const ToastItem = memo(function ToastItem({
   return (
     <motion.li
       layout
+      data-slot="toast-stack-item"
       initial={
         reduce
           ? { opacity: 0 }
@@ -380,6 +381,7 @@ const ToastItem = memo(function ToastItem({
       style={{ zIndex: 20 - index }}
     >
       <div
+        data-slot="toast"
         className={cn(
           "relative overflow-hidden rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-xl",
           classNames?.surface,
