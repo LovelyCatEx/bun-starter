@@ -107,6 +107,11 @@ html[data-frosted='true'] :is(
     /* 悬停弹出来的两个：提示气泡，以及 MorphPopover 的面板（面包屑的省略号 / ai-sidebar / copy-menu 共用） */
     [data-slot='tooltip-surface'],
     [data-slot='morph-popover-content'],
+    /* 数据 / 表格：见文件末尾「数据 / 表格」那段 */
+    [data-slot='table'],
+    [data-slot='table-menu'],
+    [data-slot='table-menu-trigger'],
+    [data-slot='editable-cell'],
     /* 唯一一个不在 `components/` 里的 slot：调试页的演示框，只加模糊不淡底色（`/40` 本来就够透） */
     [data-slot='demo-panel']
 ) {
@@ -139,7 +144,11 @@ html[data-frosted='true'] :is(
     /* 悬停弹层：提示气泡、MorphPopover 的面板。两者都是 createPortal 出去的，
        祖先里没有 isolate，所以模糊和淡出都直接生效。内容里也没有 `bg-foreground text-background` */
     [data-slot='tooltip-surface'],
-    [data-slot='morph-popover-content']
+    [data-slot='morph-popover-content'],
+    /* 表格外框，以及行 / 列菜单的面板（同样 createPortal，祖先里只有一个 `transform`
+       定位壳 —— transform 不是 backdrop root 触发器）。两处子树里都没有 `bg-foreground text-background` */
+    [data-slot='table'],
+    [data-slot='table-menu']
 ) {
     --background: color-mix(in oklab, var(--background-solid) 62%, transparent);
 }
@@ -254,7 +263,10 @@ html[data-frosted='true'] :is(
     /* 自己没底色，靠上面的兜底档补这一层（补的就是 --muted，所以必须在这组里） */
     [data-slot='todo-list'],
     /* swipeable-list 的外壳（`bg-muted`）：滑开后露出的操作按钮区就在它上面 */
-    [data-slot='swipeable-list']
+    [data-slot='swipeable-list'],
+    /* 可编辑格的输入框：未聚焦时 `bg-transparent`（对的，底色归所在的 td），
+       只有 `focus:bg-muted` 那一档是实心 —— 它自己不用补底色，淡 `--muted` 就够了 */
+    [data-slot='editable-cell']
 ) {
     --muted: color-mix(in oklab, var(--muted-solid) 62%, transparent);
 }
@@ -429,4 +441,43 @@ html[data-frosted='true'] [data-slot='morph-popover-content'] {
  *   同上一条 `:disabled` 规则的脚注
  * - `DockItem` 与 `bouncy-accordion` 的触发器都是裸 `<button>`，没有 `data-slot='button'`，
  *   所以不会吃到按钮那条规则（这是对的：它们本身不画底色）
+ */
+
+/*
+ * 数据 / 表格。两处是"本来就有的毛病"、两处是这一节特有的，都写在这里。
+ *
+ * 一、外框（`bg-background`）与菜单面板（`bg-background`）走上面的 `--background` 组 + 模糊那条，
+ *    这里不用再写。菜单外面那层定位壳只有 `transform`，不是 backdrop root ——
+ *    不像右键菜单 / MorphPopover 那样要拆 `filter`。
+ *
+ * 二、**表头始终保持实心**（三个 `<th>` 的 `bg-muted` 一个字不碰，也没打标记）：sticky 表头要的就是
+ *    "行滚到它下面就被盖住"，半透明会把滚上去的行透出来（哪怕糊过），看着花。这一条是用户看过之后定的。
+ *
+ * 三、外框自己带 `backdrop-filter`（= 它自己是一层 backdrop root），所以里层（`editable-cell` 的
+ *    `focus:bg-muted`）采不到页面 —— 同上面「导航 / 布局」那段的第二条。它只负责把底色淡掉，
+ *    糊由外框那层负责。
+ */
+
+/*
+ * 行 / 列菜单那颗 ⋯ 胶囊（`bg-primary text-primary-foreground`，`table-header.tsx` 的列把手
+ * 与 `row-handle.tsx` 的行把手共用这一个按钮）是裸 `<button>`，吃不到 `data-slot='button'`
+ * 那条规则 —— 但它是**仅有的几个自己画实心主题色底色的裸按钮**（同 `DockItem` 那种不画底色的
+ * 不是一回事），所以补一条。88% 同按钮那条：主题色别被暗色页面染灰。
+ */
+html[data-frosted='true'] [data-slot='table-menu-trigger'] {
+    --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
+}
+
+/*
+ * 这一批里**故意没打标记**的：
+ * - **表头**（三个 `bg-muted` 的 `<th>`）：保持实心，理由见上一条
+ * - 表格的行：选中 `bg-muted/60`、悬停 `bg-muted/50`，两道都 ≤75%，本来就够透；
+ *   而且行底下就是外框自己的底 —— 行与外框之间没有别的画面，挂 blur 也采不到东西。
+ *   行是透出**外框那层糊**的，不是自己糊
+ * - `skeleton-rows` 里那条 `animate-pulse` 的占位条（`bg-muted` 实心）：它是**内容**、不是表面，
+ *   跟文字同一类 —— 淡了反而看着像"没加载出来"
+ * - 行把手 / 列把手那个包着胶囊的定位 `div`（`zIndex: 40` 的固定层）：它不画底色，画底色的是
+ *   里面那颗由 `table-menu-trigger` 覆盖的按钮
+ * - `editable-cell` 不在「兜底补一层」那组：未聚焦时**就该**全透明（底色归所在的 td），
+ *   补一层等于每个可编辑格变成一块板
  */

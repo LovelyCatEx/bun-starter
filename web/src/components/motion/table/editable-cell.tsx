@@ -13,6 +13,8 @@ export function EditableCell({
     <input
       value={value}
       aria-label={label}
+      // frosted blur hook
+      data-slot="editable-cell"
       size={1}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Empty"

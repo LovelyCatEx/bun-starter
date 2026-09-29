@@ -69,6 +69,8 @@ export function TableMenu({
       <button
         ref={triggerRef}
         type="button"
+        // frosted blur hook
+        data-slot="table-menu-trigger"
         aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -89,6 +91,8 @@ export function TableMenu({
               />
               <motion.div
                 role="menu"
+                // frosted blur hook
+                data-slot="table-menu"
                 className="fixed z-50 overflow-hidden rounded-xl border border-border bg-background p-1 shadow-xl"
                 style={{ top: coords.top, left: coords.left, width: MENU_WIDTH }}
                 initial={

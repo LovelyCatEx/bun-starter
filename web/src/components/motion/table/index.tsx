@@ -253,6 +253,8 @@ export function Table<T>({
 
   return (
     <div
+      // frosted blur hook
+      data-slot="table"
       className={cn(
         "w-full overflow-hidden border border-border bg-background text-sm",
         className,

@@ -139,8 +139,9 @@ switch 是唯一破了这条的组件，所以改它不算另立一套。
 grep -n 'bg-primary-foreground' web/src/components/motion/switch.tsx   # 空 = 被冲掉了
 ```
 
-**4. 高斯模糊的 `data-slot`（四组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处、
-`agents/` 下 agent-tools 9 个文件 12 处、导航 / 布局 7 个文件 10 处；另加
+**4. 高斯模糊的 `data-slot`（五组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处、
+`agents/` 下 agent-tools 9 个文件 12 处、导航 / 布局 7 个文件 10 处、数据 / 表格
+`motion/table/` 下 3 个文件 4 处；另加
 `motion/context-menu.tsx` 1 处、`motion/popover-morph.tsx` 1 处、
 `motion/animated-toast-stack.tsx` 2 处、`motion/notification-stack.tsx` 2 处与调试页演示框
 1 处 × 5 个，见下）。**
@@ -603,7 +604,7 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 
 开关是 `<html data-frosted="true">`（**与 `data-background` 平级、互不依赖**），半径走
 `--frosted-blur`。规则全在 `web/src/styles/frosted.css`，命中靠生成物上的 `data-slot` 属性。
-现在有四组组件 + 五个单独的，**都是按调试页的 section 一节点出来的**，各自一份「覆盖范围」
+现在有五组组件 + 五个单独的，**都是按调试页的 section 一节点出来的**，各自一份「覆盖范围」
 小节的表格：
 
 | 组 | 位置 | 处数 | 表面用到的 token |
@@ -612,6 +613,7 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 | 表单控件 | `motion/` 下 21 个文件 | 27 | `--background` 为主，得分档 |
 | agent-tools | `agents/` 下 9 个文件 | 12 | 大多是**本来就带 alpha** 的面板 |
 | 导航 / 布局 | `motion/` 下 7 个文件 | 10 | 外壳 `--card` / `--muted`；两处**硬编码色**；两个悬停弹层 |
+| 数据 / 表格 | `motion/table/` 下 3 个文件 | 4 | 外框 / 菜单 `--background`，⋯ 胶囊 `--primary`；表头**保持实心** |
 | 弹层：右键菜单 | `motion/context-menu.tsx` | 1 | `--card`，**另外要先拆掉外层的 `filter`**，见下 |
 | 弹层：MorphPopover | `motion/popover-morph.tsx` | 1 | `--background`，**同上要拆 `filter`**；四个组件共用 |
 | 弹层：通知堆叠 | `motion/notification-stack.tsx` | 2 | 底衬 `--muted` + 卡片 `--background` |
@@ -932,6 +934,38 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
   `swipeable-list` 滑开后露出的操作按钮、`breadcrumb-page`（当前页，自己没有底色）。
   理由同「档位判据」+ 下面那条埋在里面也糊不出的情况：它们都在带 `backdrop-filter` 的父元素
   内部，自己再挂 blur 也采不到页面
+
+#### 数据 / 表格（`motion/table/` 下 3 个文件 4 处）
+
+调试页 `Data & tables` 一节的三个表（`table` / `table-editable` / `table-async`）是**同一个组件**
+换 props，所以只走一遍。
+
+| slot | 打在哪 | 底色 | 处理 |
+| --- | --- | --- | --- |
+| `table` | `index.tsx` 的根 `div` | `bg-background` | 淡 `--background` + 模糊 |
+| `table-menu` | `table-menu.tsx` 的 `motion.div`（行 / 列菜单的面板） | `bg-background` | 淡 `--background` + 模糊 |
+| `table-menu-trigger` | 同上文件的触发 `<button>` | `bg-primary text-primary-foreground` | 只淡 `--primary`（88%，同按钮那条）+ 模糊 |
+| `editable-cell` | `editable-cell.tsx` 的 `<input>` | 未聚焦 `bg-transparent`，`focus:bg-muted` | 只淡 `--muted`（不补底色） |
+
+不显然的几处：
+
+- **表头始终保持实心**：三个 `<th>` 的 `bg-muted` 一个字没碰、也没打标记。sticky 表头要的就是
+  "行滚到它下面就被盖住"，半透明会把滚上去的行透出来（哪怕糊过），看着花。**这一条是用户看过
+  之后定的** —— 原本按"有底色就淡"的判据淡过一版，看过之后撤了
+- 行 / 列菜单是 `createPortal` 到 `body` 的，**不在外框这个 backdrop root 里**，所以它那层糊
+  是真糊到页面的。外面那层定位壳只有 `transform: translate(-50%,-50%)` + `zIndex` ——
+  `transform` **不是** backdrop root 触发器，所以不需要像右键菜单 / MorphPopover 那样拆 `filter`
+- `table-menu-trigger` 是**裸 `<button>`**，吃不到 `data-slot='button'` 那条规则，所以要单独补
+  `--primary`。它是仅有的几个**自己画实心主题色底色的裸按钮**（`table-header.tsx` 的列把手
+  与 `row-handle.tsx` 的行把手共用这一个按钮，所以只有一处标记）；`DockItem` 那种不画底色的不算
+- `editable-cell` **不在**「兜底补一层」那组：它未聚焦时就该全透明（底色归所在的 `td`），
+  补一层等于每个可编辑格变成一块板。它只有 `focus:bg-muted` 那一档是实心，淡 `--muted` 就够。
+  它的模糊采不到页面（外框自己带 `backdrop-filter`，就是一层 backdrop root），同
+  「导航 / 布局」那条 —— 只淡底色、糊由外框负责
+- **没打的**：表头（见上）；表格的行（选中 `bg-muted/60`、悬停 `bg-muted/50`，两道都 ≤75% ——
+  本来就在「档位判据」的"只模糊"那一类，而且行底下就是外框自己的底、没有别的画面可采）；
+  `skeleton-rows` 那条 `animate-pulse` 的占位条（`bg-muted` 实心，但它是**内容**不是表面，
+  跟文字同类 —— 淡了反而像没加载出来）
 
 #### 物理铁律
 
