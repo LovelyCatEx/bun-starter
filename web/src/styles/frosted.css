@@ -76,6 +76,7 @@ html[data-frosted='true'] :is(
     [data-slot='ruler-slider'],
     [data-slot='wave-slider'],
     [data-slot='wheel-picker'],
+    [data-slot='context-menu-content'],
     [data-slot='approval-card'],
     [data-slot='tool-approval'],
     [data-slot='tool-approval-params'],
@@ -276,7 +277,34 @@ html[data-frosted='true'] [data-slot]:disabled {
     --muted-foreground: color-mix(in oklab, var(--muted-foreground-solid) 50%, transparent);
 }
 
-/* 滚轮选择器的表面是 --card。 */
-html[data-frosted='true'] [data-slot='wheel-picker'] {
+/* 表面是 --card 的两个：滚轮选择器、右键菜单的面板。 */
+html[data-frosted='true']
+    :is([data-slot='wheel-picker'], [data-slot='context-menu-content']) {
     --card: color-mix(in oklab, var(--card-solid) 62%, transparent);
+}
+
+/*
+ * 弹层：**先拆掉挡在前面的 backdrop root，模糊才轮得到面板自己**。
+ *
+ * 右键菜单的面板在 `createPortal` 里，外面套了一层定位用的 wrapper，那层挂着
+ * `[filter:drop-shadow(0_18px_28px_rgba(0,0,0,0.2))]` —— `filter` 是 backdrop root 的触发器，
+ * 于是面板的 `backdrop-filter` 只能采样这个 wrapper **内部**的画面，而 wrapper 里除了面板本身
+ * 什么都没有 → 糊了个空气。实测（30px 棋盘格四格对照）：带 `filter` 的两格大格子清清楚楚，
+ * 去掉 `filter` 的两格被抹成均匀灰。
+ *
+ * 影子不能丢，改挂到面板自己身上：`box-shadow` 与 `drop-shadow` 在圆角矩形上视觉等价。
+ * 无层级 → 压得过 `[filter:…]` 那个 utility，不用 `!important`。
+ *
+ * ⚠️ 面板自己身上那个由 framer-motion 写的 `clip-path`（`inset(0 0 0 0 round 12px)`）**不用管**：
+ * clip-path 只挡**后代**的 backdrop 采样，面板自己就是带 `backdrop-filter` 的那层，采得到外面
+ * （实测过）。所以这里的 morph 动画照旧，不像 `agent-disclosure` 那条要牺牲动画。
+ *
+ * ⚠️ `popover-morph.tsx:336` 有一模一样的 `[filter:drop-shadow(0_10px_18px_…)]`，等做到那一节再处理。
+ */
+html[data-frosted='true'] [data-context-menu-portal] {
+    filter: none;
+}
+
+html[data-frosted='true'] [data-slot='context-menu-content'] {
+    box-shadow: 0 18px 28px rgb(0 0 0 / 0.2);
 }

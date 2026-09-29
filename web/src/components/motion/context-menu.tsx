@@ -498,6 +498,7 @@ export function ContextMenuContent({
         ref={context.contentRef}
         id={context.menuId}
         role="menu"
+        data-slot="context-menu-content"
         aria-label={ariaLabel}
         data-morph-ready={morphReady ? "true" : "false"}
         tabIndex={-1}

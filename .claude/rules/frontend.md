@@ -140,16 +140,18 @@ grep -n 'bg-primary-foreground' web/src/components/motion/switch.tsx   # 空 = �
 ```
 
 **4. 高斯模糊的 `data-slot`（三组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处，
-`agents/` 下 agent-tools 9 个文件 12 处；另加调试页演示框 1 处 × 5 个，见下）。**
+`agents/` 下 agent-tools 9 个文件 12 处；另加 `motion/context-menu.tsx` 1 处与调试页演示框
+1 处 × 5 个，见下）。**
 高斯模糊靠这个属性命中组件（beUI 的 Button 没有任何可选的属性，光靠类名认不出来 —— 理由见下面
 「高斯模糊」一节）。**只加属性、不加任何样式**，样式全在 `styles/frosted.css`。
 
 ```bash
 grep -rho 'data-slot="[a-z-]*"' web/src/components/motion web/src/components/agents --include='*.tsx' \
   | sort | uniq -c | sort -rn
-# 除了 data-slot="button"（16）和表单那一组（27），还会看到 sidebar-* / preview-rail-* /
+# 除了 data-slot="button"（16）、表单那一组（27），还会看到 sidebar-* / preview-rail-* /
 # digit-swap 之类**跟模糊无关**的旧标记 —— 那些是组件自己的 DOM 语义，别去动
-# （`demo-panel` 不在这个 grep 里：它打在调试页的 section 文件上，不在 `components/` 下）
+# （`context-menu-content` 只有 1 处；`demo-panel` 不在这个 grep 里：它打在调试页的
+#  section 文件上，不在 `components/` 下）
 ```
 
 这个属性是"我是按钮"的**身份标记**，不是样式补丁；哪怕某个组件现在还是 `bg-transparent`
@@ -579,14 +581,15 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 
 开关是 `<html data-frosted="true">`（**与 `data-background` 平级、互不依赖**），半径走
 `--frosted-blur`。规则全在 `web/src/styles/frosted.css`，命中靠生成物上的 `data-slot` 属性。
-现在有三组组件，**都是按调试页的 section 一节点出来的**，各自一份「覆盖范围」小节的表格；
-外加一组不在 `components/` 里的：
+现在有三组组件 + 两个单独的，**都是按调试页的 section 一节点出来的**，各自一份「覆盖范围」
+小节的表格：
 
 | 组 | 位置 | 处数 | 表面用到的 token |
 | --- | --- | --- | --- |
 | 按钮家族 | `motion/` 下 10 个文件 | 16 | `--primary` / `--card` / `--muted` |
 | 表单控件 | `motion/` 下 21 个文件 | 27 | `--background` 为主，得分档 |
 | agent-tools | `agents/` 下 9 个文件 | 12 | 大多是**本来就带 alpha** 的面板 |
+| 弹层：右键菜单 | `motion/context-menu.tsx` | 1 | `--card`，**另外要先拆掉外层的 `filter`**，见下 |
 | 调试页演示框 | `pages/debug/components/agent-tools-section.tsx` | 5 | `bg-muted/40`，本来就够透 → 只模糊 |
 
 #### 为什么不能纯 CSS 命中按钮
@@ -804,11 +807,39 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
   `pages/debug/components/`。`buttons-section.tsx:371` 那块 `bg-muted/40` 是 `Liquid`
   的胶囊底（填充由 SVG filter 画），**没打**：那是另一节的表面，要收得单独过一遍那节
 
+#### 弹层：右键菜单（`context-menu-content`）
+
+`ContextMenuContent` 的面板是 `createPortal` 到 `body` 的，**在 `motion/context-menu.tsx` 里**，
+所以它是唯一一个"打标记 + 一条额外规则"的 slot：
+
+- **面板**：`role="menu"` 那个 `motion.div`，`bg-card` → 淡 `--card` + 模糊（同 `wheel-picker`）
+- **外层 wrapper**（`data-context-menu-portal`，`context-menu.tsx` 自己就带这个属性，**不用加**）
+  挂着 `[filter:drop-shadow(0_18px_28px_rgba(0,0,0,0.2))]` —— **`filter` 是 backdrop root 的触发器**，
+  面板的 `backdrop-filter` 只能采样这个 wrapper **内部**的画面，而 wrapper 里除了面板本身什么都没有
+  → 糊了个空气。这条**实测过**（30px 棋盘格三格对照：只有 slot 没有 portal 属性的那格，大格子
+  照样清清楚楚；两样都有的那格被抹成均匀灰）
+- 所以 `frosted.css` 里多了一条 `[data-context-menu-portal] { filter: none }`，并把影子改挂到面板上
+  （`box-shadow: 0 18px 28px rgb(0 0 0 / 0.2)`，圆角矩形上与 `drop-shadow` 视觉等价）。
+  无层级 → 压得过 `[filter:…]` 那个 utility（产物里它在 `@layer utilities`），**不用 `!important`**
+
+不显然、而且**跟 `agent-disclosure` 相反**的一点：面板自己身上由 framer-motion 写的
+`clip-path: inset(0 0 0 0 round 12px)` **不用管**。`clip-path` 只挡**后代**的 backdrop 采样，
+而面板自己就是带 `backdrop-filter` 的那层，它采的是外面的页面（实测：只保留 clip-path 的那一格
+照样糊）。所以这里**不用牺牲 morph 动画**，跟 `agent-disclosure` 那条 `clip-path: none !important`
+不是一回事 —— 那边是"没底色的容器带 clip-path，挡住的是后代"。
+
+⚠️ 同一个坑还有一处：`motion/popover-morph.tsx:336` 挂着
+`[filter:drop-shadow(0_10px_18px_rgba(0,0,0,0.14))]`，里面若放打了标记的表面同样糊不了。
+**这节先不动**，做到 `Overlay` 那一节的 popover 时一起处理。
+
 #### 物理铁律
 
 - **祖先带 `mask` / `filter` / `opacity < 1` / `isolation: isolate` 会形成 backdrop root，
   后代的 `backdrop-filter` 只能采样这个 root 内部的画面**，而这类容器通常自己没有底色
   → 糊了等于没糊。症状是"组件自己写对了但完全没效果"，只看组件本身永远查不出来。
+  ⚠️ 关键区分：backdrop root 只挡**后代**的采样，**元素自己**带 `backdrop-filter` 时采的仍是外面的
+  页面 —— 所以 `clip-path` / `filter` 挂在**带 blur 的那个元素自己**身上没事，挂在**它的祖先**
+  身上才是致命的（右键菜单的面板就是后者，见上）。
   分三种情况看：
   - **调试页 `<main>` 的 `isolate` 是对的、别动**：背景图那两层（`-z-20` / `-z-10`）就画在
     `<main>` 里面，所以它们在同一个 root 内、采得到（那个玻璃 header 就是靠它）
@@ -831,7 +862,8 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
     FileDiff 的内容、ToolApproval 的参数面板、ToolApprovalCode 的 pre）。已用一条
     `clip-path: none !important` 顶掉（见 `frosted.css`）——内联样式只有 `!important` 压得住；
     代价是开模糊时这个折叠没有"擦出"动画了，高度 + 透明度还在。**实测过**（棋盘格对比截图：
-    套 `clip-path` 的格子清晰、顶掉之后被抹平）
+    套 `clip-path` 的格子清晰、顶掉之后被抹平）。注意这里**得**顶掉，是因为 `AgentDisclosure`
+    是个没底色的容器、挡住的是**后代**；`clip-path` 落在带 blur 的元素自己身上不用管（右键菜单）
   - 同类还有：`popover` / `popover-morph`（morph 的 clip 是功能本身）、`tabs` 的滚动遮罩、
     `action-swap:182` 的 `inset(0 -999px)`、`message-bubble` 的渐隐 mask、
     `agent-activity` / `range-slider-ruler` 的 `mask-image`。**这些先别动** —— 它们的 clip/mask
