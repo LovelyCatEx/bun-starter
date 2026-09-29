@@ -33,11 +33,17 @@ html[data-frosted='true'] {
  * ⚠️ 只覆盖 token，不要改成直接写 `background-color`：本文件无层级，会连 `:hover` 一起压死。
  * 覆盖 token 则 hover / 暗色 / 主题色全自动跟着走。详细理由见 frontend.md「高斯模糊」。
  *
- * 62% 是手感值；`--*-foreground` 一个都不碰，所以按钮上的文字仍然不透明。
+ * 62% 是中性表面的手感值；`--*-foreground` 一个都不碰，所以按钮上的文字仍然不透明。
+ *
+ * **主题色单独一档、而且只淡一点（88%）**：62% 那点透明度在浅色页面上没问题，
+ * 一到暗色页面，粉 / 蓝这类有彩度的底色被近黑的页面"染"成灰的 —— 看着像掺了黑染料。
+ * 实测（`color-mix(in oklab, …) 62%, transparent` 与显式 `alpha 62%` 渲染结果逐像素相同，
+ * `in srgb` 也一样）说明不是 `color-mix` 混进了黑，就是 62% 太淡。所以中性表面照旧 62%，
+ * 主题色收在 88%：还透一点，但颜色基本还是主题色本身。
  */
 html[data-frosted='true'] [data-slot='button'] {
     backdrop-filter: blur(var(--frosted-blur, 12px));
-    --primary: color-mix(in oklab, var(--primary-solid) 62%, transparent);
+    --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
     --card: color-mix(in oklab, var(--card-solid) 62%, transparent);
     --muted: color-mix(in oklab, var(--muted-solid) 62%, transparent);
 }
@@ -235,9 +241,10 @@ html[data-frosted='true'] [data-slot='agent-disclosure'] {
     clip-path: none !important;
 }
 
-/* 开态的开关轨道是 --primary。未选中态走 bg-muted-foreground/60，本来就只有 60%。 */
+/* 开态的开关轨道是 --primary。未选中态走 bg-muted-foreground/60，本来就只有 60%。
+   88% 同按钮那条：主题色别被暗色页面染灰。 */
 html[data-frosted='true'] [data-slot='switch'] {
-    --primary: color-mix(in oklab, var(--primary-solid) 62%, transparent);
+    --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
 }
 
 /* 滚轮选择器的表面是 --card。 */

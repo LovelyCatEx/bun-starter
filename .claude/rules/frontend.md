@@ -635,7 +635,7 @@ agent-tools 的 `todo-list` 补 `--muted`（暗色 `oklch(0.269)`）—— 一�
 ```css
 html[data-frosted='true'] [data-slot='button'] {
     backdrop-filter: blur(var(--frosted-blur, 12px));
-    --primary: color-mix(in oklab, var(--primary-solid) 62%, transparent);
+    --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
     --card:    color-mix(in oklab, var(--card-solid)    62%, transparent);
     --muted:   color-mix(in oklab, var(--muted-solid)   62%, transparent);
 }
@@ -643,6 +643,10 @@ html[data-frosted='true'] [data-slot='button'] {
 
 - `--*-solid` 影子变量是为了**避免自引用**：`--primary: color-mix(… var(--primary) …)` 是同元素上的
   循环引用，整条声明会失效。影子变量定义在 `html` 上，自动跟踪 light / 四档暗色 / 主题色
+- **主题色（`--primary`）单独一档，只淡 12%**（`switch` 的开态轨道同）：62% 那点在浅色页面上没问题，
+  一到暗色页面，粉 / 蓝这类**有彩度**的底色会被近黑的页面"染"成灰的 —— 看着像掺了黑染料。
+  实测不是 `color-mix` 的锅（`in oklab` / `in srgb` / 显式 `alpha 62%` 三种写法渲染逐像素相同），
+  就是 62% 太淡。中性表面（`--card` / `--muted` / `--background`）留 62% —— 它们本来就是灰的，淡了只显轻
 - 只覆盖这三个，是照 `base.tsx` 四个 variant 实际用的底色来的：`primary`→`bg-primary`、
   `secondary`→`bg-card`、`ghost`/`outline`→`bg-transparent`（本就透明，只吃模糊、底色不动）。
   用不到的 token 覆盖了也无害
