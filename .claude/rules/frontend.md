@@ -566,6 +566,8 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 - 四档写在一起、不回 `dark.css`：改区间时一眼看全
 - **有意不跟这套规则**的：14 个文件用 `ring-foreground` 画环（`ring-border` 只有 2 处）；
   33 处 `disabled:opacity-*`、6 个 `mask-image` 包裹会压平后代的 `backdrop-filter`
+  （那 33 处在**高斯模糊**那边单独处理了 —— 整元素 `opacity` 会把糊好的层和清晰的页面混在一起，
+  见「禁用态」一节；`mask-image` 那 6 处仍然是死的，理由见「物理铁律」）
 
 #### 这一节刻意不做的事
 
@@ -608,6 +610,8 @@ beUI 的 `Button` **没有 `data-slot` / `data-variant`**，渲染出来就是�
 
 **例外**（`frosted.css` 里也标了 ⚠️）是给**一点底色都没有**的 slot 现补一层
 `background-color`。不补这一层，那个 token 被淡成 62% 也**无处施加**，开了模糊跟没开一样。
+本文件里直接写 `background-color` 的一共**三处**：这条例外（两档）、下面「代码 / 输出一律全透明」
+那条（往透里写，不是往上盖），以及 `combobox-trigger` / `multi-select-trigger` 的强压档。
 补哪一层要跟**同节邻居**对齐：表单控件补 `--background`（暗色 `oklch(0.145)`），
 agent-tools 的 `todo-list` 补 `--muted`（暗色 `oklch(0.269)`）—— 一律 `--background`
 会让它在暗色下变成一块黑板、跟同节的几个面板不像一家人（实测抓到过）。
@@ -724,7 +728,7 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
   都没有（只有边框 / 圈 / 格子，或者显式 `bg-transparent`），`--background` 被淡成 62% 也
   **无处施加** —— 表现是"这个控件开了模糊完全没变化"（被实测抓到的就是 Input 那个
   `label="Read only"` 的 Demo）。所以由 `frosted.css` 现给它们补一层 `background-color`
-  （**兜底档**，见上面「唯一的例外」：调用方自己传了 `bg-*` 就让调用方赢）。
+  （**兜底档**，见上面「例外」那张两档表：调用方自己传了 `bg-*` 就让调用方赢）。
   **关掉模糊时这一层不存在**，所以它们的默认外观一个像素都没变
   （顺带纠一条：`backdrop-filter` 在透明元素上确实还在，但它糊的是背景画面本身，
   没有底色去"显影"时肉眼基本看不出来 —— 别指望光靠 blur 出效果）
@@ -769,11 +773,13 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
   （`ToolApprovalCode` 背后是参数面板、调试页里背后是演示框的 `bg-muted/40`），
   `backdrop-filter` 会把那层一起糊掉，自己再画一层反而变成实心板。**别的 slot 别照抄这条**：
   它们背后不一定有东西（`todo-list` 后面就是空的页面）
-- `ToolApprovalCode` 的 `bg-muted/30` 属于"别人画的底色"，交给上面「唯一的例外」那套让路规则处理
+- `ToolApprovalCode` 的 `bg-muted/30` 是**调用方画的底色**，被上面「代码 / 输出一律全透明」
+  那条**无层级**规则顶掉（`agent-code` 在这个组里）—— 不是靠兜底档的"让路"：让路只决定
+  **谁来补底色**，而这里要的是**谁都不许画**
 - `tool-result` 的**根元素、`agent-disclosure` 整体都没打**：自己一点底色都没有、又只是布局容器
   （同 `SignUpForm` 的 `<form>`）。`tool-result` 里画底色的是 `ToolResultOutput`
 - `image-generation` 的分辨率徽章在**画底色的那个框内部**，而那个框自己带 `isolate` —— 这里正是
-  想要的效果：徽章糊的是它背后那张图（见「两条物理铁律」里"组件自己的 `isolate` 要分位置"）
+  想要的效果：徽章糊的是它背后那张图（见「物理铁律」里"组件自己的 `isolate` 要分位置"）
 - **硬编码的强调色一律不动**（同 `expanding-arrow-button` 的 lime）：状态徽章的
   `bg-{amber,blue,emerald,rose}-500/10`（approval-card / tool-approval）、code-block 高亮行的
   `bg-blue-500/[0.07]`、file-diff 增删行的 `bg-emerald-500/[0.07]` / `bg-rose-500/[0.07]` ——
@@ -798,7 +804,7 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
   `pages/debug/components/`。`buttons-section.tsx:371` 那块 `bg-muted/40` 是 `Liquid`
   的胶囊底（填充由 SVG filter 画），**没打**：那是另一节的表面，要收得单独过一遍那节
 
-#### 两条物理铁律
+#### 物理铁律
 
 - **祖先带 `mask` / `filter` / `opacity < 1` / `isolation: isolate` 会形成 backdrop root，
   后代的 `backdrop-filter` 只能采样这个 root 内部的画面**，而这类容器通常自己没有底色
@@ -834,6 +840,41 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
   （beUI 有 12 个组件用 `@floating-ui/dom` 定位，二级菜单的定位基准会从视口变成父菜单，再被裁掉）。
   要模糊就挂 `before:` 伪元素上，且 **`rounded-[inherit]` 不能省** —— 伪元素默认是矩形，
   圆角面板上会露出四个直角。对按钮不适用（按钮没有 fixed 后代），以后做弹层时记得
+
+#### 禁用态：`opacity` 和 `backdrop-filter` 不能共存
+
+**同属"物理铁律"这一类，而且症状最像"规则没生效"**：元素自己带 `backdrop-filter` 时，再叠一层整元素
+`opacity < 1`，等于把"**糊好的那层**"和背后**没糊**的页面按比例混在一起 —— 50% 就是一半清晰
+一半糊，肉眼直接判成"这个控件没糊"。用户报的正是禁用态的 `Select`（`select.tsx` 的
+`disabled:pointer-events-none disabled:opacity-50`）。
+
+**实测过**（棋盘格对照：`backdrop-filter` + `opacity: .5` 那一格，和"只有半透明底色、完全没 blur"
+的那一格渲染几乎一致；`opacity: 1` 的对照组棋子被彻底抹平）。
+
+所以模糊态下用 **token 压淡**替代整元素 `opacity`：
+
+```css
+html[data-frosted='true'] [data-slot]:disabled {
+    opacity: 1;                                          /* 把 50% 收回来，blur 才是全强度 */
+    --background: color-mix(in oklab, var(--background-solid) 30%, transparent);
+    /* --card / --muted 同样 30%；主题色 --primary 要按它自己那档折半 → 44% */
+    --primary: color-mix(in oklab, var(--primary-solid) 44%, transparent);
+    --foreground: color-mix(in oklab, var(--foreground-solid) 50%, transparent);
+    /* --border / --muted-foreground 同样 50% */
+}
+```
+
+- 观感同样是"变灰变淡"：底色系的淡一档、前景 / 边框 / 次级文字淡一半，但**模糊是全强度**的。
+  每个 token 取的是**它自己启用态那一档的一半**（中性 62% → 30%，主题色 88% → 44%）——
+  主题色别跟着写 30%，那样比原来的 `opacity: .5` 还淡，禁用按钮会淡过头
+- 用到的 `--foreground-solid` / `--muted-foreground-solid` / `--border-solid` 三个影子变量
+  是**必须**加的：不写就会出现 `--foreground: color-mix(… var(--foreground) …)` 这种同元素
+  自引用，整条声明静默失效（连报错都没有）
+- ⚠️ **只认 `:disabled`**（原生表单元素）。用**条件类名**表达禁用的盖不到 ——
+  `options.disabled && "opacity-50"` 那种（几条 RangeSlider、`otp-input`、`adaptive-stepper`、
+  `bouncy-accordion`、`expandable-control`）元素是 `div`，CSS 无从判断。
+  真遇到就单独处理（给它加 `data-disabled` 之类的属性），**别去按类名猜**
+- 关掉模糊时这条规则整条不生效，`disabled:opacity-50` 照旧
 
 #### 边界：什么算"按钮"、什么不算
 

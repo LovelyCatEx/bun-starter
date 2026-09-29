@@ -17,7 +17,7 @@
  * 边界的唯一一次外扩：**调试页的演示框也算表面**（`data-slot="demo-panel"`，就是
  * `agent-tools-section.tsx` 里那 5 块 `bg-muted/40`）。组件自己不画底色的（AgentCode 的 pre）
  * 总得有东西给 blur 显影，那层东西就是演示框本身。代价是演示框成了 backdrop root，
- * 框里的标记只能采样框内的画面 —— 嵌套模糊不叠加，见 frontend.md「铁律一」。
+ * 框里的标记只能采样框内的画面 —— 嵌套模糊不叠加，见 frontend.md「物理铁律」。
  */
 
 /* 影子变量：`--background: color-mix(… var(--background) …)` 是同元素自引用，会让声明失效。
@@ -27,6 +27,9 @@ html[data-frosted='true'] {
     --primary-solid: var(--primary);
     --card-solid: var(--card);
     --muted-solid: var(--muted);
+    --foreground-solid: var(--foreground);
+    --muted-foreground-solid: var(--muted-foreground);
+    --border-solid: var(--border);
 }
 
 /*
@@ -245,6 +248,32 @@ html[data-frosted='true'] [data-slot='agent-disclosure'] {
    88% 同按钮那条：主题色别被暗色页面染灰。 */
 html[data-frosted='true'] [data-slot='switch'] {
     --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
+}
+
+/*
+ * 禁用态（`disabled:opacity-50` 这一类）**不能用整元素 opacity 表达**：元素自己带
+ * `backdrop-filter` 时再叠一层 `opacity: .5`，等于把"糊好的那层"和背后**没糊**的页面
+ * 50/50 混在一起 —— 实测（棋盘格：`blur` + `opacity .5` 和"只有半透明底色、完全没 blur"
+ * 两格渲染几乎一致），肉眼就是"这个控件没糊"。用户报的就是禁用态的 Select。
+ *
+ * 改法：模糊态下把 opacity 收回 1，改用 token 各自压淡 —— 每个 token 取**它自己启用态那一档
+ * 的一半**（62% → 30%，主题色的 88% → 44%），前景 / 边框 / 次级文字压到 50%。
+ * 观感同样是"变灰变淡"，但 blur 是全强度。主题色不能跟着中性表面写 30%：
+ * 那样比原来的 `opacity: .5` 还淡，禁用按钮会淡过头。
+ *
+ * ⚠️ 只认 `:disabled`（原生表单元素）。用**条件类名**表达禁用的（`options.disabled &&
+ * "opacity-50"`：几条 RangeSlider、OTP、adaptive-stepper…）这条盖不到 —— 它们是 div，
+ * CSS 无从判断。真遇到就单独处理（给那个组件加 `data-disabled` 之类），别去按类名猜。
+ */
+html[data-frosted='true'] [data-slot]:disabled {
+    opacity: 1;
+    --background: color-mix(in oklab, var(--background-solid) 30%, transparent);
+    --primary: color-mix(in oklab, var(--primary-solid) 44%, transparent);
+    --card: color-mix(in oklab, var(--card-solid) 30%, transparent);
+    --muted: color-mix(in oklab, var(--muted-solid) 30%, transparent);
+    --foreground: color-mix(in oklab, var(--foreground-solid) 50%, transparent);
+    --border: color-mix(in oklab, var(--border-solid) 50%, transparent);
+    --muted-foreground: color-mix(in oklab, var(--muted-foreground-solid) 50%, transparent);
 }
 
 /* 滚轮选择器的表面是 --card。 */
