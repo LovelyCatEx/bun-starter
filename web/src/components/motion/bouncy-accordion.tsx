@@ -160,6 +160,7 @@ function BouncyAccordionRow({
       transition={reduce ? { duration: 0 } : ROW_TRANSITION}
     >
       <motion.div
+        data-slot="bouncy-accordion-item"
         data-state={open ? "open" : "closed"}
         initial={false}
         animate={{

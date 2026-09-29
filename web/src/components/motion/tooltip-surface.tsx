@@ -27,6 +27,7 @@ export function TooltipSurface({
     <motion.span
       ref={ref}
       role="tooltip"
+      data-slot="tooltip-surface"
       initial={closed}
       animate={{
         ...(ready ? { opacity: 1, scale: 1 } : closed),

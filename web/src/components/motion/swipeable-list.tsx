@@ -401,6 +401,7 @@ function SwipeableListRow({
 
   return (
     <div
+      data-slot="swipeable-list"
       className={cn(
         "relative isolate overflow-hidden rounded-2xl bg-muted",
         item.disabled && "opacity-60",
@@ -444,6 +445,7 @@ function SwipeableListRow({
       </div>
 
       <motion.div
+        data-slot="swipeable-list-item"
         drag={item.disabled ? false : "x"}
         dragConstraints={{ left: -rightWidth, right: leftWidth }}
         dragElastic={0.04}

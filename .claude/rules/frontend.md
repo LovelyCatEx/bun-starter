@@ -139,8 +139,9 @@ switch 是唯一破了这条的组件，所以改它不算另立一套。
 grep -n 'bg-primary-foreground' web/src/components/motion/switch.tsx   # 空 = 被冲掉了
 ```
 
-**4. 高斯模糊的 `data-slot`（三组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处，
-`agents/` 下 agent-tools 9 个文件 12 处；另加 `motion/context-menu.tsx` 1 处、
+**4. 高斯模糊的 `data-slot`（四组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处、
+`agents/` 下 agent-tools 9 个文件 12 处、导航 / 布局 7 个文件 10 处；另加
+`motion/context-menu.tsx` 1 处、`motion/popover-morph.tsx` 1 处、
 `motion/animated-toast-stack.tsx` 2 处、`motion/notification-stack.tsx` 2 处与调试页演示框
 1 处 × 5 个，见下）。**
 高斯模糊靠这个属性命中组件（beUI 的 Button 没有任何可选的属性，光靠类名认不出来 —— 理由见下面
@@ -151,8 +152,24 @@ grep -rho 'data-slot="[a-z-]*"' web/src/components/motion web/src/components/age
   | sort | uniq -c | sort -rn
 # 除了 data-slot="button"（16）、表单那一组（27），还会看到 sidebar-* / preview-rail-* /
 # digit-swap 之类**跟模糊无关**的旧标记 —— 那些是组件自己的 DOM 语义，别去动
-# （`context-menu-content` 只有 1 处；`demo-panel` 不在这个 grep 里：它打在调试页的
-#  section 文件上，不在 `components/` 下）
+# （`context-menu-content` 只有 1 处；`breadcrumb-link` 是这个 grep **漏得掉**的一个：
+#  它写在 linkProps 对象里（`"data-slot": "breadcrumb-link"`），不是 JSX 属性；
+#  `demo-panel` 也不在这个 grep 里：它打在调试页的 section 文件上，不在 `components/` 下）
+```
+
+**最可靠的探针是产物，不是源码 grep** —— 它同时给出两张表，一眼能看出"哪一处丢了"，
+（本轮就是它抓到 `morphing-tabs.tsx` 那两处标记被冲掉、而 `grep` 因为文件回到了 HEAD 版本
+所以什么都没报）：
+
+```bash
+cd web && bun run build
+python3 - <<'EOF'
+import re, glob
+txt = ''.join(open(f, encoding='utf-8', errors='replace').read() for f in glob.glob('dist/assets/*.js'))
+present = set(re.findall(r'"data-slot"[:=]\s*[`"\']([a-z0-9-]+)', txt))   # 产物里是反引号，别只 grep 双引号
+css = set(re.findall(r"data-slot='([a-z0-9-]+)'", open('src/styles/frosted.css').read()))
+print('样式里提到、产物里没有的 slot：', sorted(css - present) or '无')
+EOF
 ```
 
 这个属性是"我是按钮"的**身份标记**，不是样式补丁；哪怕某个组件现在还是 `bg-transparent`
@@ -457,7 +474,9 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 >
 > `expanding-arrow-button` 的底色**已经** token 化了（原本 `bg-neutral-950 text-white`，现在
 > `bg-primary text-primary-foreground`）—— 高斯模糊只淡出 *token*，硬编码的底色打了 `data-slot`
-> 也只有 blur、没有半透明。它的 **lime 强调块（`bg-lime-300 text-neutral-950`）仍然硬编码**，
+> 默认也只有 blur、没有半透明（**唯一的例外是 `morphing-tabs` 的那两个硬编码表面**：
+> 没有 token 可覆盖只能直接写 `background-color`，见「高斯模糊」里的「导航 / 布局」）。
+> 它的 **lime 强调块（`bg-lime-300 text-neutral-950`）仍然硬编码**，
 > 那是品牌强调、不是表面，别跟着改。
 
 ### 颜色模式 × 主题色 = 矩阵
@@ -574,16 +593,17 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 
 #### 这一节刻意不做的事
 
-- **不归一化生成物自带的玻璃**：`dock` / `project-folder` 这些自带 `bg-card/80 backdrop-blur-xl`
-  的地方**保持上游写法**，那就是它的设计，跟这个开关是两回事。要调就传 `className`，不用动生成物。
-  （`animated-toast-stack` 原来是这一类的，**已经收编**：`bg-card/95` 那块-glass 在暗色下就是
-  一块不透明的板，用户点名要它跟着模糊 —— 见「提示条」一节）
+- **不归一化生成物自带的玻璃**：现在只剩 `project-folder` 这类自带 `bg-card/80 backdrop-blur-xl`
+  的地方**保持上游写法** —— 那就是它的设计，跟这个开关是两回事。要调就传 `className`，不用动生成物。
+  （`animated-toast-stack` 和 `dock` 原来是这一类的，**都收编了**：`bg-card/95` / `bg-card/80`
+  那种档位在暗色下就是一块不透明的板，而且上游那个 `backdrop-blur-xl` 不受 `--frosted-blur`
+  控制（滑块拉到 0 它还在糊）。前者见「提示条」、后者见「导航 / 布局」）
 
 ### 高斯模糊（`data-frosted`）
 
 开关是 `<html data-frosted="true">`（**与 `data-background` 平级、互不依赖**），半径走
 `--frosted-blur`。规则全在 `web/src/styles/frosted.css`，命中靠生成物上的 `data-slot` 属性。
-现在有三组组件 + 两个单独的，**都是按调试页的 section 一节点出来的**，各自一份「覆盖范围」
+现在有四组组件 + 五个单独的，**都是按调试页的 section 一节点出来的**，各自一份「覆盖范围」
 小节的表格：
 
 | 组 | 位置 | 处数 | 表面用到的 token |
@@ -591,7 +611,9 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 | 按钮家族 | `motion/` 下 10 个文件 | 16 | `--primary` / `--card` / `--muted` |
 | 表单控件 | `motion/` 下 21 个文件 | 27 | `--background` 为主，得分档 |
 | agent-tools | `agents/` 下 9 个文件 | 12 | 大多是**本来就带 alpha** 的面板 |
+| 导航 / 布局 | `motion/` 下 7 个文件 | 10 | 外壳 `--card` / `--muted`；两处**硬编码色**；两个悬停弹层 |
 | 弹层：右键菜单 | `motion/context-menu.tsx` | 1 | `--card`，**另外要先拆掉外层的 `filter`**，见下 |
+| 弹层：MorphPopover | `motion/popover-morph.tsx` | 1 | `--background`，**同上要拆 `filter`**；四个组件共用 |
 | 弹层：通知堆叠 | `motion/notification-stack.tsx` | 2 | 底衬 `--muted` + 卡片 `--background` |
 | 弹层：提示条 | `motion/animated-toast-stack.tsx` | 2 | 卡片 `--card`（`/95`），**模糊挂在 `<li>` 上**，见下 |
 | 调试页演示框 | `pages/debug/components/agent-tools-section.tsx` | 5 | `bg-muted/40`，本来就够透 → 只模糊 |
@@ -617,8 +639,9 @@ beUI 的 `Button` **没有 `data-slot` / `data-variant`**，渲染出来就是�
 
 **例外**（`frosted.css` 里也标了 ⚠️）是给**一点底色都没有**的 slot 现补一层
 `background-color`。不补这一层，那个 token 被淡成 62% 也**无处施加**，开了模糊跟没开一样。
-本文件里直接写 `background-color` 的一共**三处**：这条例外（两档）、下面「代码 / 输出一律全透明」
-那条（往透里写，不是往上盖），以及 `combobox-trigger` / `multi-select-trigger` 的强压档。
+本文件里直接写 `background-color` 的一共**四处**：这条例外（两档）、下面「代码 / 输出一律全透明」
+那条（往透里写，不是往上盖）、`combobox-trigger` / `multi-select-trigger` 的强压档，
+以及 `morphing-tabs` 那两个**硬编码色**（没有 token 可覆盖，见「导航 / 布局」那节）。
 补哪一层要跟**同节邻居**对齐：表单控件补 `--background`（暗色 `oklch(0.145)`），
 agent-tools 的 `todo-list` 补 `--muted`（暗色 `oklch(0.269)`）—— 一律 `--background`
 会让它在暗色下变成一块黑板、跟同节的几个面板不像一家人（实测抓到过）。
@@ -832,9 +855,9 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
 照样糊）。所以这里**不用牺牲 morph 动画**，跟 `agent-disclosure` 那条 `clip-path: none !important`
 不是一回事 —— 那边是"没底色的容器带 clip-path，挡住的是后代"。
 
-⚠️ 同一个坑还有一处：`motion/popover-morph.tsx:336` 挂着
+⚠️ 同一个坑还有一处：`motion/popover-morph.tsx` 挂着
 `[filter:drop-shadow(0_10px_18px_rgba(0,0,0,0.14))]`，里面若放打了标记的表面同样糊不了。
-**这节先不动**，做到 `Overlay` 那一节的 popover 时一起处理。
+**已于本轮一并处理**（`morph-popover-content`），见下面「导航 / 布局」那节 —— 处理方式与本条逐字相同。
 
 #### 通知堆叠（`notification-stack` + `notification-stack-card`）
 
@@ -871,6 +894,45 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
 - 顺带量到一条负面结论：li 上的 `will-change: transform` **不是** backdrop root 触发器
   （只顶掉 `filter` 的那一格已经能糊了）
 
+#### 导航 / 布局（`motion/` 下 7 个文件 10 处 + `morph-popover-content`）
+
+| slot | 打在哪 | 底色 | 处理 |
+| --- | --- | --- | --- |
+| `morphing-tabs` | 外壳 `div` | **硬编码 `bg-[#292929]`** | 直接写 `background-color`（62%）+ 模糊 |
+| `morphing-tabs-panel` | 面板 `div` | **硬编码 `bg-[#fafaf8]`** | 同上 |
+| `expandable-tabs` | 外壳 `motion.div` | `bg-card` | 淡 `--card` + 模糊 |
+| `bouncy-accordion-item` | 每一行的 `motion.div` | `bg-card` | 淡 `--card` + 模糊 |
+| `swipeable-list` | 外壳 `div` | `bg-muted` | 淡 `--muted` + 模糊 |
+| `swipeable-list-item` | 滑的那一行 | `bg-card` | 淡 `--card` + 模糊 |
+| `dock` | 外壳 `div` | `bg-card/80` + **上游就有 `backdrop-blur-xl`** | 淡 `--card` + 模糊（把半径收归 `--frosted-blur`） |
+| `breadcrumb-link` / `breadcrumb-ellipsis` | 可悬停的 `<a>` / `<button>` | `hover:bg-muted/60`（≤75%） | 只模糊 |
+| `tooltip-surface` | 提示气泡 | `bg-background` | 淡 `--background` + 模糊 |
+| `morph-popover-content` | MorphPopover 的面板 | `bg-background` | 淡 `--background` + 模糊 + **拆掉 portal 的 `filter`** |
+
+不显然的几处：
+
+- **两个硬编码色只能直接写 `background-color`**（本文件的第四类例外）。它们一点 token 都没有，
+  不淡一层 blur 就被自己挡死（**实测**：只加 blur、不淡底色那一格与"完全没开"逐像素相同）。
+  之所以敢这么写：**这两个表面自己都没有 `:hover` 底色** —— 交互反馈在子元素上
+  （未选中的 tab 是 `group-hover:bg-white/[0.06]` 的那个 `span`）。给有 `:hover` 底色的表面
+  这么写就会连悬停反馈一起压死，那正是「核心」那节警告的事。62% 与 token 组同档
+- `dock` 上游自带 `backdrop-blur-xl`：本文件的 `backdrop-filter` 是无层级的，**顶掉它**，
+  半径改由 `--frosted-blur` 控制（**实测**：`--frosted-blur: 0` 那一格棋子露出来了、
+  同 class 不打的对照格照样是糊的；`bg-card/80` 淡成 62% 后均值明显变亮）。这是
+  「不归一化生成物自带的玻璃」那一条里，继提示条之后**第二个收编**的
+- `morph-popover-content` 与右键菜单同款坑、同款处理：`[data-morph-popover-portal] { filter: none }`
+  + 面板自己挂 `box-shadow`。**实测 A/B**（30px 棋盘格）：带 `data-morph-popover-portal` 的那格
+  极差 1（均匀），同款 wrapper 只把属性名换掉的那格极差 91（棋子清清楚楚）。
+  它是**共用**组件 —— 面包屑的省略号、`ai-sidebar` / `prompt-input` / `availability-scheduler/copy-menu`
+  都用它，所以一处标记覆盖四处弹层。面板自己身上的 `clip-path`（morph 的裁切）照旧不用管
+- `breadcrumb-link` 的标记写在 `linkProps` **对象**里（`"data-slot": "breadcrumb-link"`），
+  不是 JSX 属性：它可能是 `render` 出去的 router `<a>`，只有写在对象里两条路径才都带得上
+  （**例外的写法**，别当成通用做法——JSX 属性那边一行更直白）
+- **没打的**：几个选中态胶囊（`expandable-tabs` 的 `bg-foreground/10`、`dock` 的 `bg-muted/60`）、
+  `swipeable-list` 滑开后露出的操作按钮、`breadcrumb-page`（当前页，自己没有底色）。
+  理由同「档位判据」+ 下面那条埋在里面也糊不出的情况：它们都在带 `backdrop-filter` 的父元素
+  内部，自己再挂 blur 也采不到页面
+
 #### 物理铁律
 
 - **祖先带 `mask` / `filter` / `opacity < 1` / `isolation: isolate` 会形成 backdrop root，
@@ -889,12 +951,18 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
   - **组件自己的 `isolate` 要分位置**：`image-generation` / `tabs` / `morphing-tabs` /
     `popover` / `expandable-action-bar` / `swipeable-list` / `adaptive-stepper` 都有。
     加在**画底色的那个元素自己**身上没事（它自己的模糊照常采样父 root），
-    加在**没底色的容器**上会把后代的模糊全部吃掉
+    加在**没底色的容器**上会把后代的模糊全部吃掉。
+    （`morphing-tabs` 与 `swipeable-list` 是前一种，但它们的**后代**另有一层约束，见下条）
   - **嵌套的模糊不叠加**：`backdrop-filter` 自己也在触发列表里，所以**里层只能采到外层内部的
     画面**。`tool-approval-params`（在 `tool-approval` 外壳里）、approval-card 里的 `input`
     就是这种 —— 它们对着外层那点几乎空白的底色模糊，等于没糊，但底色照样是半透明的，
-    看着就是"透、但不糊"。想让它真糊只能把内层的底色撤掉、只留外层
-    （**这条是照规范推的，没在浏览器里逐像素比对过** —— 真遇到"这一层透但不糊"先往这里想）
+    看着就是"透、但不糊"。想让它真糊只能把内层的底色撤掉、只留外层。
+    **本轮在浏览器里逐像素比过了**：`morphing-tabs` 的面板、`swipeable-list` 的行就是这种
+    埋在里面的表面，把外壳的 `isolate` 换成 `z-index: 0`（放开里层、让它自己去采页面）
+    前后各截一张棋盘格，两张 PNG **md5 完全相同**（`d45c441e…`）。
+    原因是外壳那层本来就是"要么不透明、要么已经把页面糊过一遍"铺在下面，里层贴着的背影
+    本来就是均匀的 —— 里层**那一层自己的 blur 有没有生效都看不出来**，所以没必要为此去动
+    生成物里的 `isolate`（里层的底色照样要淡，那才是它"半透明"的来源）
   - **`clip-path` 也在触发列表里，而且最容易漏**（`mask` 的同族）。`AgentDisclosure` 展开时
     由 framer-motion 往 `style=""` 写 `clip-path: inset(0 0 0% 0)` —— 一个视觉上什么都没裁的
     值，照样让它变成 backdrop root，于是**折叠里的四个表面全都糊不了**（ToolResult 的输出块、

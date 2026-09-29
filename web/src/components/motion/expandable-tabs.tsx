@@ -271,6 +271,7 @@ export function ExpandableTabs({
     <>
       <motion.div
         ref={rootRef}
+        data-slot="expandable-tabs"
         initial={false}
         animate={
           targetSize

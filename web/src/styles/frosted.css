@@ -14,6 +14,9 @@
  * **带 alpha 的表面看档位淡不淡**：`/80` 那三处面板基本等于实心，照样进 token 组；
  * `/75` 以下的本来就够透（`/20` 再淡一层就真看不见了），只进 blur 那条。
  *
+ * **硬编码的底色**（`morphing-tabs` 的 `#292929` / `#fafaf8`）没有 token 可覆盖，只能直接写
+ * `background-color` —— 前提是那个表面自己没有 `:hover` 底色。见文件末尾。
+ *
  * 边界的唯一一次外扩：**调试页的演示框也算表面**（`data-slot="demo-panel"`，就是
  * `agent-tools-section.tsx` 里那 5 块 `bg-muted/40`）。组件自己不画底色的（AgentCode 的 pre）
  * 总得有东西给 blur 显影，那层东西就是演示框本身。代价是演示框成了 backdrop root，
@@ -91,6 +94,19 @@ html[data-frosted='true'] :is(
     [data-slot='citations-count'],
     [data-slot='image-generation'],
     [data-slot='image-generation-resolution'],
+    /* 导航一批：见文件末尾「导航 / 布局」那段 */
+    [data-slot='morphing-tabs'],
+    [data-slot='morphing-tabs-panel'],
+    [data-slot='expandable-tabs'],
+    [data-slot='breadcrumb-link'],
+    [data-slot='breadcrumb-ellipsis'],
+    [data-slot='dock'],
+    [data-slot='swipeable-list'],
+    [data-slot='swipeable-list-item'],
+    [data-slot='bouncy-accordion-item'],
+    /* 悬停弹出来的两个：提示气泡，以及 MorphPopover 的面板（面包屑的省略号 / ai-sidebar / copy-menu 共用） */
+    [data-slot='tooltip-surface'],
+    [data-slot='morph-popover-content'],
     /* 唯一一个不在 `components/` 里的 slot：调试页的演示框，只加模糊不淡底色（`/40` 本来就够透） */
     [data-slot='demo-panel']
 ) {
@@ -119,7 +135,11 @@ html[data-frosted='true'] :is(
     [data-slot='ruler-slider'],
     [data-slot='wave-slider'],
     /* 通知堆叠里那几张卡片（自己画 bg-background）。子树里没有拿 --background 当文字色的地方 */
-    [data-slot='notification-stack-card']
+    [data-slot='notification-stack-card'],
+    /* 悬停弹层：提示气泡、MorphPopover 的面板。两者都是 createPortal 出去的，
+       祖先里没有 isolate，所以模糊和淡出都直接生效。内容里也没有 `bg-foreground text-background` */
+    [data-slot='tooltip-surface'],
+    [data-slot='morph-popover-content']
 ) {
     --background: color-mix(in oklab, var(--background-solid) 62%, transparent);
 }
@@ -232,7 +252,9 @@ html[data-frosted='true'] :is(
     /* 通知堆叠的底衬（卡片下面那层 rounded-3xl），同 approval-card 那一类面板 */
     [data-slot='notification-stack'],
     /* 自己没底色，靠上面的兜底档补这一层（补的就是 --muted，所以必须在这组里） */
-    [data-slot='todo-list']
+    [data-slot='todo-list'],
+    /* swipeable-list 的外壳（`bg-muted`）：滑开后露出的操作按钮区就在它上面 */
+    [data-slot='swipeable-list']
 ) {
     --muted: color-mix(in oklab, var(--muted-solid) 62%, transparent);
 }
@@ -283,12 +305,18 @@ html[data-frosted='true'] [data-slot]:disabled {
     --muted-foreground: color-mix(in oklab, var(--muted-foreground-solid) 50%, transparent);
 }
 
-/* 表面是 --card 的三个：滚轮选择器、右键菜单的面板、提示卡（`bg-card/95`）。 */
+/* 表面是 --card：滚轮选择器、右键菜单的面板、提示卡（`bg-card/95`）、
+   以及导航一批的卡片（expandable-tabs 外壳、dock 的 `bg-card/80`、swipeable-list 的行、
+   bouncy-accordion 的一行）。 */
 html[data-frosted='true']
     :is(
         [data-slot='wheel-picker'],
         [data-slot='context-menu-content'],
-        [data-slot='toast']
+        [data-slot='toast'],
+        [data-slot='expandable-tabs'],
+        [data-slot='dock'],
+        [data-slot='swipeable-list-item'],
+        [data-slot='bouncy-accordion-item']
     ) {
     --card: color-mix(in oklab, var(--card-solid) 62%, transparent);
 }
@@ -340,3 +368,65 @@ html[data-frosted='true'] [data-context-menu-portal] {
 html[data-frosted='true'] [data-slot='context-menu-content'] {
     box-shadow: 0 18px 28px rgb(0 0 0 / 0.2);
 }
+
+/*
+ * 导航 / 布局这一批。三个坑，各说各的。
+ *
+ * 一、**硬编码的底色没有 token 可覆盖，只能直接写 `background-color`**（上面规则说"别这么做"
+ *    的第四类例外，前三类见「代码 / 输出」与「兜底补一层」）。`morphing-tabs` 的外壳是
+ *    `bg-[#292929]`、面板是 `bg-[#fafaf8]` —— 不淡一层的话 blur 被它们自己挡得严严实实
+ *    （只加 blur、不淡底色 = 跟没开一样）。
+ *    安全的前提是**这两个表面自己没有 `:hover` 底色**：交互反馈在子元素上（未选中的 tab 是
+ *    `group-hover:bg-white/[0.06]`），所以这里压 `background-color` 不会连 hover 一起压死。
+ *    62% 与 token 组同档。
+ */
+html[data-frosted='true'] [data-slot='morphing-tabs'] {
+    background-color: color-mix(in oklab, #292929 62%, transparent);
+}
+
+html[data-frosted='true'] [data-slot='morphing-tabs-panel'] {
+    background-color: color-mix(in oklab, #fafaf8 62%, transparent);
+}
+
+/*
+ * 二、**外壳自己带 `backdrop-filter`，后代其实采不到页面**：`morphing-tabs` 的面板、
+ *    `swipeable-list` 的行都在这种外壳里面。这两个外壳还原本写着 `isolate`，试过把它换成
+ *    `z-index: 0`（调试页 `Demo` 的定高块就是这么写的）来放开后代 —— 实测**看不出差别**：
+ *    外壳那层已经把页面糊好、铺在自己底下了，后代就算不再是"只能采外壳内部"，采到的还是同一张
+ *    "糊过的画面"（棋盘格 30px / 半径 24px：面板与行在换与不换两种写法下极差都是 0~1、
+ *    均值也一致）。收益测不出来就不动生成物 —— 少一个改动。
+ *
+ *    所以这里的做法是：**只让外壳糊**，后代的底色照样淡（它们在模糊上"搭便车"）。
+ *    真要后代自己糊页面（比如以后想让它们用更大的半径），把外壳的 `isolate` 换成 `z-index: 0`
+ *    才是正解 —— 两者都造 stacking context，但只有 `isolation: isolate` 在 backdrop root 的
+ *    触发列表里（`section.tsx` 那段注释讲的就是这件事）。
+ */
+
+/*
+ * 三、**MorphPopover 的面板跟右键菜单是同一个毛病**：`createPortal` 出去的 wrapper 挂着
+ *    `[filter:drop-shadow(0_10px_18px_rgba(0,0,0,0.14))]`，`filter` 是 backdrop root 触发器，
+ *    面板的 `backdrop-filter` 只能采样 wrapper 内部 → 糊了个空气。处理方式与右键菜单逐字相同：
+ *    顶掉 wrapper 的 `filter`（无层级压得过 utility，不用 `!important`），影子改挂 `box-shadow`。
+ *    面板自己身上由 framer-motion 写的 `clip-path` 不用管 —— 它只挡后代，不挡自己。
+ */
+html[data-frosted='true'] [data-morph-popover-portal] {
+    filter: none;
+}
+
+html[data-frosted='true'] [data-slot='morph-popover-content'] {
+    box-shadow: 0 10px 18px rgb(0 0 0 / 0.14);
+}
+
+/*
+ * 这一批里**故意没打标记**的：
+ * - `expandable-tabs` 选中态的胶囊（`bg-foreground/10`）、`dock` 选中态的胶囊
+ *   （`bg-muted/60`）、`swipeable-list` 滑开后露出的那几个操作按钮：都 ≤75%，本来就够透；
+ *   而且它们都在带 `backdrop-filter` 的父元素内部（父元素自己就是 backdrop root），
+ *   后代再挂 blur 也采不到页面 —— 透、但不额外糊
+ * - `breadcrumb-page`（当前页）：自己没有底色，只有个不起作用的 `isolate`
+ * - `bouncy-accordion` 的 `item.disabled && "opacity-50"`、`swipeable-list` 的
+ *   `item.disabled && "opacity-60"`：**条件类名**表达的禁用态，CSS 认不出来，
+ *   同上一条 `:disabled` 规则的脚注
+ * - `DockItem` 与 `bouncy-accordion` 的触发器都是裸 `<button>`，没有 `data-slot='button'`，
+ *   所以不会吃到按钮那条规则（这是对的：它们本身不画底色）
+ */

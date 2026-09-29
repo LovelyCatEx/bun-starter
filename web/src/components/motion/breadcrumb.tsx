@@ -130,6 +130,7 @@ export type BreadcrumbLinkProps = ComponentPropsWithRef<"a"> & {
 export function BreadcrumbLink({ className, render, ...props }: BreadcrumbLinkProps) {
   const linkProps = {
     ...props,
+    "data-slot": "breadcrumb-link",
     className: cn(
       "inline-flex min-h-8 min-w-0 items-center gap-1.5 rounded-md px-2 font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&>svg]:size-3.5 [&>svg]:shrink-0",
       className,
@@ -250,6 +251,7 @@ export function BreadcrumbEllipsis({ children, className, label = "Show hidden p
           <button
             ref={trigger}
             type="button"
+            data-slot="breadcrumb-ellipsis"
             aria-label={label}
             className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={(event) => { focusOnOpen.current = event.detail === 0; }}

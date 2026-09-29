@@ -340,6 +340,7 @@ function MorphPopoverSurface({
         id={ctx.contentId}
         role="dialog"
         aria-labelledby={ctx.triggerId}
+        data-slot="morph-popover-content"
         variants={clip}
         style={{ borderRadius: radius }}
         className={cn(
