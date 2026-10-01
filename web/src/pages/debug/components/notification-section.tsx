@@ -5,14 +5,10 @@ import { useNotification } from '@/hooks/notification/use-notification'
 import { Section } from '@/pages/debug/components/section'
 
 /**
- * Demo for `web/src/hooks/notification/`: permission first (a gesture is required), then the
- * behaviours worth seeing — tag collapsing, the foreground policy, and a click handler.
+ * Demo for `web/src/hooks/notification/`: permission (a gesture is required), tag
+ * collapsing, the foreground policy and a click handler, all through `useNotification()`.
  *
- * Everything here goes through `useNotification()`, which is the point: no business logic in
- * the component, the hook owns the DOM and the policy.
- *
- * English and hard-coded on purpose — the debug page is a development tool that gets deleted
- * before release, and is exempt from the i18n rules (see `.claude/rules/frontend.md`).
+ * English and hard-coded on purpose; the debug page is exempt from i18n (see frontend.md).
  */
 export function NotificationSection() {
   const { supported, permission, requestPermission, notify, close } = useNotification()
@@ -68,7 +64,7 @@ export function NotificationSection() {
           size="sm"
           variant="outline"
           onClick={() => {
-            // 同 tag 互相替换：三条只剩一条，这就是 chat.<roomId> 那种合并
+            // 同 tag 互相替换，三条只剩一条
             for (const index of [1, 2, 3]) {
               notify({
                 title: 'bun-starter',

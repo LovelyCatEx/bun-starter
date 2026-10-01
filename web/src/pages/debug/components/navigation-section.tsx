@@ -310,12 +310,6 @@ const ACCORDION_ITEMS: BouncyAccordionItem[] = [
 ]
 
 /**
- * Showcase for the navigation components in `web/src/components/motion/`.
- *
- * Every interactive demo keeps its state here — the tab, the open sidebar, the expanded
- * accordion, the swiped row — because a navigation component that does not answer a click is
- * not worth showing.
- *
  * English and hard-coded on purpose — the debug page is exempt from the i18n rules
  * (see `.claude/rules/frontend.md`).
  */

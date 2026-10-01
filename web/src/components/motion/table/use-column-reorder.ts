@@ -22,9 +22,8 @@ export function useColumnReorder<T>({
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
 
-  // Apply the current order, tolerating columns added/removed at runtime. New
-  // columns are placed at their position in `columns` (after their left
-  // neighbor), not appended — so an inserted column lands where it was added.
+  // New columns go at their left neighbour's position in `columns`, not appended —
+  // the current order survives columns added or removed at runtime.
   const orderedColumns = useMemo(() => {
     const byKey = new Map(columns.map((c) => [c.key, c]));
     const resultKeys = order.filter((k) => byKey.has(k));

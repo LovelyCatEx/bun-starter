@@ -118,11 +118,9 @@ export function Tooltip({
     [],
   );
 
-  // A finger never hovers, and Safari does not focus a button on tap either, so
-  // the label is only reachable if the tap itself opens the tooltip. A click
-  // carries no pointerType, so the pointerdown that preceded it is what says
-  // whether this was a tap; keyboard activation arrives with no pointerdown at
-  // all, and focus has already shown the label there.
+  // A finger never hovers and Safari does not focus a button on tap, so the tap
+  // itself must open the label. A click carries no pointerType — the preceding
+  // pointerdown is what says whether this was a tap.
   const tap = useTapGesture<boolean>();
 
   const toggleOnTap = useCallback(() => {
@@ -136,8 +134,7 @@ export function Tooltip({
     setOpen(true);
   }, [hide, tap, setOpen]);
 
-  // ...and closed again by the next tap that lands somewhere else. The label
-  // covers nothing interactive, so that tap passes through to what it hit.
+  // Closed again by the next tap anywhere; the label covers nothing interactive.
   useDismiss(open, hide, anchorRef, { ignore: insideTooltip });
 
   useEffect(
@@ -149,14 +146,9 @@ export function Tooltip({
 
   if (!externalAnchorRef && !isValidElement(children)) return children;
 
-  // The label describes the trigger, so it has to name the trigger itself.
-  // Everything else the tooltip needs is read off the anchor below instead of
-  // cloned on: a handler written onto the child is the child's handler as far
-  // as that child can tell, and a component that owns its activation —
-  // hard-wiring onClick and spreading the rest of its props over it, as
-  // ThemeToggle does — then runs the tooltip's instead of its own. Composing
-  // with `props.onClick` cannot save it either, because a component element's
-  // props hold nothing the component does internally.
+  // Only `aria-describedby` is cloned on: a handler written onto the child is
+  // the child's handler as far as that child can tell, so a component that owns
+  // its activation (ThemeToggle) would run the tooltip's instead of its own.
   const trigger = isValidElement(children)
     ? cloneElement(children as ReactElement<Record<string, unknown>>, {
         "aria-describedby":
@@ -173,9 +165,8 @@ export function Tooltip({
         <span
           ref={wrapperRef}
           className={cn("relative inline-flex align-middle", wrapperClassName)}
-          // Pointer events, not the mouse pair: a tap fires compatibility
-          // mouseenter/mouseleave that carry no pointerType, which raced the tap
-          // path into opening and closing the same label.
+          // Pointer events, not the mouse pair: a tap's compatibility
+          // mouseenter/mouseleave carry no pointerType and race the tap path.
           onPointerEnter={(event: PointerEvent) => {
             if (hover.enter(event)) show();
           }}
@@ -191,10 +182,8 @@ export function Tooltip({
             hide();
           }}
           onPointerDown={(event: PointerEvent) => tap.start(event, open)}
-          // A gesture the platform took away sends no click, and a key press
-          // starts an activation that never had a pointer behind it. Either way
-          // the record has to go, or the next click reads a finger that has long
-          // since lifted.
+          // A cancelled gesture sends no click and a key press had no pointer
+          // behind it; either way the record must go, or the next click reads it.
           onPointerCancel={tap.drop}
           onKeyDown={(event) => {
             tap.drop();

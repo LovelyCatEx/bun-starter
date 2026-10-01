@@ -6,11 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { EASE_OUT } from "@/lib/ease";
 import { cn } from "@/lib/utils";
 
-/**
- * A transient change indicator for the balance: a tinted pill with a trend
- * arrow that pops in whenever the balance moves and persists until it moves
- * again.
- */
+/** Balance-change pill: pops in when the balance moves, persists until it moves again. */
 export function BalanceDelta({
   balance,
   initialChange,

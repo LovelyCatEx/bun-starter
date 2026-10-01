@@ -5,13 +5,11 @@ import { capturePointer, releasePointer } from "@/lib/touch";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** Nearest legal value on [min, max] for the given step. max counts as a
- * candidate when the step does not divide the range, so a pointer near the end
- * does not snap back onto the last whole step. */
+/** Nearest legal value on [min, max] for the given step; max counts as a
+ * candidate when the step does not divide the range. */
 export function snapSliderValue(next: number, min: number, max: number, step: number): number {
-  // Neither case has a grid to walk. An empty range has exactly one legal
-  // point, and a non-positive step only needs a clamp, which also keeps the
-  // division below away from zero.
+  // Neither case has a grid to walk: an empty range has one legal point, and a
+  // non-positive step only needs a clamp (which keeps the division below off zero).
   if (!(max > min)) return min;
   if (!(step > 0)) return clamp(next, min, max);
   const whole = Math.floor(Number(((max - min) / step).toFixed(6)));
@@ -37,9 +35,8 @@ export interface SliderOptions {
 }
 
 /**
- * Shared value + input plumbing for slider designs: controlled/uncontrolled
- * value, step snapping, pointer-capture drag along a track and arrow-key
- * control. Visuals and motion live in the component; this only owns the number.
+ * Shared value and input plumbing for slider designs: controlled/uncontrolled
+ * value, step snapping, pointer-capture drag, arrow keys. Visuals live in the component.
  */
 export function useSlider({
   value,
@@ -60,9 +57,8 @@ export function useSlider({
   const [internal, setInternal] = useState(defaultValue);
   const [dragging, setDragging] = useState(false);
   const controlled = value !== undefined;
-  // Collapse inverted or empty ranges and non-positive steps here, so that
-  // percent, ticks and the keyboard maths never divide by zero or walk a
-  // NaN grid.
+  // Inverted or empty ranges and non-positive steps are collapsed here, so the
+  // percent and keyboard maths never divide by zero or walk a NaN grid.
   const lo = min;
   const hi = max > min ? max : min;
   const stride = step > 0 ? step : 1;
@@ -91,9 +87,8 @@ export function useSlider({
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       if (disabled) return;
-      // Start the drag first: capture is a convenience, and a browser that
-      // refuses it — or a test DOM that has no pointer capture at all — must
-      // not take the drag down with it.
+      // Start the drag first: capture is a convenience, and a browser or test DOM
+      // that refuses it must not take the drag down with it.
       draggingRef.current = true;
       setDragging(true);
       capturePointer(event.currentTarget, event.pointerId);

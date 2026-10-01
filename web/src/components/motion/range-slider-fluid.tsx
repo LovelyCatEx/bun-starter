@@ -25,9 +25,8 @@ export interface FluidSliderProps extends SliderOptions {
 }
 
 /**
- * Thumbless slider: the whole pill is the control. The fill glides to the new
- * value behind a rounded liquid cap, and the label reads inverted wherever the
- * fill has covered it.
+ * Thumbless slider: the whole pill is the control; the fill glides to the new
+ * value behind a rounded liquid cap, inverting the label it covers.
  */
 export function FluidSlider({
   label,
@@ -49,9 +48,8 @@ export function FluidSlider({
   }, [percent, target]);
   const smooth = useSpring(target, SPRING_GLIDE);
   const pos = reduce ? target : smooth;
-  // Reveal the fill by clipping a full-width layer rather than animating its
-  // width: at 0% the clip is empty, so no hairline of a sub-pixel-wide box is
-  // left behind, and the label inside is never scaled or re-laid out.
+  // Reveal the fill by clipping a full-width layer, not by animating its width: at
+  // 0% the clip is empty, so no sub-pixel hairline is left and nothing re-lays out.
   const uncovered = useTransform(pos, (v) => 100 - v);
   const clipPath = useMotionTemplate`inset(0 ${uncovered}% 0 0 round 9999px)`;
 
@@ -83,9 +81,8 @@ export function FluidSlider({
         {row}
       </div>
 
-      {/* fill + the same label, both clipped to the value, so the text inverts
-          as the fill covers it and lines up glyph for glyph with the copy
-          underneath. The clip's rounded right edge is the liquid cap. */}
+      {/* fill + the same label, both clipped to the value, so the covered text
+          inverts and lines up glyph for glyph. The rounded right edge is the cap. */}
       <motion.div className="absolute inset-0" style={{ clipPath }}>
         <div className="absolute inset-0 bg-foreground" />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-5 text-sm font-medium text-background">

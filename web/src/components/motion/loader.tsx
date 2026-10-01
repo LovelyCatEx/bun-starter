@@ -192,10 +192,8 @@ function Ascii({
   );
 }
 
-// Each shape is sampled at the same number of points and emitted as an SVG
-// path with identical command structure, so framer tweens the `d` attribute
-// point-to-point — a real morph, not a snap. (clip-path polygon strings don't
-// interpolate reliably in framer, which left the shapes broken.)
+// Shapes share one point count and command structure so framer tweens `d`
+// point-to-point; clip-path polygons don't interpolate reliably.
 const MORPH_POINTS = 24;
 
 function ngonRadius(ang: number, n: number, phase = 0) {
@@ -386,9 +384,8 @@ const NEWTON_BALLS = [0, 1, 2, 3, 4];
 function Newton({ size, speed, reduce }: PartProps) {
   const d = size * 0.2;
   const out = d * 1.1;
-  // Only the end balls move: the left slides out and back on the first half,
-  // then the right on the second half — the impact appears to jump the three
-  // still middle balls. Pure horizontal slide, no swing, no strings.
+  // Only the end balls move — the impact appears to jump the three still middle
+  // ones. Pure horizontal slide, no swing, no strings.
   const moves: Record<number, { x: number[]; times: number[] }> = {
     0: { x: [0, -out, 0, 0], times: [0, 0.28, 0.5, 1] },
     4: { x: [0, 0, out, 0], times: [0, 0.5, 0.78, 1] },

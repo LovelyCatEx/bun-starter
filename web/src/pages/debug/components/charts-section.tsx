@@ -16,10 +16,9 @@ import { KnockoutWheel, ROUNDS as WHEEL_ROUNDS } from '@/components/motion/knock
 import { Demo, Section } from '@/pages/debug/components/section'
 
 /*
- * beUI 的图表调色板是写死的 hex（每个图表里一份 `colors` 数组）。这里改成语义 token，
- * 四档暗色才跟着走：`--chart-1..5` 不能用 —— 它在 `dark.css` 里没有翻转，
- * 深黑下第五档（L 0.269）几乎看不见；`--accent` 在亮色是 L 0.97 的近白，做不了线色。
- * 这几个在亮/暗两边都成立：primary 是近黑↔近白，success / warning / destructive 是有色相的三档。
+ * beUI 的图表调色板是写死的 hex，这里改成语义 token，四档暗色才跟着走：`--chart-1..5` 在
+ * `dark.css` 里没有翻转（深黑下第五档几乎看不见），`--accent` 在亮色是近白、做不了线色。
+ * 下面这几个在亮 / 暗两边都成立。
  */
 const SERIES_COLORS = {
   primary: 'var(--primary)',
@@ -81,9 +80,8 @@ const FUNNEL_STAGES = [
 ]
 
 /* ── liquidity-heatmap ─────────────────────────────────────────────────────
- * `snapshots` 按时间排列，每列一张 `levels`（价格 → 挂单量）；价格桶要一致，
- * 行是这些桶的并集（倒序）。`price` 是那一列的市场价，用来画白线轨迹 —— 它必须
- * 落在价格桶区间内，否则 pricePosition 判 null、轨迹断开。`maxSize` 是固定的色阶上限。
+ * `snapshots` 按时间排列，每列一张 `levels`（价格 → 挂单量），价格桶要一致。`price` 必须
+ * 落在价格桶区间内，否则 pricePosition 判 null、轨迹断开。`maxSize` 是固定色阶上限。
  */
 
 const LIQUIDITY_SNAPSHOTS = [
@@ -162,9 +160,8 @@ const LIQUIDITY_SNAPSHOTS = [
 ]
 
 /* ── price-target-fan ──────────────────────────────────────────────────────
- * `targets` 是**三元组**（高 / 均 / 低），必须正好三个、key 唯一，价格与 current 都为正。
- * `history` 的日期要严格递增且是 ISO（非法 / 乱序会直接抛 RangeError），末点接 `current`。
- * 不传 color 时库按 success / accent / warning 上色 —— accent 在亮色是近白，所以这里显式指定。
+ * `targets` 是三元组（高 / 均 / 低），正好三个、key 唯一。`history` 的日期要严格递增且是
+ * ISO（乱序会抛 RangeError）。不传 color 库按 accent 上色，而它在亮色是近白，故此处显式指定。
  */
 
 const PRICE_HISTORY = [
@@ -243,14 +240,8 @@ const RETURNS_BY_YEAR = [
 
 /**
  * beUI 的十个数据可视化组件（charts 目录八个 + motion 目录的 bracket / wheel 两个）。
- *
- * 它们大多**自己拥有布局**：SVG 按容器宽度等比缩放（bump 就是典型），或者内部写着
- * 固定像素（bracket 的卡片是 250×124）。所以每个 Demo 都给 `height` 换成定高块，
- * 否则一个图表就能把整页拉到几千像素。bump 额外限了宽度 —— 它的图高 = 宽度 × (240/560)，
- * 铺满整行会变成近 500px 高。
- *
- * 数据都是写死的小样本（5–12 个点），只为看清形状与交互，不代表任何真实业务。
- * 英文硬编码是这个页面的豁免（见 `.claude/rules/frontend.md`）。
+ * 它们大多自己拥有布局（SVG 等比缩放，或写着固定像素），所以每个 Demo 都给 `height` 换成
+ * 定高块，否则一个图表就能把整页拉到几千像素；数据是写死的小样本，只代表形状与交互。
  */
 export function ChartsSection() {
   return (
@@ -331,12 +322,9 @@ export function ChartsSection() {
       </Demo>
 
       {/*
-        bracket / wheel 住在 `components/motion/`（注册表把它们归到了那一组），但它们是
-        单败淘汰赛的两种画法，共用同一套样例数据（每轮比赛数减半，`matches[k]` 由上一轮
-        的 `2k` / `2k+1` 喂出来）。这里各自用自己导出的那份 ROUNDS。
-
-        `initialRound` 是左起第一列 / 最外圈：bracket 传 2 就从四分之一决赛开画（否则 32 强
-        那一列光卡片高度就 2300px），wheel 传 2 就只画最后三圈。第三名决赛用 `thirdPlace`。
+        bracket / wheel 住在 `components/motion/`，是单败淘汰赛的两种画法，共用同一套样例数据
+        （每轮比赛数减半，`matches[k]` 由上一轮的 `2k` / `2k+1` 喂出来），各自用自己导出的
+        ROUNDS。`initialRound` 是左起第一列 / 最外圈，传 2 就只画最后几轮。第三名决赛用 `thirdPlace`。
       */}
       <Demo label="knockout-bracket" height={880} className="p-4">
         <KnockoutBracket

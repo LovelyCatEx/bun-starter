@@ -15,11 +15,8 @@ import type { WalletCardProps } from "./types";
 export type { WalletAccount, WalletCardProps } from "./types";
 
 /**
- * Composed wallet overview card: an account switcher whose trigger morphs open
- * into a full-width panel, a search icon that morphs into a search bar, a
- * rolling balance with a transient change indicator, and Send / Deposit
- * actions. Actions and search are plain callbacks — the resulting flow is left
- * to the consumer.
+ * Composed wallet overview card. Actions and search are plain callbacks — the
+ * resulting flow is left to the consumer.
  */
 export function WalletCard({
   accounts,

@@ -1,15 +1,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * `bgimage:<utility>` 只在背景图打开时（`<html data-background="true">`）生效，让一个元素
- * 把不透明底降成半透明，背后的图案才透得出来。**这是唯一允许改颜色的变体。**
- *
- * 它是个**工具**，不是自动生效的机制：默认不透明 + 只加 `data-background` 属性是感知不到
- * 背景图的，必须显式写上来。用法就一条 —— 给哪个元素挂 `bgimage:bg-card/60`，哪个元素才透。
- *
- * ⚠️ 挑 token 只用**两种模式都不透明**的（`--card` / `--muted`），加 `/60` 只是等比降透明度、
- * 颜色不变。**不要**用 `--background` 去替换一个"暗色下本来就是浅灰半透明"的控件
- * （`--background` 在暗色下是近黑，会把它变成"黑色半透明"）。
+ * `bgimage:<utility>` 只在 `<html data-background="true">` 时生效，把不透明底降成半透明。
+ * 只给没有 `data-slot` 的自绘元素用；beUI 组件走 `frosted.css`。
+ * token 挑两种模式都不透明的（`--card` / `--muted`）——`--background` 在暗色下是近黑。
  */
 @custom-variant bgimage (html[data-background='true'] &);
 
@@ -67,12 +61,9 @@
 }
 
 /*
- * Marquee: beUI 的 marquee 并排放两条内容完全相同的轨道，各自位移自己宽度的 100%。
- * 一条完全移出视口时另一条正好补上，而两条内容一致，所以每轮迭代的"跳回起点"
- * 在视觉上是无缝的 —— 位移量必须是 100%（自身宽度），不能写成 -50%（那是"单轨道内
- * 复制内容"写法的值，用在这里会让半条轨道空掉）。
- * 定义在 `@theme` 外面是有意的：keyframes 写在 `@theme` 里只有用到该动画时才输出，
- * 而这里的名字要跟 `--animate-marquee*` 对得上，放外面更容易一起看。
+ * Marquee: 两条内容相同的轨道并排、各位移自身宽度的 100%，衔接处因此无缝。
+ * 位移量必须是 100%；-50% 是"单轨道内复制内容"写法的值，用在这里会让半条轨道空掉。
+ * keyframes 定义在 `@theme` 外，名字才能与 `--animate-marquee*` 并排看。
  */
 @keyframes marquee {
     from {
@@ -131,33 +122,9 @@
     --scrollbar-thumb: oklch(0.85 0 0);
 }
 
-/*
- * 背景图模式：底色上多了一张带花纹的图，原来那圈浅灰 / 半透明的细边框压在上面就糊掉了，
- * 所以整组边框 token 往下压一档。**再往下一档由遮罩厚度决定**：`--background-overlay-opacity`
- * 越大，边框越往"更深"走 —— 亮色越来越灰（压 lightness），暗色越来越实（抬不透明度）。
- * 遮罩关掉时那个变量是 0，边框就停在上面说的"压一档"上（见 theme-settings-provider）。
- *
- * 区间压得比较窄：起点已经比常态深不少（遮罩为 0 时图案最抢眼，边框得压得住），
- * 终点只比起点再深一点点（遮罩铺满时底色已经是纯白/纯黑，不需要更重了）。
- *   亮色  border 0.922→0.78   strong 0.87→0.73
- *   深黑  border  10%→24%     strong  20%→34%
- *   深灰  border  14%→28%     strong  20%→34%
- *   浅灰  border  20%→34%     strong  26%→40%
- * 每档都**保持 strong 比 border 深一档的原有间距**，没有另造数。改区间就改每行里的那两个数
- * （第一个是 opacity=0，第二个由 `* 0.05` 决定）。四档一起写在这里（不拆去 dark.css），
- * 改的时候一眼看全；选择器又比 dark.css 里的 `.dark` / `.dark[data-dark-shade='x']` 特异性高，
- * 能稳定盖住它们。
- *
- * 只覆盖这两个 token，是**量过消费者**的：
- *   - `--border`       → 173 处（`border-border`），必须跟
- *   - `--border-strong`→ 10 个文件，其中 5 处是 **hover 边框**（select / combobox / multi-select
- *                        的 trigger、otp-input 的选中格），不跟的话图案上悬停看不到反馈
- *   - `--input`        → 0 处（beUI 里没有 `border-input` / `bg-input`），不需要
- *   - `--sidebar-border` → `src/styles/` 之外 0 处，不需要
- *
- * `var(--background-overlay-opacity, 0)` 的 fallback 不能省：这个变量由 provider 写在 `<html>`
- * 的 inline style 上，首帧还没写时裸 `var()` 会让整条 `calc()` 在计算值阶段失效。
- */
+/* 背景图模式下图案会压没常态的浅色细边框，故两个边框 token 各深一档，深度再随遮罩厚度递增。
+   `var()` 的 fallback 不能省：变量写在 `<html>` 内联 style 上，首帧未写入时裸 `var()`
+   会让整条 `calc()` 在计算值阶段失效。区间表与选择器理由见 `frontend.md`。 */
 html[data-background='true'] {
     --border: oklch(calc(0.78 - var(--background-overlay-opacity, 0) * 0.05) 0 0);
     --border-strong: oklch(calc(0.73 - var(--background-overlay-opacity, 0) * 0.05) 0 0);
@@ -183,12 +150,9 @@ html.dark[data-dark-shade='light-gray'][data-background='true'] {
 
 @layer base {
     /*
-     * Give every border the `--border` colour instead of letting it inherit the
-     * text colour. Tailwind v4 changed this default (v3 drew grey-200, v4 draws
-     * `currentColor`), so a bare `border` used to paint itself near-black while
-     * `bg-border` drew a pale hairline. Pseudo-elements are listed separately
-     * because preflight reaches them more specifically. Utilities still win —
-     * they are emitted after this layer.
+     * Tailwind v4 defaults `border-color` to `currentColor` (v3 drew grey-200),
+     * so a bare `border` would paint near-black. Pseudo-elements need naming
+     * separately: preflight reaches them more specifically.
      */
     *,
     ::before,
@@ -202,10 +166,9 @@ html.dark[data-dark-shade='light-gray'][data-background='true'] {
     }
 
     /*
-     * Put the page's text colour on the document, not the app shell: dialogs,
-     * menus, tooltips and toasts are Radix-portaled to `body`, so the shell's
-     * `text-foreground` is not above them and they would fall back to the
-     * browser's initial black.
+     * On the document, not the app shell: Radix portals dialogs, menus, tooltips
+     * and toasts to `body`, so the shell's `text-foreground` is not above them and
+     * they would fall back to the browser's initial black.
      */
     html {
         @apply font-sans;
@@ -222,10 +185,9 @@ html.dark[data-dark-shade='light-gray'][data-background='true'] {
     }
 
     /*
-     * The scrollbar used by every scroller, not just the panes somebody named:
-     * a flat 8px block on a transparent track. Two spellings of one thing, since
-     * the two engines are asked differently — `::-webkit-scrollbar` for WebKit
-     * and the standard `scrollbar-width` / `scrollbar-color` for Firefox.
+     * A flat 8px thumb on a transparent track, for every scroller. Two spellings
+     * of one thing: `::-webkit-scrollbar` for WebKit, the standard
+     * `scrollbar-width` / `scrollbar-color` for Firefox.
      */
     * {
         scrollbar-width: thin;

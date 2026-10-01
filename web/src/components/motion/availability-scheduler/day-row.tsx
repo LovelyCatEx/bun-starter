@@ -39,11 +39,9 @@ export function DayRow({
   state: DayAvailability;
   options: TimeOption[];
   reduce: boolean;
-  // True while this row holds the dropdown that opened last, which paints it
-  // above every other row. A time panel opens downward when there is room and
-  // upward when there isn't, so it has to clear the rows on either side of it
-  // — no fixed paint order can satisfy both directions. The flag stays on
-  // after the panel closes so the collapse animation stays on top too.
+  // True for the row holding the dropdown that opened last, and kept on until that
+  // panel's collapse finishes. Panels open up or down as room allows, so no fixed
+  // paint order clears both neighbours.
   elevated: boolean;
   /** Id of the one time panel the scheduler is holding open, if any. */
   openPanel: string | null;
@@ -145,7 +143,6 @@ export function DayRow({
         <div className="flex items-center gap-1 sm:hidden">{actions}</div>
       </div>
 
-      {/* ranges or unavailable */}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <AnimatePresence initial={false} mode="popLayout">
           {state.enabled ? (
@@ -222,7 +219,6 @@ export function DayRow({
         </AnimatePresence>
       </div>
 
-      {/* actions (desktop) */}
       <div className="hidden shrink-0 items-center gap-1 pt-0.5 sm:flex">
         {actions}
       </div>

@@ -63,17 +63,14 @@ export function NumberTicker({
   }, [value, pad, format, locale]);
   const glyphs = useMemo(() => {
     const chars = text.split("");
-    // Key by place value (position from the right): a changing digit keeps its
-    // identity and rolls to the new value instead of remounting and replaying
-    // from 0. Growing numbers add glyphs on the left without re-keying the
-    // ones, tens, hundreds already on screen.
+    // Key by place value: a changing digit keeps its identity and rolls to the new
+    // value instead of remounting at 0, and growing numbers only add left glyphs.
     return chars.map((char, i) => ({ char, id: `g-${chars.length - 1 - i}` }));
   }, [text]);
   const readableText = `${prefix ?? ""}${text}${suffix ?? ""}`;
 
-  // Stagger is an entrance flourish. Once the reveal has played, value
-  // changes roll every digit immediately — a per-digit delay on live updates
-  // reads as lag.
+  // Stagger is an entrance flourish only; once revealed, live updates roll every
+  // digit immediately — a per-digit delay there reads as lag.
   const [entered, setEntered] = useState(false);
   useEffect(() => {
     if (!armed || entered) return;

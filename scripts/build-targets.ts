@@ -1,8 +1,6 @@
 /**
- * The cross-compile targets, and what building a native helper needs to know
- * about each. One table, because `scripts/compile.ts` (which executable to
- * build) and `scripts/native-helper.ts` (how to compile C for it) both need it
- * and neither should own the other.
+ * The cross-compile targets, and what building a native helper needs to know about each —
+ * shared by `compile.ts` (which executable) and `native-helper.ts` (how to compile C for it).
  */
 export type BuildTarget =
   | 'bun-darwin-arm64'
@@ -19,16 +17,13 @@ export interface BuildTargetInfo {
   /** What a compiled native helper is called here — Windows is the odd one. */
   exe: string;
   /**
-   * `-arch` for the machine's own clang. Only the macOS targets have it: they
-   * cannot come from zig. A POSIX helper that wants `openpty` includes `<util.h>`,
-   * which lives in the platform SDK — a downloaded toolchain carries its own libc
-   * but not Apple's SDK headers. The local clang has that SDK and builds either
-   * architecture from it with one flag.
+   * `-arch` for the machine's own clang. Only the macOS targets have it: zig carries
+   * its own libc but not Apple's SDK headers, which a helper including `<util.h>` needs.
    */
   arch?: string;
   /**
-   * `-target` for zig, which is the only thing that can produce Linux and Windows
-   * output from here — it ships its own libc and mingw headers.
+   * `-target` for zig — the only way to produce Linux and Windows output from macOS,
+   * since it ships its own libc and mingw headers.
    */
   triple?: string;
 }

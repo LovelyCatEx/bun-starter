@@ -8,19 +8,8 @@ import {
 } from '@/api/websocket'
 
 /**
- * 连接状态的统一入口，配 `web/src/api/websocket.ts` 的客户端用。
- *
- * ```tsx
- * const { t } = useLanguage()
- * const { connected, send } = useWebSocket({
- *   handlers: { 'chat.message': (message) => append(message) },
- * })
- *
- * await send('chat.send', { text })
- * ```
- *
- * 连接是**全应用共享**的：挂载时连上，卸载**不断开**（别的组件可能还在用），要断连就在
- * 该断的地方 `getWebSocketClient().disconnect()`（比如退出登录、或调试页的开关）。
+ * 连接状态的统一入口，配 `web/src/api/websocket.ts` 的客户端用。连接全应用共享：
+ * 挂载时连上、卸载不断开，要断连得显式 `disconnect()`（见 `frontend.md`「WebSocket」）。
  */
 
 export interface UseWebSocketOptions {
@@ -37,7 +26,6 @@ export interface UseWebSocketOptions {
 
 export interface UseWebSocketResult {
   status: WsStatus
-  /** `status === 'open'`，渲染上更常用 */
   connected: boolean
   /** 发请求等应答，失败 reject 一个 `WsError`（`code < 0` 是客户端侧失败，见 `WS_CLIENT_ERROR`） */
   send: <T>(event: string, data?: unknown) => Promise<T>

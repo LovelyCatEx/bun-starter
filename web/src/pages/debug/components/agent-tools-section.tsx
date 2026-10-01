@@ -45,15 +45,8 @@ import { Button } from '@/components/motion/button'
 import { Demo, Section } from '@/pages/debug/components/section'
 
 /**
- * The agent-tool half of the beUI agent set: approvals, todo lists, code and
- * diff rendering, citations and image generation.
- *
- * English and hard-coded on purpose — the debug page is a development tool that
- * gets deleted before release, and is exempt from the i18n rules (see
- * `.claude/rules/frontend.md`).
- *
- * approval-card / tool-approval / todo-list are wired to real state: a demo of
- * an approval card that cannot be approved is not a demo.
+ * The agent-tool half of the beUI agent set. English on purpose: the debug page
+ * is exempt from i18n (see `.claude/rules/frontend.md`).
  */
 
 /* ── approval-card ─────────────────────────────────────────────────────── */
@@ -159,9 +152,8 @@ const CONFIG_JSON = `{
 }`
 
 /**
- * The lower-level half of `agent-code`: the same shiki tokens, but laid out by
- * hand instead of by `CodeBlock`. This is what a caller writes when the gutter
- * or the row markup has to be its own.
+ * The same shiki tokens as `CodeBlock`, laid out by hand — for when the gutter
+ * or the row markup has to be the caller's own.
  */
 function TokenLines({ code, language }: { code: string; language: AgentCodeLanguage }) {
   const tokens = useAgentCodeTokens(code, language)
@@ -278,9 +270,8 @@ const IMAGE_STATUSES: ImageGenerationStatus[] = [
 ]
 
 /**
- * A stand-in for a generated image: an inline SVG rather than a hotlinked URL,
- * so the demo has no network dependency (and the colours here are the picture,
- * not component styling).
+ * A stand-in generated image: inline SVG, so the demo has no network
+ * dependency. Its colours are the picture, not component styling.
  */
 const GENERATED_ART = [
   "<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>",

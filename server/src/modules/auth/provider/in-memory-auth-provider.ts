@@ -8,9 +8,8 @@ const DEFAULT_USERNAME = 'admin';
 const DEFAULT_PASSWORD = 'admin';
 
 /**
- * Fallback provider used when no AuthProvider is injected. It is intentionally
- * a single hard-coded account (admin/admin) and is never used once the
- * developer injects a provider of their own.
+ * Fallback provider used when no AuthProvider is injected: a single hard-coded
+ * admin/admin account, replaced entirely once a provider is injected.
  */
 export class InMemoryAuthProvider implements AuthProvider {
   async authenticate(credentials: AuthCredentials): Promise<AuthUser | null> {

@@ -49,17 +49,14 @@ export function RangeSlider({ showTicks = true, className, ...options }: RangeSl
   const smooth = useSpring(target, SPRING_GLIDE);
   const pos = reduce ? target : smooth;
   const thumbX = useTransform(pos, (p) => 8 + Math.max(0, trackWidth - 20) * p / 100);
-  // Match InlineSlider: the 4px handle starts 8px inside the track, and
-  // the rounded fill extends 8px past its left edge. Translate a full-size
-  // fill inside the 2px inset clip so its corner never stretches.
+  // Match InlineSlider: full-size fill translated inside the 2px inset clip, so the
+  // corner never stretches as the 4px handle travels 8px inside the track.
   const fillX = useTransform(pos, (p) => p >= 100
     ? "0%"
     : `calc(${p - 100}% + ${14 - 0.16 * p}px)`);
 
-  // Floor rather than round, so a range the step does not divide (0 to 10 by 4)
-  // stops its dots at the last whole step instead of drawing one past max.
-  // toFixed comes first because 0.3/0.1 is 2.9999999999999996, which would
-  // floor to 2 and drop the last dot.
+  // Floor, not round, so a step that does not divide the range stops at the last
+  // whole step; `toFixed` first to keep 0.3/0.1 from flooring a dot away.
   const steps = Math.floor(Number(((max - min) / step).toFixed(6)));
   const ticks =
     showTicks && steps > 0 && steps <= 50

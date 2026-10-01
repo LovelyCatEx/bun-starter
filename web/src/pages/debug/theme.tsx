@@ -19,14 +19,10 @@ import { TextSection } from '@/pages/debug/components/text-section'
 import { ThemeSection } from '@/pages/debug/components/theme-section'
 
 /**
- * 全页唯一的分类名单：id、导航上显示的名字、真正的组件，三样写在一起。
+ * 全页唯一的分类名单：id、导航名、组件写在一起。**加一节就在这里加一行**，导航和内容
+ * 自动跟上 —— 不要另维护一份导航数组，那迟早漂移成"导航里点得到、页面里是空的"。
  *
- * **加一节就在这里加一行**，导航和内容会同时跟上 —— 不要另外维护一份导航用的数组，
- * 那种写法迟早漂移成"导航里点得到、页面里是空的"。
- *
- * 排的就是 beUI 自己的分类顺序（按钮 → 表单 → 浮层 → 导航 → 文字 → 动效 →
- * 数据 → 图表 → agent → 文件 → 领域），`Theme` 不在里面：那一节常驻在页面最上面，
- * 不参与翻页。
+ * 顺序即 beUI 的分类顺序；`Theme` 常驻页面最上面、不参与翻页，所以不在名单里。
  */
 const SECTIONS = [
   { id: 'buttons', label: 'Buttons & actions', Component: ButtonsSection },
@@ -48,14 +44,12 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]['id']
 
 export function ThemeDebugPage() {
-  // 选中项**故意不放 URL**：放进去的话每点一次分类就压一条 history，
-  // 在调试页里来回翻十几次之后，浏览器的后退键就废了。
+  // 选中项故意不放 URL：否则每点一次分类就压一条 history，后退键很快就废了。
   const [selected, setSelected] = useState<SectionId>(SECTIONS[0].id)
 
   const Active = SECTIONS.find((item) => item.id === selected)?.Component ?? SECTIONS[0].Component
 
-  // 换分类时把页面拉回顶部：不这么做的话，在一节里滚到一半再点另一节，
-  // 会直接落在对方的中间，看起来像"点错了"。
+  // 换分类时拉回顶部，否则会直接落在另一节的中间，看着像点错了。
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [selected])
@@ -81,9 +75,8 @@ export function ThemeDebugPage() {
 
         <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
           {/*
-            `self-start` 不能少：grid 子项默认 `stretch`，不加的话这个盒子会被拉到
-            跟内容一样高，`sticky` 就没有可滑动的余量了（表现为"根本不粘"）。
-            上面 header 约 68px，所以 `top-20`（80px）刚好留出间距。
+            `self-start` 不能少：grid 子项默认 `stretch`，不加会被拉到和内容一样高，
+            `sticky` 就没有可滑的余量。`top-20` 是给上面约 68px 的 header 让位。
           */}
           <div className="lg:sticky lg:top-20 lg:max-h-[calc(100svh-6rem)] lg:self-start lg:overflow-y-auto">
             <SectionNav items={SECTIONS} value={selected}   onChange={(id) => setSelected(id as SectionId)} />

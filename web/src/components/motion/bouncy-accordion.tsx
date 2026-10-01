@@ -47,10 +47,9 @@ export interface BouncyAccordionProps {
   classNames?: BouncyAccordionClassNames;
 }
 
-// Local springs keep the accordion's connected groups moving together while
-// avoiding scale projection on text-heavy row contents.
-// Gap spring: must not overshoot y — positive y overshoot drifts items below
-// their mt-3 resting point and briefly overlaps the next item.
+// Local springs (no scale projection on text-heavy rows). The gap spring must
+// not overshoot y: positive overshoot drifts items past their mt-3 resting point
+// and briefly overlaps the next one.
 const ROW_TRANSITION: Transition = {
   type: "spring",
   duration: 0.55,

@@ -469,6 +469,8 @@ export function PredictionMarket({
 
   return (
     <div
+      // frosted blur hook
+      data-slot="prediction-market"
       className={cn(
         "w-full max-w-[400px] overflow-hidden rounded-3xl border border-border bg-background",
         className,
@@ -561,6 +563,8 @@ export function PredictionMarket({
 
         <div
           ref={amountRef}
+          // frosted blur hook
+          data-slot="prediction-market-amount"
           className={cn("rounded-3xl bg-card p-4", classNames?.amount)}
         >
           <div className="flex min-h-24 flex-col items-center justify-center gap-5 text-center">
@@ -585,6 +589,9 @@ export function PredictionMarket({
           </div>
 
           <div
+            // frosted blur hook — 里面那排按钮才是画底色的（`bg-background`），
+            // CSS 用 `> button` 选到它们，省得重复打两处（同 `table-head th` 那种写法）
+            data-slot="prediction-market-chips"
             className={cn(
               "mt-8 flex flex-wrap justify-center gap-2",
               classNames?.chips,

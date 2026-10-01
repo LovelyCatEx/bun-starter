@@ -55,10 +55,8 @@ const ROLL_EXIT_TRANSITION = { duration: 0.14, ease: EASE_OUT } as const;
 const SWAP_BLUR = "blur(8px)";
 const ROLL_BLUR = "blur(3px)";
 
-// Cascade rolls the label one letter at a time, left to right. The leaving
-// and landing strings overlap as independent layers (no shared cells), so
-// proportional glyph widths never jitter. Exits cascade at half the enter
-// stagger so the tail of the old label lingers briefly.
+// Cascade rolls the label one letter at a time; the leaving and landing
+// strings are independent layers, so proportional glyph widths never jitter.
 const CASCADE_STAGGER = 0.025;
 
 const CASCADE_LETTER_VARIANTS: Variants = {

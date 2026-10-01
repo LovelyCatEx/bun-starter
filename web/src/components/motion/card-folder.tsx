@@ -53,9 +53,8 @@ export interface CardFolderProps {
 }
 
 /**
- * A landscape card tucked into an animated folder sleeve. Pressing the folder
- * lifts the card forward while the purse compresses into its bottom seam; a
- * separate privacy control reveals its number and CVV.
+ * A landscape card in an animated folder sleeve: pressing it lifts the card forward
+ * while the purse compresses into its seam, and a separate control reveals the CVV.
  */
 export function CardFolder({
   title,

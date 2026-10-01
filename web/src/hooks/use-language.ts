@@ -31,13 +31,7 @@ function normalize(language: string | undefined): Language {
   )
 }
 
-/**
- * 语言切换的统一入口，包一层 `useTranslation`：
- *
- * ```tsx
- * const { t, language, toggleLanguage } = useLanguage()
- * ```
- */
+/** 语言切换的统一入口；用法见 frontend.md 的「组件侧用法」。 */
 export function useLanguage(): LanguageControls {
   const { t, i18n } = useTranslation()
 

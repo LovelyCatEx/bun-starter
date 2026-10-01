@@ -54,10 +54,8 @@ const HOVER_CLOSE_DELAY = 120;
 const CIRCLE_KAPPA = 0.5523;
 
 // `onPointerEnter`/`onPointerLeave` rather than the mouse pair: a tap fires
-// compatibility mouseenter/mouseleave that carry no pointerType at all, and
-// they are what made the panel flicker open and shut under a finger. The
-// gesture pairs the two, so the panel a pen tap opened is not closed again by
-// the boundary event that ends the same tap.
+// compatibility mouseenter/mouseleave carrying no pointerType, and those would
+// close the panel the same tap opened. The gesture pairs the two.
 function makeHoverHandlers(
   hover: HoverGesture,
   enter: () => void,
@@ -193,12 +191,9 @@ function roundedRectPath(rect: Rect) {
   );
 }
 
-// The goo layer is portalled above the page, so its copy of the trigger pill
-// would cover the real trigger's label and focus ring. Punching the trigger
-// back out keeps the real one visible and clips the blur to the layer box.
-// This is a clip path rather than a CSS mask on purpose: WebKit silently
-// ignores `mask: url(#id)` pointing at an SVG <mask> element, which left the
-// label hidden behind the goo in Safari.
+// The goo layer is portalled above the page, so its copy of the trigger pill would
+// cover the real trigger's label and focus ring. A clip path rather than a CSS mask
+// on purpose: WebKit ignores `mask: url(#id)` pointing at an SVG <mask>.
 function triggerCutout(geo: Geo) {
   const layer = { x: 0, y: 0, w: geo.layerW, h: geo.layerH, r: 0 };
   return `path(evenodd, "${roundedRectPath(layer)} ${roundedRectPath(geo.trigger)}")`;
@@ -323,11 +318,9 @@ export function Popover({
     return () => animation.stop();
   }, [open, progress, reduce]);
 
-  // The panel is a `role="dialog"` and goes inert the moment it closes, so
-  // focus cannot be left sitting inside it: Escape hands it back to the
-  // trigger, the way the ARIA dialog pattern asks. A pointer dismissal takes
-  // the focus onward itself when it lands on something focusable — this only
-  // catches the case where it would otherwise be stranded.
+  // The panel is a `role="dialog"` and goes inert the moment it closes, so focus
+  // cannot be left inside it: Escape hands it back to the trigger. A pointer dismissal
+  // moves focus itself; this only catches the stranded case.
   const close = useCallback(() => {
     setOpen(false);
     const focused = document.activeElement;
@@ -340,10 +333,8 @@ export function Popover({
     (target: Element) => Boolean(contentRef.current?.contains(target)),
     [],
   );
-  // A hover trigger opens on tap as well now, so it needs the same outside
-  // dismissal the click trigger always had. The gesture passes through to
-  // whatever it landed on, which is the light-dismiss bargain the platform's
-  // own popovers strike.
+  // A hover trigger also opens on tap, so it needs the same outside dismissal the
+  // click trigger has; the gesture passes through to whatever it landed on.
   useDismiss(open, close, rootRef, { ignore: ignoreContent });
 
   const ctx = useMemo<PopoverContextValue>(
@@ -440,11 +431,9 @@ export function PopoverTrigger({ children }: PopoverTriggerProps) {
       if (!event.defaultPrevented) handler(event);
     };
 
-  // Observation, not action. `compose` steps aside for a child that handled
-  // the event itself, which is right for anything that *does* something — but
-  // a child preventing the pointerdown default (to hold focus, say) has not
-  // said the gesture didn't happen. Skipping the record there left the panel
-  // reading whatever the gesture before it had put in.
+  // Observation, not action: `compose` steps aside for a child that handled the event,
+  // but a child only preventing the pointerdown default (to hold focus, say) has not
+  // said the gesture didn't happen, so the record is still taken.
   const observe =
     <E,>(name: string, handler: (event: E) => void) =>
     (event: E) => {
@@ -452,14 +441,9 @@ export function PopoverTrigger({ children }: PopoverTriggerProps) {
       handler(event);
     };
 
-  // The hover trigger keeps its hover path and *adds* a tap one, rather than
-  // swapping mode on a device that reports a touchscreen: a touchscreen laptop
-  // has both inputs and the mouse must keep working. A hovering pointer has
-  // already opened the panel on its way in, and a keyboard press arrives with
-  // no pointerdown behind it, so only a tap toggles here. Which panel state
-  // the tap acts on is read from the gesture's start, because a browser that
-  // focuses the trigger on contact would otherwise open it mid-gesture and let
-  // the click close it again.
+  // The hover trigger keeps its hover path and *adds* a tap one, rather than swapping
+  // mode: a touchscreen laptop has both inputs and the mouse must keep working. Only a
+  // tap toggles, and it acts on the panel state read at the gesture's start, not at click.
   const handlers: Record<string, unknown> =
     ctx.triggerMode === "hover"
       ? {

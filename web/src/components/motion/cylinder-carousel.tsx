@@ -37,15 +37,13 @@ const MAX_FLICK_ITEMS = 6;
 
 export interface CylinderCarouselProps {
   children: ReactNode;
-  /** Max item box size in px (square) at full size, i.e. at the container
-   * edge. Balls shrink below this automatically so the row keeps breathing
-   * room in narrow containers. */
+  /** Max item box size in px (square) at full size, i.e. at the container edge; balls
+   * shrink below it so the row keeps breathing room in narrow containers. */
   itemSize?: number;
   /** How many item slots span the container width. */
   visibleItems?: number;
-  /** "concave" (default): inside of the cylinder — center ball smallest and
-   * dipped, growing toward the edges. "convex": outside of the cylinder —
-   * center ball biggest and raised, shrinking toward the edges. */
+  /** "concave" (default): inside of the cylinder — center ball smallest and dipped,
+   * growing toward the edges. "convex": outside — center biggest and raised. */
   variant?: "concave" | "convex";
   /** Scale of the smallest ball (center for concave, edges for convex);
    * the biggest reaches 1. */
@@ -53,9 +51,8 @@ export interface CylinderCarouselProps {
   /** Items rolled per item-width dragged — above 1 the wall outruns the
    * pointer, which reads as a lighter, freer roll. */
   dragSpeed?: number;
-  /** Curve depth in px: for concave, how far the edge balls ride above the
-   * center one (valley); for convex, how far below (arch). 0 = flat line.
-   * Defaults to 35% of the item size. */
+  /** Curve depth in px — for concave, how far the edge balls ride above the center one;
+   * for convex, how far below. 0 = flat. Defaults to 35% of the item size. */
   arc?: number;
   /** Snap to the nearest item when the roll settles. */
   snap?: boolean;
@@ -76,12 +73,9 @@ const THETA_EDGE = (72 * Math.PI) / 180;
 const THETA_CLAMP = (95 * Math.PI) / 180;
 
 /**
- * One ball on the inside wall of the cylinder, rendered through a single
- * perspective projection: the ball sits at wall angle θ, the camera slightly
- * above the ball line, so horizontal position, size and height all share one
- * 1/(cosθ + k) depth term. Center = far wall: smallest, highest, moving
- * slowest; edges = nearest: full size, level, moving fastest, sliding off to
- * be clipped. Nothing overlaps, fades or reorders — the edge is the exit.
+ * One ball on the inside wall of the cylinder, through a single perspective projection: at
+ * wall angle θ the camera sits slightly above the ball line, so position, size and height all
+ * share the same 1/(cosθ + k) depth term. Center is the far wall, the edge is the exit.
  */
 function CarouselBall({
   scroll,
@@ -126,28 +120,23 @@ function CarouselBall({
     o -= Math.round(o / count) * count;
     return o;
   });
-  // Concave spacing follows the interior perspective (slow, tight center);
-  // convex pairs its big center balls with uniform spacing — the interior
-  // projection would collapse them into each other.
+  // Concave spacing follows the interior perspective (slow, tight center); convex pairs its
+  // big center balls with uniform spacing — the interior projection would collapse them.
   const x = useTransform(offset, (o) => {
     if (convex) return o * gap;
     const th = Math.max(-THETA_CLAMP, Math.min(THETA_CLAMP, o * alpha));
     return (projection * Math.sin(th)) / (Math.cos(th) + k);
   });
-  // Linear in wall angle, not in depth (the depth curve is near-flat around
-  // the center, which made the middle three read as equal): every step is
-  // visibly bigger than the last — growing outward (concave) or inward
-  // (convex).
+  // Linear in wall angle, not in depth — the depth curve is near-flat around the center, so
+  // every step stays visibly bigger than the last, growing outward (concave) or inward (convex).
   const scale = useTransform(offset, (o) => {
     const t = Math.min(Math.abs(o) / edgeOffset, THETA_CLAMP / THETA_EDGE);
     return convex
       ? 1 - (1 - minScale) * t
       : minScale + (1 - minScale) * t;
   });
-  // Parabola centered on the stage — valley for concave (center ball dips
-  // arc/2 below the midline, edges rise arc/2 above), arch for convex — and
-  // deliberately unclamped: a ball keeps following the same curve as it
-  // crosses the edge, so entries never pop.
+  // Parabola centered on the stage — valley for concave, arch for convex — deliberately
+  // unclamped, so a ball keeps following the same curve across the edge and entries never pop.
   const y = useTransform(x, (px) => {
     const t = px / halfWidth;
     const valley = arc * (0.5 - t * t);
@@ -214,9 +203,8 @@ export function CylinderCarousel({
   const halfWidth = stageWidth / 2;
   const edgeOffset = (visibleItems + 1) / 2;
 
-  // Fit: the resting row's diameters may take at most ~66% of the stage — the
-  // rest is air between balls plus the half-visible ball on each edge.
-  // `itemSize` only caps the result.
+  // Fit: the resting row's diameters may take at most ~66% of the stage; the rest is air
+  // between balls plus the half-visible ball on each edge. `itemSize` only caps the result.
   const convex = variant === "convex";
   let scaleSum = 0;
   for (let i = 0; i < visibleItems; i++) {
@@ -230,18 +218,16 @@ export function CylinderCarousel({
   const gap = stageWidth / (visibleItems + 1);
   const arc = arcProp ?? size * 0.35;
 
-  // Perspective constants. The ball one slot past the frame edge sits at wall
-  // angle THETA_EDGE with its center right on the container edge — scale 1,
-  // half of it in view; k falls out of the requested minScale (clamped so the
-  // projection stays monotonic up to THETA_CLAMP).
+  // Perspective constants. The ball one slot past the frame edge sits at wall angle
+  // THETA_EDGE with its center on the container edge; k falls out of the requested minScale,
+  // clamped so the projection stays monotonic up to THETA_CLAMP.
   const alpha = THETA_EDGE / edgeOffset;
   const k = Math.max(0.2, (minScale - Math.cos(THETA_EDGE)) / (1 - minScale));
   const projection =
     (halfWidth * (Math.cos(THETA_EDGE) + k)) / Math.sin(THETA_EDGE);
 
-  // scroll is in item units (continuous); item i sits at x = (i - scroll) * gap.
-  // Drags write it 1:1 so the wall sticks to the pointer; releases hand the
-  // pointer velocity to a soft spring so the roll glides on and settles free.
+  // scroll is in item units (continuous). Drags write it 1:1 so the wall sticks to the
+  // pointer; releases hand the pointer velocity to a soft spring so the roll glides on.
   const scroll = useMotionValue(defaultIndex);
   const indexRef = useRef(defaultIndex);
   const [, setActiveIndex] = useState(defaultIndex);

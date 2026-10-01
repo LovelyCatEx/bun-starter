@@ -3,14 +3,8 @@
 import { useEffect, useState } from "react";
 
 /**
- * Returns true on devices that can be touched, whatever else they claim.
- *
- * This is not the inverse of `useHoverCapable`: iPadOS Safari browses
- * desktop-class and answers `(hover: hover) and (pointer: fine)` with true
- * while a finger is the only input there is, so anything that treats
- * hover-capable as "no touch here" strands every iPad. Gate the *touch path*
- * of an interaction on this hook and leave hover-only polish on
- * `useHoverCapable`, so a component that opens on hover also opens on tap.
+ * Not the inverse of `useHoverCapable`: iPadOS answers `(hover: hover)` with true while a
+ * finger is the only input — gate the *touch path* here, hover-only polish on `useHoverCapable`.
  */
 export function useTouchCapable() {
   const [canTouch, setCanTouch] = useState(false);
@@ -18,8 +12,7 @@ export function useTouchCapable() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia?.("(any-pointer: coarse)");
-    // iPadOS disguises its pointer media queries; maxTouchPoints it reports
-    // honestly, which is what makes it the standard iPad tell.
+    // iPadOS disguises its pointer media queries; maxTouchPoints is the tell it will not spoof.
     const update = () =>
       setCanTouch(Boolean(mq?.matches) || navigator.maxTouchPoints > 0);
     update();

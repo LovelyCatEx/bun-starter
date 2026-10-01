@@ -15,9 +15,8 @@ import { PresenceGate } from "@/lib/presence-gate";
 import { TOUCH_GESTURE_CONTENT_CLASS } from "@/lib/touch";
 import { cn } from "@/lib/utils";
 
-// Vaul-style glide: a long, fully-damped tween reads smoother than a spring on
-// open — no settle/overshoot, just one clean decel. Same curve drives the
-// backdrop fade so the surface and scrim move as one.
+// A long, fully-damped tween reads smoother than a spring on open — one clean
+// decel. The same curve drives the backdrop fade, so surface and scrim move as one.
 const DRAWER = { duration: 0.5, ease: EASE_DRAWER } as const;
 
 export interface BottomSheetProps {
@@ -63,10 +62,8 @@ export function BottomSheet({
     if (open) setSnap(defaultSnap);
   }, [open, defaultSnap]);
 
-  // Lock background scroll while open. overflow:hidden alone is ignored by
-  // iOS Safari — boundary scrolls inside the sheet chain to the page, which
-  // scrolls underneath and ends up somewhere else on close. position:fixed
-  // is the lock that actually holds; restore the scroll position after.
+  // overflow:hidden alone is ignored by iOS Safari — boundary scrolls chain to
+  // the page underneath; position:fixed is the lock that holds. Restore after.
   useEffect(() => {
     if (!open) return;
     const body = document.body;
@@ -138,16 +135,12 @@ export function BottomSheet({
       ? { maxHeight: "92vh" }
       : { height: `${snapValue * 100}vh` };
 
-  // Portal to <body>: an ancestor with backdrop-filter or transform becomes
-  // the containing block for fixed descendants, which would position the
-  // sheet against that ancestor instead of the viewport.
+  // Portal to <body>: an ancestor with backdrop-filter or transform becomes the
+  // containing block for fixed descendants, fixing the sheet to that ancestor.
   if (!mounted) return null;
 
-  // Two fixed siblings, no wrapper: the scrim spans the viewport edges but
-  // carries a colour, and the sheet is pinned to the bottom, stops short of the
-  // top edge at every snap point the component ships, and paints an opaque
-  // surface either way. Both hang off `PresenceGate`, so interaction releases in
-  // the same commit that starts the exit rather than when it ends.
+  // Two fixed siblings, no wrapper — neither is a transparent layer spanning the
+  // viewport. Both hang off `PresenceGate`, so interaction releases as the exit starts.
   return createPortal(
     <AnimatePresence>
       {open ? (
@@ -162,9 +155,8 @@ export function BottomSheet({
               transition={DRAWER}
               {...gate}
               onClick={() => onOpenChange(false)}
-              // A dim scrim with a light blur. backdrop-blur is GPU-expensive and
-              // re-rasterizes every frame the sheet drags over it; a small radius
-              // plus more opacity keeps the glass look without the jank.
+              // backdrop-blur re-rasterizes every frame the sheet drags over it;
+              // a small radius plus more opacity keeps the look without the jank.
               className="pointer-events-auto fixed inset-0 z-50 bg-background/40 backdrop-blur-sm"
             />
           )}

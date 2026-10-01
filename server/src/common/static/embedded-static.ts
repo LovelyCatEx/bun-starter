@@ -41,10 +41,8 @@ const embedded = Array.from(Bun.embeddedFiles) as unknown as EmbeddedFile[];
 const shell = embedded.find((file) => file.name.endsWith(SHELL));
 
 /**
- * `--asset` only keeps a name's **basename**: `web/dist` lands in the executable as
- * `dist/...`, not `web/dist/...` (measured; the parent directories are dropped). Which is
- * exactly why the prefix is derived here from the shell entry instead of written down — a
- * changed asset argument, or a leading `./`, would otherwise silently break every lookup.
+ * `--asset` keeps only a name's **basename** (`web/dist` lands as `dist/...`), so the prefix is
+ * derived from the shell entry rather than written down — a changed asset argument breaks silently.
  */
 const root = shell === undefined ? '' : shell.name.slice(0, -SHELL.length);
 const files = new Map<string, EmbeddedFile>();
@@ -56,11 +54,8 @@ for (const file of embedded) {
 }
 
 /**
- * Serves the frontend embedded into the executable, which is what lets the whole
- * app live on this one port.
- *
- * Outside a compiled executable `Bun.embeddedFiles` is empty, so nothing is
- * registered and `bun run dev` keeps getting the frontend from vite.
+ * Serves the frontend embedded into the executable — what lets the whole app live on one port.
+ * `Bun.embeddedFiles` is empty outside a compiled executable, so dev gets the frontend from vite.
  */
 function createEmbeddedStatic() {
   if (shell === undefined) {
@@ -76,9 +71,8 @@ function createEmbeddedStatic() {
         return serve(file, path);
       }
 
-      // Client-side routes such as /login are unknown to the server, so they get
-      // the shell and let the router sort them out. A path under /api/ is not a
-      // client-side route and stays a 404.
+      // Client-side routes such as /login get the shell and let the router sort them
+      // out; a path under /api/ is not one and stays a 404.
       if (path.startsWith('/api/')) {
         throw new NotFoundException();
       }

@@ -28,15 +28,10 @@ export interface Toast {
 export const ToastContext = createContext<Toast | null>(null)
 
 /**
- * 全局 toast 的入口 —— 组件里弹提示只有这一条路。
+ * 全局 toast 的入口，组件里弹提示只有这一条路；状态在 `<ToastProvider>` 里，全局同一个栈。
  *
- * 状态在 `<ToastProvider>`（`src/hooks/toast-provider.tsx`）里，它包着整个应用，所以
- * 任何页面调到的都是同一个栈；栈本身是 `position: fixed` 且 Portal 到 `body` 的，
- * 不会占任何布局，也不会被页面的 `overflow` 裁掉。
- *
- * **文案由调用方翻好再传进来**（`toast.error(t('auth.login.failed', { error }))`），
- * 不在这里认 i18n 的 key —— 跟 `hooks/notification/` 一个道理：弹出来的那一刻文案就定死了，
- * 之后切语言不该把已经弹出来的那条改写掉。
+ * **文案由调用方翻好再传进来**，不在这里认 i18n 的 key —— 弹出的那一刻文案就定死了
+ * （同 `hooks/notification/`，见 frontend.md「浏览器通知」）。
  */
 export function useToast(): Toast {
   const toast = useContext(ToastContext)

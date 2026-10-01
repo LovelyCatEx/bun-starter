@@ -21,9 +21,9 @@ type IslandContextValue = {
 
 const IslandContext = createContext<IslandContextValue | null>(null);
 
-// Shell physics in Apple's duration/bounce form one long perceptual glide with barely-there bounce, identical in
-// both directions. The shell animates real width/height (not transforms), so
-// slots are never scale-distorted.
+// Apple's duration/bounce form: one long perceptual glide with barely-there
+// bounce, identical in both directions. The shell animates real width/height,
+// so slots are never scale-distorted.
 const SHELL_SPRING = {
   type: "spring",
   duration: 0.8,
@@ -37,16 +37,13 @@ const CONTENT_SPRING = {
   bounce: 0.35,
 } as const;
 
-// Constant radius — never animated. The browser clamps it to half the shell
-// height, so the pill-to-rounded-rect morph falls out of the resize for free
-// with zero chance of corner glitches.
+// Constant radius, never animated: the browser clamps it to half the shell's
+// height, so the pill-to-rect morph falls out of the resize for free.
 const RADIUS = 32;
 
-// iPhone pill dimensions. Also the shell's pre-measure animate target: if the
-// first commit already has a view active (e.g. a click replayed after
-// hydration), the shell blooms from the pill instead of rendering expanded
-// with no animation. Lives in `animate`, not `initial`, so server and client
-// markup agree.
+// iPhone pill dimensions, and the pre-measure target: a first commit with a view
+// already active blooms from the pill. Lives in `animate`, not `initial`, so
+// server and client markup agree.
 const PILL_WIDTH = 126;
 const PILL_HEIGHT = 37;
 
@@ -57,10 +54,8 @@ function useContentSize() {
     null,
   );
 
-  // Synchronous mount measure: the shell must own explicit dimensions before
-  // the first interaction. ResizeObserver fires async after mount — a quick
-  // first press could beat it, leaving the shell auto-sized so the view
-  // snapped open instead of springing.
+  // Synchronous mount measure: ResizeObserver fires async, and a quick first
+  // press could beat it, leaving the shell auto-sized instead of springing.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -164,22 +159,19 @@ export function DynamicIsland({
         transition={reduce ? { duration: 0 } : SHELL_SPRING}
         style={{ borderRadius: RADIUS }}
         // items-start pins content to the top edge while the shell springs, so
-        // expansion reads as unfurling downward out of the pill. Top-align the
-        // island in its parent (like under a notch) to complete the effect.
+        // expansion reads as unfurling downward. Top-align the island to match.
         className={cn(
           "relative inline-flex items-start justify-center overflow-hidden",
           "bg-foreground text-background shadow-2xl",
           className,
         )}
       >
-        {/* w-max keeps this at the natural size of the active content; the
-            shell springs toward it. */}
+        {/* The shell springs toward this element's natural size. */}
         <div ref={sizerRef} className="w-max">
           <AnimatePresence mode="popLayout" initial={false}>
             {!expanded && compact ? (
               <Slot
                 keyId="compact"
-                // iPhone pill proportions: ~126 x 37.
                 className="min-h-[37px] min-w-[126px] gap-2 px-4 py-1.5 text-xs font-medium"
               >
                 {compact}

@@ -34,9 +34,8 @@ function useTabs() {
   return ctx;
 }
 
-// Settle without overshoot: a scrollable tab list would turn even a small
-// overshoot into a transient scrollbar and layout shift.
-// Scale stiffness and damping together for a quicker glide with the same feel.
+// Settle without overshoot: a scrollable list turns overshoot into a transient
+// scrollbar and layout shift. Stiffness and damping scale together.
 const transition: Transition = {
   type: "spring",
   stiffness: 245,
@@ -79,9 +78,7 @@ export function Tabs({
     <MotionConfig transition={reduce ? { duration: 0 } : transition}>
       <TabsCtx.Provider value={contextValue}>
         {/* layoutRoot: the indicator's layoutId measures in page coordinates, so
-            inside fixed/scrolled containers it would replay scroll offsets as
-            movement. The pill only ever travels within the list, so scoping
-            projection to the Tabs wrapper is always correct. */}
+            inside fixed/scrolled containers it would replay scroll offsets as movement. */}
         <motion.div layoutRoot className={className}>
           {children}
         </motion.div>
@@ -238,7 +235,17 @@ export function TabsList({
           if (event.target instanceof HTMLElement && event.target.getAttribute("role") === "tab") reveal(event.target);
         }}
       >
-        <div ref={listRef} role="tablist" className={cn(listClasses[variant], "w-max", className)}>
+        <div
+          ref={listRef}
+          role="tablist"
+          // frosted blur hook —— 只有 pill / segment 有底色（`underline` 只有下边框）
+          data-slot={
+            variant === "pill" || variant === "segment"
+              ? "tabs-list"
+              : undefined
+          }
+          className={cn(listClasses[variant], "w-max", className)}
+        >
           {children}
         </div>
       </motion.div>
@@ -350,9 +357,8 @@ export function TabsContent({ value, children, className }: { value: string; chi
   const { value: current } = useTabs();
   const reduce = useReducedMotion();
   const active = current === value;
-  // Inactive panels stay mounted but hidden, so their content (e.g. source
-  // code) is present in the server-rendered HTML for crawlers and assistive
-  // tech, instead of being dropped from the DOM.
+  // Inactive panels stay mounted but hidden, so their content (e.g. source code)
+  // stays in the HTML for crawlers and assistive tech.
   if (!active) {
     return (
       <div hidden className={className}>

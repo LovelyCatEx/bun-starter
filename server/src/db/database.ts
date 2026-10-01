@@ -23,13 +23,9 @@ const MIGRATION_JOURNAL = 'meta/_journal.json';
 const MIGRATIONS_DIR_NAME = 'drizzle';
 
 /**
- * 迁移目录在哪：dev 读磁盘上的 `server/drizzle`（`bun run db:generate` 生成），
- * 打包后读 `scripts/compile.ts` 用 `--asset` 内嵌进二进制的那一份。哪边都没有就返回 `null`。
- *
- * 内嵌那份的路径**从 `Bun.embeddedFiles` 反推**，不写死 `import.meta.dir/drizzle`：
- * 和 `embedded-static.ts` 反推前端前缀是同一个理由 —— `--asset` 的路径最后落在虚拟根的
- * 哪个位置由 bun 决定（实测 `--asset server/drizzle` 内嵌出来是 `drizzle/…`），
- * 写死会在它换个写法之后静默变成"没有迁移"。
+ * 迁移目录：dev 读磁盘上的 `server/drizzle`，打包后读 `--asset` 内嵌的那一份；都没有返回 `null`。
+ * 内嵌路径从 `Bun.embeddedFiles` 反推（同 `embedded-static.ts`）—— 写死会在 `--asset` 换个写法
+ * 之后静默变成"没有迁移"。
  */
 function migrationsFolder(): string | null {
   if (!Bun.isStandaloneExecutable) {
@@ -51,10 +47,8 @@ function migrationsFolder(): string | null {
 }
 
 /**
- * 启动时把迁移跑到最新。三种方言各有各的 migrator，所以调用点给的是"怎么跑"。
- *
- * 没有迁移目录（schema 还空着，或者编译这个产物时 `server/drizzle` 还没生成）就跳过：
- * 空库启动是脚手架的常态，`db:generate` 之后自然就有内容了。
+ * 启动时把迁移跑到最新；三种方言各有各的 migrator，所以调用点给的是"怎么跑"。
+ * 没有迁移目录就跳过 —— 空库启动是脚手架的常态。
  */
 function applyMigrations(migrate: (migrationsFolder: string) => void) {
   const folder = migrationsFolder();

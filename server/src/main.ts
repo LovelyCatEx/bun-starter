@@ -6,11 +6,9 @@ import { config } from './common/config';
 import { responseInterceptor } from './common/interceptor/response-interceptor';
 import { LogService, SYSTEM_TAG } from './common/service/log-service';
 import { embeddedStatic } from './common/static/embedded-static';
-// Opens the database and brings it up to the latest migration before the first
-// request. A side-effect import on purpose: migrations are embedded in the
-// executable (`--asset server/drizzle`, see scripts/compile.ts), so a deployed
-// binary has to migrate the database it is pointed at — that cannot wait for the
-// first module that happens to import `db`.
+// Side-effect import on purpose: migrations are embedded in the executable
+// (`--asset server/drizzle`, see scripts/compile.ts), so a deployed binary has to
+// migrate the database it is pointed at before it serves anything.
 import './db/database';
 import { authInterceptor } from './modules/auth/interceptor/auth.interceptor';
 import { createAuthPlugin } from './modules/auth/auth.plugin';
@@ -28,8 +26,7 @@ const app = new Elysia()
   .use(responseInterceptor)
   .use(authInterceptor)
   .get('/health', () => ({ status: 'ok', name: APP_NAME, version: APP_VERSION }))
-  // Inject your own account storage here, which disables the built-in admin/admin:
-  //   .use(createAuthPlugin(new MyAuthProvider()))
+  // Injection point for your own account storage — see .claude/rules/auth.md.
   .use(createAuthPlugin())
   .use(embeddedStatic)
   .listen(config.port);

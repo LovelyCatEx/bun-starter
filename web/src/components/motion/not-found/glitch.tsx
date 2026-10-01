@@ -15,9 +15,8 @@ const SCRAMBLE_MS = 700;
 const TICK_MS = 45;
 
 /**
- * Renders the code, scrambling each character on mount before it settles.
- * SSR and the first paint show the real code, so the scramble is a pure
- * client-side enhancement and reduced-motion users see the code immediately.
+ * Renders the code, scrambling each character on mount before it settles. SSR and
+ * first paint show the real code, so reduced-motion users see it immediately.
  */
 function Scramble({ text }: { text: string }) {
   const reduce = useReducedMotion();

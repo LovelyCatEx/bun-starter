@@ -42,9 +42,7 @@ function pickToken(
   return undefined;
 }
 
-/**
- * WebSocket 升级请求。它走的是和 HTTP 一样的鉴权，但拿不到自定义头，见 `pickToken`。
- */
+/** WS 升级请求：鉴权同 HTTP，但拿不到自定义头（见 `pickToken`）。 */
 function isUpgrade(request: Request): boolean {
   return request.headers.get('upgrade')?.toLowerCase() === 'websocket';
 }

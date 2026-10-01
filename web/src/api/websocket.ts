@@ -6,21 +6,9 @@ import { AUTH_MODE } from '@/auth/auth-mode'
 import { getToken } from '@/auth/token-store'
 
 /**
- * 前端唯一的长连接入口，`requests.ts` 的 WS 版本。
- *
- * 和后端的一对帧对应（`WsRequest` / `WsResponse`，都来自 `@shared/protocol/`，不是两端各抄一份）：
- * 发出去的是 `{ id, event, data }`，收到的是 `{ id, event, code, message, data }`，`code === 0`
- * 表示成功、其余是后端异常的 `code`，与 HTTP 的 `{ code, message, data }` 是同一套语义。
- *
- * `id` 让一个连接上同时飞多个请求也能各回各家，所以：
- *
- * - `send(event, data)` —— 有去有回，`id` 由客户端生成，返回一个 Promise（超时 / 连接断掉 / `code !== 0` 都会 reject）
- * - `notify(event, data)` —— 单向，不带 `id`，不等回答
- * - `on(event, handler)` —— 订阅服务端推送（也包含"id 对不上任何在途请求"的帧）
- *
- * 重连与心跳默认开着：断开后按指数退避重连（`reconnectMinDelay` → `reconnectMaxDelay`），
- * 连着时定时发一帧 `ping`，服务端应回 `pong`；超过两个心跳周期没收到任何帧就认为连接已死，
- * 主动断开重连。要长期不重连就 `disconnect()`（这点和 fetch 不同，它不会自己停）。
+ * 前端唯一的长连接入口，`requests.ts` 的 WS 版本。`send` 有去有回、`notify` 单向、`on`
+ * 订阅推送；帧的 `code` 与 HTTP 的 `ApiResponse` 同一套。重连与心跳默认开着，`disconnect()`
+ * 才停。帧结构与用法见 `.claude/skills/websocket/SKILL.md`。
  */
 
 export type WsStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed'
@@ -65,9 +53,9 @@ interface PendingRequest {
 }
 
 /**
- * `?token=` 只给 localstorage 模式用：浏览器不能给 WebSocket 加自定义头，
- * 而 cookie 模式下 token 在 httpOnly cookie 里，浏览器自己会带上。
- * 后端只在"升级请求"上接受这种 token（见 `modules/auth/interceptor/auth.interceptor.ts`）。
+ * `?token=` 只给 localstorage 模式用：浏览器不能给 WebSocket 加自定义头，而 cookie 模式下
+ * token 在 httpOnly cookie 里、浏览器自己会带。后端只在升级请求上接受它（见
+ * `modules/auth/interceptor/auth.interceptor.ts`）。
  */
 function withToken(url: string): string {
   if (AUTH_MODE !== 'localstorage') return url
@@ -80,8 +68,8 @@ function withToken(url: string): string {
 }
 
 /**
- * 根相对路径 → 全量地址。开发和单端口打包都是同源，所以协议与主机直接取当前的，
- * 只有 http/https 要换成 ws/wss。
+ * 根相对路径 → 全量地址：开发和单端口打包都是同源，所以协议与主机取当前的，只有
+ * http/https 要换成 ws/wss。
  */
 function resolveUrl(path: string): string {
   if (path.startsWith('ws://') || path.startsWith('wss://')) return withToken(path)
@@ -177,7 +165,7 @@ export class WebSocketClient {
 
   /**
    * 主动断开，并**停止重连**（连接是共享的，谁开的谁负责关）。
-   * 只挂载不断开的场景请用 `on` / `send`，不要在 `useEffect` 卸载里调它。
+   * 只挂载不断开的场景用 `on` / `send` 即可。
    */
   disconnect(): void {
     this.closedByUser = true
@@ -202,9 +190,8 @@ export class WebSocketClient {
   }
 
   /**
-   * 发一个请求并等它的应答。失败时 reject 一个 `WsError`：
-   * `code === WS_CLIENT_ERROR` 是客户端侧的失败（没连上 / 超时 / 被断开），
-   * 其余是服务端返回的 `code`（与 HTTP 的 `ApiException.code` 同一套）。
+   * 发一个请求并等应答，失败时 reject 一个 `WsError`：`code === WS_CLIENT_ERROR` 是客户端侧
+   * 的失败（没连上 / 超时 / 被断开），其余是服务端的 `code`。
    */
   send<T>(event: string, data?: unknown): Promise<T> {
     const socket = this.socket
@@ -398,10 +385,8 @@ export class WebSocketClient {
 let shared: WebSocketClient | null = null
 
 /**
- * 全应用共享的那一个连接。聊天 / 推送这类"一个页面只该有一条长连接"的场景都用它，
- * 多个组件同时 `useWebSocket()` 也不会各开一条 —— 连接是稀缺资源，也是服务端的连接数。
- *
- * 要接第二条连接（比如另一个后端的 WS）就自己 `new WebSocketClient({ path })`。
+ * 全应用共享的那一个连接：多个组件同时 `useWebSocket()` 也不会各开一条。要接第二条连接
+ * （比如另一个后端的 WS）就自己 `new WebSocketClient({ path })`。
  */
 export function getWebSocketClient(options?: WebSocketClientOptions): WebSocketClient {
   shared ??= new WebSocketClient(options)

@@ -83,6 +83,8 @@ export function Field({
 
         <button
           type="button"
+          // frosted blur hook
+          data-slot="swap-token-button"
           onClick={onOpenPicker}
           className="group inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card pl-1 pr-2.5 text-sm font-semibold text-foreground transition-transform hover:border-border active:scale-[0.97]"
         >

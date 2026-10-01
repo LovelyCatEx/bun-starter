@@ -3,16 +3,7 @@ import { LogService } from '../../common/service/log-service';
 import { AuthController } from './controller/auth.controller';
 import type { AuthProvider } from './provider/auth-provider';
 
-/**
- * Registers the auth endpoints.
- *
- * Pass your own provider to take over authentication completely — the built-in
- * account is a fallback for the not-injected case only.
- *
- * ```ts
- * .use(createAuthPlugin(new MyAuthProvider()))
- * ```
- */
+/** The `AuthProvider` injection point — with none injected the built-in dev account takes over. */
 export function createAuthPlugin(provider?: AuthProvider) {
   if (!provider) {
     LogService.warn(

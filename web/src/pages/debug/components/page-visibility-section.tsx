@@ -2,13 +2,8 @@ import { usePageVisibility } from '@/hooks/use-page-visibility'
 import { Section } from '@/pages/debug/components/section'
 
 /**
- * Shows what `usePageVisibility()` reports while you click around.
- *
- * The distinction worth watching is `focused`: click another window without switching tabs and
- * it flips to false while `visible` stays true — the case a system notification is for. The
- * hidden case (switch away entirely) is what the notification demo below exercises.
- *
- * English and hard-coded on purpose — the debug page is exempt from the i18n rules.
+ * English and hard-coded on purpose — the debug page is exempt from the i18n rules
+ * (see `.claude/rules/frontend.md`).
  */
 export function PageVisibilitySection() {
   const { visible, focused, active } = usePageVisibility()

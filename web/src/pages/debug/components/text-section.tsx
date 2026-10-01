@@ -14,13 +14,8 @@ import { TextShimmer } from '@/components/motion/text-shimmer'
 import { Demo, Section } from '@/pages/debug/components/section'
 
 /**
- * The text and number motion family — everything whose whole job is to animate a string or a
- * value. English and hard-coded on purpose: the debug page is exempt from the i18n rules (see
- * `.claude/rules/frontend.md`) and gets deleted before release.
- *
- * Most of these only animate when *something changes*, so every demo below owns the state that
- * changes it: a step counter, a random value, or a remount key for the ones that play on mount
- * and have no way to be asked again.
+ * English and hard-coded on purpose — the debug page is exempt from the i18n rules
+ * (see `.claude/rules/frontend.md`).
  */
 
 const CASCADE_STEPS = ['Uploading…', 'Encrypting…', 'Published'] as const
@@ -61,8 +56,7 @@ const MARQUEE_ITEMS = [
 const MARQUEE_AXES = ['up', 'down', 'left', 'right']
 
 export function TextSection() {
-  // text-reveal / animated-number / digit-swap have no "replay" prop — bumping a remount key
-  // is the only way to see their entrance twice.
+  // These three have no "replay" prop — a remount key is the only way to replay them.
   const [revealRun, setRevealRun] = useState(0)
   const [amountRun, setAmountRun] = useState(0)
   const [usageRun, setUsageRun] = useState(0)

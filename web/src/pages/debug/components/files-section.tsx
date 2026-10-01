@@ -9,13 +9,8 @@ import { FileUpload, type FileUploadItem } from '@/components/motion/file-upload
 import { Demo, Section } from '@/pages/debug/components/section'
 
 /**
- * The two upload surfaces. Neither one talks to a server — the upload itself is the app's job, so
- * both hand you a queue and let you drive it. The demos below therefore fake the transfer:
- * file-upload advances its own progress on a timer, attachment-upload runs its built-in
- * uploading → complete → clear lifecycle for anything you drop in.
- *
- * English and hard-coded on purpose — the debug page is exempt from the i18n rules and gets
- * deleted before release.
+ * English and hard-coded on purpose — the debug page is exempt from the i18n rules
+ * (see `.claude/rules/frontend.md`).
  */
 
 /** Inline preview so the image row has something to show without a network or a real file. */
@@ -69,7 +64,6 @@ export function FilesSection() {
 
   const uploading = files.some((file) => file.status === 'uploading')
 
-  // One interval while anything is in flight; it tears itself down on the last success.
   useEffect(() => {
     if (!uploading) return
     const timer = setInterval(() => {

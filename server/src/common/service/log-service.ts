@@ -4,42 +4,24 @@ import path from 'node:path';
 import { config } from '../config';
 
 /**
- * The only way a log line leaves this server.
- *
- * Every line carries a tag, the way Android's `Log` does, so a line always says
- * what it is about: which feature, module or request produced it. The tag is
- * mandatory and comes first, which forces a call site to answer that question
- * instead of printing a bare string — see `SYSTEM_TAG` for the answer when the
- * line is about the process itself rather than any feature.
- *
- * A line goes to stdout (stderr for `error`, the stream platforms and log
- * collectors treat as the failure stream) and is appended to a per-tag file
- * under `LOG_DIR`, so one tag's history can be read without every other tag's
- * lines in it. That file write is best-effort: logging must not be able to take
- * down the work it was describing, so a failure there is dropped, not thrown.
+ * The only way a log line leaves this server: tagged, to stdout (stderr for `error`), and
+ * appended best-effort to a per-tag file under `LOG_DIR`. See `.claude/rules/backend.md`「日志」.
  */
 
 /** The log levels, in the order they narrow to. Mirrors the method names. */
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /**
- * The tag of a line that is about the process rather than a feature: startup, a
- * fatal handler, a read of configuration no request has touched yet.
- *
- * A named sentinel rather than an optional parameter, because an optional tag is
- * exactly what would let a feature's line be logged as if it were global — the
- * mistake the mandatory parameter exists to prevent.
+ * The tag of a line about the process rather than a feature: startup, a fatal handler,
+ * configuration no request has touched yet. A named sentinel rather than an optional
+ * parameter — an optional tag is what would let a feature's line pose as a global one.
  */
 export const SYSTEM_TAG = 'system';
 
 /**
- * The tag turned into a file name: lower-cased, every run of characters that is
- * not a letter or a digit collapsed into one `-`.
- *
- * Tags come from call sites, so they are not trusted with a path: `auth/token`
- * or `..` must not be able to name a directory or escape `LOG_DIR`. Distinct
- * tags can collide here (`user api` and `user-api`), which costs a shared file
- * and nothing else.
+ * The tag turned into a file name: lower-cased, every run of characters that is not a letter
+ * or a digit collapsed into one `-`. Tags come from call sites, so they are not trusted with
+ * a path — `auth/token` or `..` must not name a directory or escape `LOG_DIR`.
  */
 function fileNameOf(tag: string): string {
   const slug = tag
@@ -56,12 +38,9 @@ function logFile(tag: string): string {
 }
 
 /**
- * Whether the file copy has already been given up on.
- *
- * The directory is normally made once by `LogService.init()`; if that failed
- * there is nothing a per-line retry would learn, and retrying on every line of a
- * busy request would turn one failed write into thousands. The stdout copy still
- * lands.
+ * Whether the file copy has already been given up on. The directory is normally made once by
+ * `LogService.init()`; if that failed, retrying per line would turn one failed write into
+ * thousands, so this latches off — the stdout copy still lands.
  */
 let fileLogging = false;
 
@@ -112,10 +91,7 @@ function emit(level: LogLevel, tag: string, parts: unknown[]): void {
 }
 
 export class LogService {
-  /**
-   * Creates `LOG_DIR`. Best-effort, and called once at startup — before the
-   * first line is written, so nothing is lost to it.
-   */
+  /** Creates `LOG_DIR`. Best-effort, and called once at startup, before the first line. */
   static init(): void {
     try {
       mkdirSync(config.logDir, { recursive: true });

@@ -6,9 +6,8 @@ import { ActionSwapIcon } from "@/components/motion/action-swap";
 import { cn } from "@/lib/utils";
 
 /**
- * Copies `value` to the clipboard and swaps the copy icon for a check via the
- * library's ActionSwapIcon. Stops click propagation so it can sit inside a
- * selectable row.
+ * Copies `value`, swapping the icon via ActionSwapIcon; stops click propagation
+ * so it can sit inside a selectable row.
  */
 export function CopyButton({
   value,

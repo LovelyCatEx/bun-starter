@@ -30,9 +30,8 @@ export interface BubbleSliderProps extends SliderOptions {
 }
 
 /**
- * Slider with a value bubble that pops out of the thumb on grab and reacts to
- * how fast you drag: it leans into the direction of travel and squashes along
- * the way, then settles upright when you let go.
+ * Slider whose value bubble pops out of the thumb on grab and reacts to drag speed:
+ * it leans into the direction of travel and squashes, then settles upright.
  */
 export function BubbleSlider({ format, className, ...options }: BubbleSliderProps) {
   const reduce = useReducedMotion();

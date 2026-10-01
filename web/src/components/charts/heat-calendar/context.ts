@@ -7,16 +7,9 @@ import type { HeatCalendarCell, HeatCalendarProps, HeatCalendarSelection } from 
 import { addDays, CELL, EMPTY, fmtMonth, GAP, MONTH_ROW, mondayOf, PITCH, STEPS, startOfDay } from "./utils";
 
 /**
- * Weeks of activity as a single-hue grid with month labels, so
- * magnitude reads as the strength of one color and the eye needs no legend
- * to find a date. Cells spring in on a diagonal wave. Hovering one lifts it
- * and its neighbours in a small ripple and glides a tooltip with its date and
- * exact count; clicking pins the cell so touch and keyboard get the same
- * readout; from there the grid dims and hovering previews the span from that
- * cell to the pointer with its total, a second click locks it and a third
- * clears it; hovering a legend step filters
- * the grid to that level. Hover lifts are gated to pointer devices, and
- * reduced motion keeps the fades only.
+ * The heat calendar's data, selection and hover state: a click pins a cell, the
+ * next locks the span to the pointer, the third clears it. Hover lifts are gated
+ * to pointer devices; reduced motion keeps the fades only.
  */
 export function useHeatCalendarModel({
   unit = "commits",
@@ -48,9 +41,8 @@ export function useHeatCalendarModel({
     return () => clearTimeout(t);
   }, [weeks, reduce]);
 
-  // "today" is read after mount: the server and a viewer on another calendar
-  // day must produce the same HTML, so the grid renders first and its dates
-  // fill in on the client. An explicit `endDate` is deterministic and skips this.
+  // "today" is read after mount so server and client produce the same HTML;
+  // an explicit `endDate` is deterministic and skips this.
   const [today, setToday] = useState<Date | null>(null);
   useEffect(() => setToday(startOfDay(new Date())), []);
   const end = useMemo(() => (endDate ? startOfDay(endDate) : today), [endDate, today]);
@@ -100,9 +92,6 @@ export function useHeatCalendarModel({
     return list;
   }, [start, weeks]);
 
-  // one click anchors a span and dims everything else; hovering then previews
-  // the run from the anchor to the pointer and totals it live, and a second
-  // click locks it so the number stays on screen while the pointer moves on
   const idx = (c: HeatCalendarCell) => c.w * 7 + c.d;
   const clear = () => {
     setSelection(null);

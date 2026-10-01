@@ -62,9 +62,8 @@ export interface MorphPopoverProps {
 }
 
 /**
- * A popover whose panel morphs open from the trigger corner: it's laid out at
- * full size but clipped to the corner nearest the trigger, then unclips as one
- * piece. Closes on outside pointer / Escape. Controlled or uncontrolled.
+ * A popover whose panel is laid out at full size but clipped to the corner
+ * nearest the trigger, then unclips as one piece.
  */
 export function MorphPopover({
   children,
@@ -90,25 +89,17 @@ export function MorphPopover({
   );
   const toggle = useCallback(() => setOpen(!open), [setOpen, open]);
 
-  // A trigger normally registers itself through MorphPopoverTrigger. It can't
-  // when something else already clones the element — a Tooltip wrapping the
-  // button, say — and an unregistered trigger leaves the panel with nothing to
-  // measure against, so it renders permanently invisible. The root boxes the
-  // trigger exactly (the content portals out of it), so it stands in until a
-  // real trigger registers, and stands in again if that one unmounts. Both are
-  // state, so a trigger arriving while the panel is open re-anchors it.
+  // A trigger can fail to register (a Tooltip cloning the element does), and a
+  // panel with nothing to measure against stays invisible; the root stands in,
+  // since it boxes the trigger exactly.
   const anchorRef = useMemo<React.MutableRefObject<HTMLElement | null>>(
     () => ({ current: trigger ?? root }),
     [root, trigger],
   );
 
-  // The panel is a `role="dialog"` and goes inert the moment it closes, so
-  // focus cannot be left sitting inside it: a dismissal hands it back to the
-  // trigger, the way the ARIA dialog pattern asks. A pointer dismissal takes
-  // the focus onward itself when it lands on something focusable — this only
-  // catches the case where it would otherwise be stranded. When no trigger has
-  // registered, the root anchor stands in only if it can actually hold focus;
-  // there is nowhere better than where the keyboard already is, so leave it.
+  // The panel goes inert as it closes, so focus must not be left inside it:
+  // hand it back to the trigger, the way the ARIA dialog pattern asks. With no
+  // trigger registered, the root stands in only if it can hold focus.
   const close = useCallback(() => {
     setOpen(false);
     const focused = document.activeElement;
@@ -208,8 +199,7 @@ export function MorphPopoverTrigger({ children }: MorphPopoverTriggerProps) {
 const originFor = (side: Side, align: Align) =>
   `${side === "bottom" ? "top" : "bottom"} ${align === "end" ? "right" : "left"}`;
 
-// A clip that hides everything but the corner nearest the trigger, so the
-// panel appears to grow out of it. inset(top right bottom left).
+// Inset that hides everything but the corner nearest the trigger.
 function clipAt(side: Side, align: Align, radius: number, inset: number) {
   const top = side === "bottom" ? "0%" : `${inset}%`;
   const bottom = side === "bottom" ? `${inset}%` : "0%";
@@ -296,9 +286,8 @@ function MorphPopoverSurface({
           transition: MORPH_CLIP_TRANSITION,
         },
       };
-  // Animate the value directly so opacity stays in the inline style throughout
-  // the entrance. A native opacity animation can expose the initial inline 0
-  // for a frame when it finishes, before Motion writes the final value.
+  // Animate the value directly so opacity stays in the inline style: a native
+  // animation can expose the initial 0 for a frame as it finishes.
   const opacity = useMotionValue(0);
   const ready = layout !== null;
   useEffect(() => {

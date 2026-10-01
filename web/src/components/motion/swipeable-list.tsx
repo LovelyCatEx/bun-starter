@@ -457,9 +457,8 @@ function SwipeableListRow({
           // `touch-pan-y`, not `touch-none`: the row owns the horizontal
           // swipe, the page keeps the vertical scroll through it.
           "relative z-10 min-h-[72px] cursor-grab touch-pan-y rounded-2xl border border-border bg-card px-4 py-3 shadow-sm active:cursor-grabbing",
-          // The swipe is the row's, but what it carries is the consumer's:
-          // selection is only suppressed where the platform runs its own press
-          // gestures, so a mouse can still select and copy the row's text.
+          // The swipe is the row's, what it carries is the consumer's: suppression
+          // is confined to platforms with their own press gestures, so a mouse still selects.
           TOUCH_GESTURE_CONTENT_CLASS,
           classNames?.surface,
         )}

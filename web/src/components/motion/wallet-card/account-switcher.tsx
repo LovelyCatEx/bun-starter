@@ -12,9 +12,8 @@ import type { WalletAccount } from "./types";
 import { truncateAddress } from "./utils";
 
 /**
- * Account switcher whose trigger morphs into a panel that grows rightward to
- * full width (covering the header icons) and downward at the same time, via a
- * shared layoutId. Self-contained — not the generic MorphSelect.
+ * Trigger morphs into a panel growing rightward (covering the header icons) and
+ * downward at once, via a shared layoutId.
  */
 export function AccountSwitcher({
   accounts,
@@ -51,10 +50,8 @@ export function AccountSwitcher({
     // static (not relative) so the absolute trigger + panel anchor to the
     // header row and can span its full width, covering the icons.
     <div ref={rootRef} className="min-w-0">
-      {/* in-flow sizer: reserves the widest possible trigger footprint (every
-          account name stacked in one grid cell) so the header row width never
-          changes — neither when the trigger leaves the flow nor when a shorter
-          account name is selected. */}
+      {/* in-flow sizer: every account name stacked in one grid cell, so the header
+          row width never changes as the trigger leaves the flow or names change. */}
       <div aria-hidden className={cn(HEAD, "pointer-events-none opacity-0")}>
         <AccountAvatar account={activeAccount ?? accounts[0]} />
         <span className="grid">
@@ -76,6 +73,8 @@ export function AccountSwitcher({
             key="trigger"
             layoutId={layoutId}
             type="button"
+            // frosted blur hook
+            data-slot="wallet-account-trigger"
             aria-haspopup="listbox"
             aria-expanded={false}
             onClick={() => setOpen(true)}
@@ -112,6 +111,8 @@ export function AccountSwitcher({
             key="panel"
             layoutId={layoutId}
             role="listbox"
+            // frosted blur hook
+            data-slot="wallet-account-panel"
             transition={morph}
             style={{ borderRadius: 16 }}
             className="absolute top-0 -right-2 -left-2 z-30 overflow-hidden border border-border/30 bg-background backdrop-blur-md"
@@ -152,6 +153,8 @@ export function AccountSwitcher({
                 return (
                   <motion.li
                     key={account.id}
+                    // frosted blur hook
+                    data-slot="wallet-account-item"
                     variants={reduce ? undefined : ITEM}
                     className={cn(
                       "flex items-center rounded-xl pr-1 text-sm transition-colors",

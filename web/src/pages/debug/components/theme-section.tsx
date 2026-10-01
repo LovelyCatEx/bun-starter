@@ -35,20 +35,8 @@ function FieldLabel({ children }: { children: string }) {
 }
 
 /**
- * 常驻在调试页最上面的一节，翻分类也翻不走。
- *
- * 五个开关：**颜色模式**（四档，写 `data-dark-shade`）、**主题色**（`data-theme`，
- * 对应 `src/styles/themes/<name>.css`）、**背景图**（`data-background`）与它上面的**遮罩**
- * （透明度走 `--background-overlay-opacity`），以及**高斯模糊**（`data-frosted`，
- * 半径走 `--frosted-blur`）。
- *
- * 注意背景图是个**半成品工具**而不是"开一下全站变玻璃"：组件保持 beUI 原生的实心底色，
- * 图案只在页面与 `Section` 的留白处看得到。要让某个元素透出来，得在它的 className 上写
- * `bgimage:`（下面那个示例就是唯一一处示范）。
- *
- * **模糊跟背景图是两条独立的路**：模糊不看 `bgimage:`，而是按 `[data-slot='button']`
- * 命中 beUI 的按钮（`frosted.css`）。所以只开模糊、不开背景图时，按钮会半透明但背后是纯色 ——
- * 没有可糊的东西。两个都开才是真正的毛玻璃。
+ * 常驻在调试页最上面的一节，翻分类也翻不走。五个开关写的是 `<html>` 上的 data 属性与
+ * CSS 变量；「透 / 糊」两半的规则见 `frosted.css` 顶部，新组件走 `data-slot`。
  */
 export function ThemeSection() {
   const {
@@ -191,13 +179,8 @@ export function ThemeSection() {
       </div>
 
       {/*
-        `bgimage:` 在全仓库的**唯一调用点**。它不只是个示例：Tailwind v4 对没有消费者的
-        utility 不生成 CSS，有了这一处，构建产物里才会真的出现
-        `html[data-background=true] .bgimage\:bg-card\/60` 那条规则 —— 否则这个变体在源码里
-        看着好好的，产物里是空的（这个仓库被"静默不生成 CSS"坑过）。
-
-        两层底色都写上是故意的：`bg-card` 是关掉背景图时的实心底，`bgimage:bg-card/60` 是
-        打开时覆盖它的半透明版。token 挑 `--card` 是因为它在四种模式下都不透明。
+        `bgimage:` 的全仓库唯一调用点 —— 删了它，这个变体在产物里就不存在（Tailwind v4 对
+        没有消费者的 utility 不生成 CSS）。两层底色是有意的，见 `frontend.md`「背景图」。
       */}
       <Demo label="bgimage: (唯一调用点)">
         <div className="w-full rounded-xl border bg-card p-4 bgimage:bg-card/60">
@@ -225,10 +208,8 @@ export function ThemeSection() {
             ))}
           </div>
           {/*
-            ⚠️ 它内部直接调 next-themes 的 setTheme('light' | 'dark')，和本仓库的四档
-            `mode`（light + data-dark-shade）不是同一套。点下去页面会变黑，但上面的 Mode
-            下拉还停在原值 —— 不是坏了，是两套状态各说各话。重选一次 Mode 就能复位。
-            真要接进本仓库，得把它内部的 useTheme 换成 useThemeSettings。
+            它内部直接调 next-themes 的 setTheme('light' | 'dark')，和本仓库的四档 `mode`
+            不是同一套 —— 点下去会「页面变了、上面的 Mode 下拉没变」。
           */}
           <p className="max-w-lg text-xs text-muted-foreground">
             四种入场：rectangle / circle / circle-blur / blinds。注意它走的是 next-themes 的两档

@@ -97,20 +97,18 @@ export function PreviewRail({
     defaultActiveId ?? items[0]?.id ?? "",
   );
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  // A finger cannot hover, so a tap lights the tick instead. Kept apart from
-  // the hovered one: they end in different ways, and a stray mouse move must
-  // not clear a tick the keyboard or a tap chose.
+  // A finger cannot hover, so a tap lights the tick instead — kept apart from the hovered
+  // one, which a stray mouse move must not clear.
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  // A click carries no pointerType, so the pointerdown before it is what says
-  // whether the activation was a tap. Keyboard activation has none at all.
+  // A click carries no pointerType: the pointerdown before it is what says whether the
+  // activation was a tap; keyboard activation has none.
   const tap = useTapGesture<boolean>();
   const hover = useHoverGesture();
 
   const clearPinned = useCallback(() => setPinnedId(null), []);
 
-  // The next tap outside the rail stands in for the pointer leaving it. The
-  // card is a preview, so that tap passes through to whatever it landed on.
+  // The next tap outside stands in for the pointer leaving the rail and passes through.
   useDismiss(pinnedId !== null, clearPinned, rootRef);
 
   const requestedActiveId = activeId ?? internalActiveId;
@@ -135,8 +133,7 @@ export function PreviewRail({
       layoutRoot
       ref={rootRef}
       onBlur={(event) => {
-        // Both tick sources leave with the focus: a tap does not always land
-        // focus, but when it does, tabbing away must not strand the card.
+        // Both tick sources leave with focus — tabbing away must not strand the card.
         if (!event.currentTarget.contains(event.relatedTarget)) {
           setFocusedId(null);
           setPinnedId(null);
@@ -153,8 +150,7 @@ export function PreviewRail({
       <nav
         aria-label={label}
         onPointerLeave={(event) => {
-          // A touch pointer leaves on lift, which would clear the tick the tap
-          // just chose — that one is cleared by the outside tap instead.
+          // A touch pointer leaves on lift, which would clear the tick the tap just chose.
           if (hover.leave(event)) setHoveredId(null);
         }}
         style={
@@ -217,9 +213,8 @@ export function PreviewRail({
             tap.start(event, pinnedId === item.id);
             setFocusedId(null);
           };
-          // A gesture the platform takes away sends no click, and a key press
-          // starts an activation that never had a pointer behind it: either
-          // one leaves a record the next click would read as a tap of its own.
+          // A platform-cancelled gesture sends no click, and a key press starts an activation
+          // with no pointer behind it — either leaves a record the next click would read as a tap.
           const dropGesture = () => tap.drop();
           const handleFocus = (currentTarget: HTMLElement) => {
             if (currentTarget.matches(":focus-visible")) {
@@ -232,9 +227,8 @@ export function PreviewRail({
               gesture !== null && gesture.pointerType !== "mouse";
 
             if (tapped) {
-              // A link would otherwise show its preview and leave the page in
-              // the same tap, so the card is never read: the first tap lights
-              // the tick, the second follows the link.
+              // A link would show its preview and leave the page in the same tap, so the card
+              // is never read: the first tap lights the tick, the second follows the link.
               if (item.href && !gesture.state) {
                 event.preventDefault();
                 setPinnedId(item.id);

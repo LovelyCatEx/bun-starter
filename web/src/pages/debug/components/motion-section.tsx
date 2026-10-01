@@ -15,16 +15,9 @@ import { TiltCard } from '@/components/motion/tilt-card'
 import { Demo, Section } from '@/pages/debug/components/section'
 
 /**
- * Scroll-driven widgets and the three showpieces that own their layout.
- *
- * The scroll three are the interesting ones: `SmoothScroll` is the only component here that wants
- * to take over scrolling, so it is mounted scoped (`root={false}`) inside its own bounded box —
- * mounting it at page level would hijack the window scroll of this whole page. `scroll-to` and
- * `scroll-progress` read the page scroll through `useSmoothScroll()`'s native fallback, so they
- * need no provider at all and are mounted as-is.
- *
- * English and hard-coded on purpose — the debug page is exempt from the i18n rules and gets
- * deleted before release.
+ * Scroll-driven widgets and three layout-owning showpieces. `SmoothScroll` is the
+ * only one that takes over scrolling, so it is mounted scoped (`root={false}`); the
+ * rest fall back to native scrolling. English: the debug page is exempt from i18n.
  */
 
 const LOADER_VARIANTS: LoaderVariant[] = [

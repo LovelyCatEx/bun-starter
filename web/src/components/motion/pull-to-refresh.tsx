@@ -69,8 +69,7 @@ const EMPTY_GESTURE: Gesture = {
   pointerId: null,
 };
 
-// This character needs a compact repeating rhythm rather than a settling
-// spring: a small orbit and blink that read as activity without feeling busy.
+// Repeated rather than sprung: the loop should read as activity, not settle.
 const CHARACTER_LOOP = {
   duration: 0.9,
   ease: EASE_IN_OUT,
@@ -299,8 +298,7 @@ export function PullToRefresh({
     } finally {
       setInternalRefreshing(false);
 
-      // A synchronous refresh can resolve before React commits the temporary
-      // internal state, so release here instead of relying only on the effect.
+      // A synchronous refresh resolves before React commits the temp state — release here too.
       if (!externalRefreshingRef.current) {
         setStatus("idle");
         settle(0);
@@ -402,9 +400,8 @@ export function PullToRefresh({
   }, []);
 
   const startPointerPull = (event: ReactPointerEvent<HTMLElement>) => {
-    // Everything but touch: a finger is driven by the native listeners above,
-    // which can `preventDefault` the page scroll a passive React handler
-    // cannot. A pen fires no touch events at all, so this is its only route.
+    // Everything but touch: the native listeners above drive a finger (a passive React
+    // handler cannot preventDefault); a pen fires no touch events, so this is its route.
     if (
       event.pointerType === "touch" ||
       event.button !== 0 ||
@@ -460,13 +457,8 @@ export function PullToRefresh({
       }}
       className={cn(
         "relative w-full overflow-y-auto overscroll-contain bg-background",
-        // No `touch-none` here — this element is the scroller, and the pull
-        // only takes over once the content is already at the top. The callout
-        // has to be off from the first frame though: iOS decides on it while
-        // the finger is still resting, long before the pull is recognised.
-        // Whatever the consumer renders inside stays selectable with a mouse;
-        // only the pull itself suppresses selection, and only while it runs,
-        // so dragging the page down cannot highlight it on the way.
+        // No `touch-none`: this element is the scroller, so the pull only takes over at
+        // the top; the callout still has to be off from the first frame for iOS.
         TOUCH_GESTURE_CONTENT_CLASS,
         status === "pulling" || status === "ready"
           ? "cursor-grabbing select-none"

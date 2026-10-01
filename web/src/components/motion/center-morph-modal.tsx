@@ -169,9 +169,8 @@ const CENTER_FOLDED_CLIP =
   "inset(48% 48% 48% 48% round 30px)";
 const CENTER_OPEN_CLIP = "inset(0% 0% 0% 0% round 30px)";
 
-// Complex clip-path strings can snap when a spring resolves its final distance.
-// Keep the radius constant so the whole duration reads as surface unfolding,
-// rather than finishing early and spending its last frames rounding corners.
+// A spring resolving its final distance can snap a complex clip-path; a constant
+// radius keeps the whole duration reading as surface unfolding.
 const CENTER_UNFOLD_EASE = [0.2, 0, 0.2, 1] as const;
 const CENTER_UNFOLD_TRANSITION = {
   duration: 0.43,
@@ -276,9 +275,8 @@ export function CenterMorphModalContent({
                 )}
               />
 
-              {/* `inset-4` rather than `inset-0 p-4`: same content box, but the
-                  layer stays off the viewport edges. It never takes pointer
-                  events, so it carries `inert` alone. */}
+              {/* `inset-4` not `inset-0 p-4`: same content box, but the layer stays
+                  off the viewport edges; it takes no pointer events, so `inert` alone. */}
               <div
                 inert={!isPresent}
                 className="pointer-events-none fixed inset-4 z-[100] flex items-center justify-center overflow-y-auto drop-shadow-2xl"

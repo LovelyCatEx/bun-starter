@@ -97,9 +97,8 @@ function TextSlot({
   const label = typeof children === "string" ? children : null;
   const cascade = label !== null && !reduce;
 
-  // Measure strings with the same per-letter layout as the cascade. Measuring
-  // the whole string preserves kerning, which can make it narrower than the
-  // inline-block letters and clip the final glyph during the width animation.
+  // Measure per letter, like the cascade: a whole-string width keeps kerning,
+  // comes out narrower and clips the final glyph during the width animation.
   useLayoutEffect(() => {
     const nextWidth = measureRef.current?.offsetWidth;
     if (!nextWidth) return;

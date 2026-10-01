@@ -55,11 +55,7 @@ export type ComboboxContextValue = {
   setQuery: (query: string) => void;
   /** The option the list is currently pointing at, resolved during render. */
   activeValue: string | null;
-  /**
-   * Records where the pointer or keyboard moved to. The recorded value is
-   * dropped when the query or the result set changes, so it does not always
-   * survive to the next `activeValue`.
-   */
+  /** Records where the pointer or keyboard moved to — dropped when the query or results change. */
   setActiveValue: (value: string | null) => void;
   moveActive: (direction: 1 | -1 | "first" | "last") => void;
   selectActive: () => void;
@@ -199,10 +195,8 @@ export function Combobox({
     });
   }, []);
 
-  // The query the list filters by. Closing clears `query`, but the panel is
-  // still on screen for its exit, so it keeps filtering by the query it was
-  // open with rather than repopulating mid-collapse. The input already reads
-  // `query` only while open, so nothing the user can see reads the other one.
+  // The query the list filters by: closing clears `query` while the panel is still on screen
+  // for its exit, so it keeps filtering by the query it opened with.
   const [openQuery, setOpenQuery] = useState(query);
   if (open && openQuery !== query) setOpenQuery(query);
   const listQuery = open ? query : openQuery;

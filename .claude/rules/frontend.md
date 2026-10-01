@@ -45,7 +45,7 @@ web/src/api/
 | `web/src/pages/<page>/` | **只服务这个页面**的一切：页面本体 + `components/` + `hooks/` | `pages/debug/` |
 
 - `components/` 下是设计系统那一层：**`motion/`（交互与动效，单个组件的多文件版放同名子目录）、`agents/`（对话与 agent 相关）、`charts/`（图表）三个目录是 beUI 生成物，业务组件一个都不许进去**；`components/` 根下只放跨页面的通用件
-- beUI 的组件**可以直接改**（重装时会被覆盖，改动清单见下面「引入与维护」一节）；加自己的变体还是优先包一层再导出，别把业务逻辑写进生成物
+- beUI 的组件**可以直接改、任意改**（本项目不再重装 beUI，见下面「引入与维护」一节）；加自己的变体还是优先包一层再导出，别把业务逻辑写进生成物
 - 页面只有一个文件时**不用**建文件夹（`pages/home.tsx`、`pages/login.tsx`）；出现第一个页面专用组件 / hook 时再建，别提前抽象
 - 反过来也一样：**只被一个页面用的东西不许放全局那两层**。真被第二个页面复用了，才把它提升上去
 - 页面文件夹的形状（`pages/debug/` 就是现成例子）：
@@ -106,9 +106,10 @@ cd web && ./node_modules/.bin/shadcn add <slug> [<slug> ...] --yes --overwrite
 
 所以**重装之后必须 `bun run typecheck`**，上面两条都会在这里现形。
 
-**改生成物是允许的**，直接改就行，不用再包一层。唯一的实际约束是**重装会丢**：
-`shadcn add --overwrite` 会把文件覆盖回上游版本。所以每处改动都留一条探针，
-重装后扫一遍下面这几条。
+**改生成物是允许的，而且可以任意改** —— 本项目**不会再重装 beUI**（没有更新现有组件的计划），
+所以直接把属性、样式、甚至逻辑写在生成物里都行，不用再包一层。
+下面这几条留着是因为它们记录了**为什么**跟上游不一样（以及各自怎么查），
+当文档读，不要当成"重装后要扫一遍的探针"。
 
 上面两条是"上游的坑"，下面两条是"我们的改动"：
 
@@ -139,41 +140,48 @@ switch 是唯一破了这条的组件，所以改它不算另立一套。
 grep -n 'bg-primary-foreground' web/src/components/motion/switch.tsx   # 空 = 被冲掉了
 ```
 
-**4. 高斯模糊的 `data-slot`（五组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处、
+**4. 毛玻璃的 `data-slot`（九组：`motion/` 下按钮 10 个文件 16 处、表单 21 个文件 27 处、
 `agents/` 下 agent-tools 9 个文件 12 处、导航 / 布局 7 个文件 10 处、数据 / 表格
-`motion/table/` 下 3 个文件 4 处；另加
-`motion/context-menu.tsx` 1 处、`motion/popover-morph.tsx` 1 处、
+`motion/table/` 下 3 个文件 4 处、其他 / 领域（swap 3 个文件 4 处 + wallet-card 3 个文件 7 处 +
+prediction-market 2 个文件 7 处）；另加 `motion/context-menu.tsx` 1 处、
+`motion/popover-morph.tsx` 1 处、`motion/tabs.tsx` 1 处（**有条件**，只有 pill / segment 打）、
 `motion/animated-toast-stack.tsx` 2 处、`motion/notification-stack.tsx` 2 处与调试页演示框
 1 处 × 5 个，见下）。**
-高斯模糊靠这个属性命中组件（beUI 的 Button 没有任何可选的属性，光靠类名认不出来 —— 理由见下面
-「高斯模糊」一节）。**只加属性、不加任何样式**，样式全在 `styles/frosted.css`。
+毛玻璃靠这个属性命中组件（beUI 的 Button 没有任何可选的属性，光靠类名认不出来 —— 理由见下面
+「毛玻璃」一节）。**只加属性、不加任何样式**，样式全在 `styles/frosted.css`。
+
+**要给一个新组件做这件事，先读 `.claude/skills/frosted-surface/SKILL.md`**（SOP：怎么判断该不该打、
+打在哪、进哪个组）。这里只留两件事：现在覆盖了哪些，以及怎么查"某个 slot 到底有没有进产物"。
 
 ```bash
 grep -rho 'data-slot="[a-z-]*"' web/src/components/motion web/src/components/agents --include='*.tsx' \
   | sort | uniq -c | sort -rn
 # 除了 data-slot="button"（16）、表单那一组（27），还会看到 sidebar-* / preview-rail-* /
-# digit-swap 之类**跟模糊无关**的旧标记 —— 那些是组件自己的 DOM 语义，别去动
-# （`context-menu-content` 只有 1 处；`breadcrumb-link` 是这个 grep **漏得掉**的一个：
-#  它写在 linkProps 对象里（`"data-slot": "breadcrumb-link"`），不是 JSX 属性；
+# digit-swap 之类**跟毛玻璃无关**的旧标记 —— 那些是组件自己的 DOM 语义，别去动
+# （`breadcrumb-link` 是这个 grep **漏得掉**的一个：它写在 linkProps 对象里
+#  （`"data-slot": "breadcrumb-link"`），不是 JSX 属性；
 #  `demo-panel` 也不在这个 grep 里：它打在调试页的 section 文件上，不在 `components/` 下）
 ```
 
-**最可靠的探针是产物，不是源码 grep** —— 它同时给出两张表，一眼能看出"哪一处丢了"，
-（本轮就是它抓到 `morphing-tabs.tsx` 那两处标记被冲掉、而 `grep` 因为文件回到了 HEAD 版本
-所以什么都没报）：
+**查"样式里写了、产物里没有"用这个产物探针**（源码 grep 漏得掉上面那两种写法；
+本轮它就是**拿这个**发现 `morphing-tabs.tsx` 那两处标记不在文件里的）：
 
 ```bash
 cd web && bun run build
 python3 - <<'EOF'
 import re, glob
 txt = ''.join(open(f, encoding='utf-8', errors='replace').read() for f in glob.glob('dist/assets/*.js'))
-present = set(re.findall(r'"data-slot"[:=]\s*[`"\']([a-z0-9-]+)', txt))   # 产物里是反引号，别只 grep 双引号
+# ⚠️ 别写"`data-slot":` 后面紧跟名字"的窄规则：slot 名不一定紧跟在属性后面 ——
+#    `data-slot={cond ? "tabs-list" : undefined}` 编出来是
+#    `` data-slot":r===`pill`||r===`segment`?`tabs-list`:void 0 ``（实测漏报过）。
+#    宽松版：slot 名只要以引号形式出现在产物里就算
+present = set(re.findall(r'["\'`]([a-z][a-z0-9-]{2,})["\'`]', txt))
 css = set(re.findall(r"data-slot='([a-z0-9-]+)'", open('src/styles/frosted.css').read()))
 print('样式里提到、产物里没有的 slot：', sorted(css - present) or '无')
 EOF
 ```
 
-这个属性是"我是按钮"的**身份标记**，不是样式补丁；哪怕某个组件现在还是 `bg-transparent`
+这个属性是"我是毛玻璃表面"的**身份标记**，不是样式补丁；哪怕某个组件现在还是 `bg-transparent`
 （`icon-button` / `copy-button` / `expandable-control` 就是），也照样打上，省得它哪天有了底色
 再回来补。所以**每加一个按钮组件就要多打一处**。
 
@@ -551,15 +559,16 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
   前提是 `<main>` 上有 **`isolate`** —— 少了它负 `z-index` 会退到页面背景之后，看着像"没生效"
 - 遮罩亮色压白、暗色压黑（`bg-white dark:bg-black`），厚度走 `<html>` 上的
   `--background-overlay-opacity`
-- 组件**保持 beUI 原生**，不透出背景图。要让某个元素透出来，在它的 className 上写
-  **`bgimage:bg-card/60`** —— `bgimage:` 是 `base.css` 里的 `@custom-variant`，只在
-  `data-background='true'` 时生效
+- **`data-background` 自己就带"降底色"这一半**：打了 `data-slot` 的表面在它打开时自动变半透明，
+  不用在组件上写任何东西（规则全在 `frosted.css`，见下面「毛玻璃」一节）。
+  这一条是**后来补的** —— 原来只写了 `bgimage:` 那个变体、组件全保持实心，用户开背景图之后
+  报「依然没有半透明」，才发现"透"这一半根本没有驱动
 
-**`bgimage:` 是工具、不是自动机制，而且全仓库只有调试页一个调用点**（`theme-section.tsx` 的示例块）。
-那个调用点**不能删**：Tailwind v4 对没有消费者的 utility 不生成 CSS，删了它，变体在源码里看着好好的、
-产物里是空的（这个仓库被"静默不生成 CSS"坑过）。给 beUI 组件挂 `bgimage:` 是允许的，
-**不用改生成物、重装冲不掉** —— 这正是这一版跟上一版（把 `bgimage:` / `frosted:` 写进 ~60 个生成物）的
-区别，也是那套东西被删掉的原因。
+**`bgimage:` 现在只是"没有 `data-slot` 的元素"的逃生口，全仓库只有调试页一个调用点**
+（`theme-section.tsx` 的示例块）。它是 `base.css` 里的 `@custom-variant`，只在
+`data-background='true'` 时生效；**有 `data-slot` 的表面一律走 `frosted.css`，不要再写它** ——
+两条路同时存在迟早对不上。那个调用点**不能删**：Tailwind v4 对没有消费者的 utility 不生成 CSS，
+删了它，变体在源码里看着好好的、产物里是空的（这个仓库被"静默不生成 CSS"坑过）。
 
 挑 token 只用**两种模式都不透明**的（`--card` / `--muted`）：`/60` 是等比降透明度、颜色不变。
 **不要**拿 `--background` 去替换一个"暗色下本来就是浅灰半透明"的控件 —— 它在暗色下是近黑，
@@ -596,16 +605,35 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 
 - **不归一化生成物自带的玻璃**：现在只剩 `project-folder` 这类自带 `bg-card/80 backdrop-blur-xl`
   的地方**保持上游写法** —— 那就是它的设计，跟这个开关是两回事。要调就传 `className`，不用动生成物。
-  （`animated-toast-stack` 和 `dock` 原来是这一类的，**都收编了**：`bg-card/95` / `bg-card/80`
-  那种档位在暗色下就是一块不透明的板，而且上游那个 `backdrop-blur-xl` 不受 `--frosted-blur`
-  控制（滑块拉到 0 它还在糊）。前者见「提示条」、后者见「导航 / 布局」）
+  （`animated-toast-stack`、`dock` 和 swap 的遮罩原来是这一类的，**都收编了**：`bg-card/95` /
+  `bg-card/80` 那种档位在暗色下就是一块不透明的板，而且上游那个 `backdrop-blur-xl` / `-sm`
+  不受 `--frosted-blur` 控制（滑块拉到 0 它还在糊）。依次见「提示条」「导航 / 布局」
+  「其他 / 领域：swap」）
 
-### 高斯模糊（`data-frosted`）
+### 毛玻璃（两个开关各管一半）
 
-开关是 `<html data-frosted="true">`（**与 `data-background` 平级、互不依赖**），半径走
-`--frosted-blur`。规则全在 `web/src/styles/frosted.css`，命中靠生成物上的 `data-slot` 属性。
-现在有五组组件 + 五个单独的，**都是按调试页的 section 一节点出来的**，各自一份「覆盖范围」
-小节的表格：
+**先记住这条，本仓库最容易写错的地方就是它**：
+
+| | 谁管 | 效果 |
+| --- | --- | --- |
+| **透**（降底色） | `data-background` **或** `data-frosted`，任一打开就生效 | 表面变成半透明 |
+| **糊**（模糊 + 为它拆掉障碍） | **只有** `data-frosted` | `backdrop-filter` |
+
+所以四种组合是：都不开 = 实心；只开背景图 = 透但不糊；只开模糊 = 透 + 糊（背后是纯色，
+没有图案可糊）；都开 = 真正的毛玻璃。**只开模糊也透**是必须的 —— 不然没有"显影层"给 blur 显影，
+看上去跟没开一样。实现上就是选择器写 `:is(html[data-frosted='true'], html[data-background='true'])`
+还是 `html[data-frosted='true']`，见 `frosted.css` 顶部那段。
+
+> ⚠️ **"透"这一半是后补的**：原本只认 `data-frosted`，于是用户开了背景图发现
+> 「依然没有半透明」—— 只开模糊才透。凡是**新增"降底色"规则，两个开关都要算上**。
+
+**要给一个新组件做这件事（打 `data-slot`、挑 token、进哪个组、怎么查被冲掉），
+走 `.claude/skills/frosted-surface/SKILL.md`** —— 那份是 SOP；本节只负责"现在覆盖了哪些"
+与"为什么这么设计"。
+
+`data-frosted` 的半径走 `--frosted-blur`。规则全在 `web/src/styles/frosted.css`，命中靠生成物上的
+`data-slot` 属性。现在有九组组件 + 五个单独的，**都是按调试页的 section 一节点出来的**，
+各自一份「覆盖范围」小节的表格：
 
 | 组 | 位置 | 处数 | 表面用到的 token |
 | --- | --- | --- | --- |
@@ -614,6 +642,10 @@ token 都在 `base.css` 的 `:root` 与 `dark.css` 的 `.dark`（深灰/浅灰�
 | agent-tools | `agents/` 下 9 个文件 | 12 | 大多是**本来就带 alpha** 的面板 |
 | 导航 / 布局 | `motion/` 下 7 个文件 | 10 | 外壳 `--card` / `--muted`；两处**硬编码色**；两个悬停弹层 |
 | 数据 / 表格 | `motion/table/` 下 3 个文件 | 4 | 外框 / 菜单 `--background`，⋯ 胶囊 `--primary`；表头**保持实心** |
+| 其他 / 领域：swap | `motion/swap.tsx` + `motion/swap/` 下 2 个文件 | 4 | 三处 `--card`（外框 / 代币按钮 / 选择面板）+ 一处遮罩（只模糊） |
+| 其他 / 领域：wallet-card | `motion/wallet-card/` 下 3 个文件 | 7 | 两个 morph 面板 `--background`；圆底 / 列表行 / 两个 hover 触发器 `--muted` |
+| 其他 / 领域：prediction-market | `prediction-market{,-card}.tsx` | 7 | 两个根（`--background` / `--card`）+ 内层板 / 金额板 / chips / 收藏按钮 |
+| 共用：`Tabs` 轨道 | `motion/tabs.tsx` | 1 | `bg-card`，**只给 pill / segment 两个变体打**；`underline` 没底色 |
 | 弹层：右键菜单 | `motion/context-menu.tsx` | 1 | `--card`，**另外要先拆掉外层的 `filter`**，见下 |
 | 弹层：MorphPopover | `motion/popover-morph.tsx` | 1 | `--background`，**同上要拆 `filter`**；四个组件共用 |
 | 弹层：通知堆叠 | `motion/notification-stack.tsx` | 2 | 底衬 `--muted` + 卡片 `--background` |
@@ -669,11 +701,16 @@ agent-tools 的 `todo-list` 补 `--muted`（暗色 `oklch(0.269)`）—— 一�
 读的是**同一个变量**，所以 hover / `/NN` / 暗色 / 主题色全部自动跟着走，**不需要逐状态规则、也不需要 `!important`**：
 
 ```css
-html[data-frosted='true'] [data-slot='button'] {
-    backdrop-filter: blur(var(--frosted-blur, 12px));
+/* 降底色那一半：两个开关都算 */
+:is(html[data-frosted='true'], html[data-background='true']) [data-slot='button'] {
     --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
     --card:    color-mix(in oklab, var(--card-solid)    62%, transparent);
     --muted:   color-mix(in oklab, var(--muted-solid)   62%, transparent);
+}
+
+/* 模糊那一半：只认 data-frosted（所以它跟上面那条拆成两条写） */
+html[data-frosted='true'] [data-slot='button'] {
+    backdrop-filter: blur(var(--frosted-blur, 12px));
 }
 ```
 
@@ -691,8 +728,13 @@ html[data-frosted='true'] [data-slot='button'] {
   不支持 `color-mix` 的浏览器里 `--primary` 停在实心值 → 不透明 + 模糊，不会变成"没底色"）：
 
   ```bash
-  f=$(ls dist/assets/*.css | head -1)
-  grep -o "html\[data-frosted=true\] \[data-slot=button\]{[^}]*}" "$f"
+  f=$(ls dist/assets/index-*.css | head -1)
+  # 降底色那条：选择器里应当有 data-background=true（两个开关）
+  grep -o ':is(html\[data-frosted=true\],html\[data-background=true\]) \[data-slot=button\]{[^}]*}' "$f"
+  # 模糊那条：选择器里应当只有 data-frosted=true。
+  # ⚠️ 别在模式里带 `{`：lightningcss 会把声明完全相同的那条并进下面那个大 `:is(...)` 列表，
+  #    并完之后选择器后面跟的是逗号不是花括号，写着 `{[^}]*}` 的 grep 会**什么都搜不到**
+  grep -o 'html\[data-frosted=true\] \[data-slot=button\][,{]' "$f"
   ```
 
 - **副作用**：覆盖 `--primary` 会影响该元素上**所有**读它的 utility（`.text-primary{color:var(--primary)}`、
@@ -771,6 +813,10 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
 - **副作用同按钮**：这一档里覆盖 `--background` 也会影响该元素上**所有**读它的 utility
   （`.text-background{color:var(--background)}`）。这两家的子树里恰好没有，所以安全 ——
   以后往 `select-content` / `combobox-content` 里加用 `text-background` 的子元素，得回来重挑
+- **个别表面可以退出"透"这一半**：给元素加 `data-frosted-solid`，`frosted.css` 里那条
+  把它用到的 token 按回实心值（模糊照旧）。**唯一在用的一处**是 availability-scheduler 的
+  时间选择 —— 一屏 48 个选项透出背后的图案就读不清了，所以 `<SelectContent solid>`
+  （`select.tsx` 上那个 prop 就是干这个的）。要再开一处就加同一个属性，别另写规则
 
 #### 覆盖范围：agent-tools 的第三组 `data-slot`（`agents/` 下 9 个文件 12 处）
 
@@ -967,6 +1013,111 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
   `skeleton-rows` 那条 `animate-pulse` 的占位条（`bg-muted` 实心，但它是**内容**不是表面，
   跟文字同类 —— 淡了反而像没加载出来）
 
+#### 其他 / 领域：swap（`motion/swap.tsx` + `motion/swap/` 下 2 个文件 4 处）
+
+调试页 `Other & domain` 里的 `swap`（`MultiChainSwap`）。它的**外框是 `bg-card`**，暗色下
+`--card` 接近纯黑 —— 用户报的「背景是黑色不透明的」就是它。
+
+| slot | 打在哪 | 底色 | 处理 |
+| --- | --- | --- | --- |
+| `swap` | `motion/swap.tsx` 的外框 `div` | `bg-card` | 淡 `--card`（62%）+ 模糊 |
+| `swap-token-button` | `swap/field.tsx` 的代币胶囊 `<button>` | `bg-card` | 淡 `--card` + 模糊 |
+| `swap-token-picker` | `swap/token-picker.tsx` 的底部选择面板（sheet） | `bg-card` | 淡 `--card` + 模糊 |
+| `swap-scrim` | 同文件的遮罩 `<motion.button>` | `bg-background/40` + **上游已有 `backdrop-blur-sm`** | 只模糊（把半径收归 `--frosted-blur`） |
+
+不显然的几处：
+
+- **外框那个 `isolate` 特意留着不动**。外框自己带 `backdrop-filter` → 它是一层 backdrop root，
+  后代的 backdrop 只剩"外框内部"（那张表单）。这**正是**底部选择面板想要的：它该糊的是它压住的
+  表单，不是页面。跟「导航 / 布局」里 `morphing-tabs` 那次（换成 `z-index: 0` 实测测不出差别、
+  所以不动）**不是一回事** —— 这里是"留着才对"，别顺手去"放开后代"
+- **遮罩是继 `dock`、`toast` 之后第三个"收编上游自带的玻璃"**：它本来就有 `backdrop-blur-sm`，
+  但半径写死、不受滑块控制（同 `dock` 的 `backdrop-blur-xl`）。本文件无层级的 `backdrop-filter`
+  顶掉它。它只有 40%，不淡 token
+- 两颗自绘按钮（`controls.tsx` 的 FlipButton / ActionButton）**按钮那一批就已经有
+  `data-slot='button'`**，自动吃到那条规则；FlipButton 自带的 `backdrop-blur` 同样被顶掉
+- `--card` 在这个子树里只被 `border-card` 用了两处（FlipButton 那圈 3px 描边、`TokenDot` 上的
+  小链标圈），都是"挖空"用的描边 —— 淡了不影响可读性，所以碰 `--card` 是安全的
+- **没打的**：`bg-background/40` ~ `/60` 那几个盒子（You pay / You get、报价行、
+  Send to different address、热门代币胶囊、链筛选 chip、选择面板里的行）—— 本来就够透，
+  而且都在外框这个 backdrop root 里面，自己挂 blur 也采不到页面；
+  `TokenDot` / `ChainDot` 那两圈（`bg-background` 与 `chain.tone` 的品牌色）—— 它们是
+  "头像 / 品牌标识"，属于内容，淡了只是把标识洗白
+
+#### 其他 / 领域：wallet-card（`motion/wallet-card/` 下 3 个文件 7 处）
+
+调试页 `Other & domain` 里的 `wallet-card`（`WalletCard`）。
+
+| slot | 打在哪 | 底色 | 处理 |
+| --- | --- | --- | --- |
+| `wallet-account-panel` | `account-switcher.tsx` 的 morph 面板 | `bg-background` + **上游就有 `backdrop-blur-md`** | 淡 `--background` + 模糊（半径收归 `--frosted-blur`） |
+| `wallet-search-panel` | `search-bar.tsx` 的 morph 面板 | 同上 | 同上 |
+| `wallet-account-item` | `account-switcher.tsx` 的 `<motion.li>` | 选中 `bg-muted`，否则 `hover:bg-muted` | 淡 `--muted` + 模糊 |
+| `wallet-search-option` | `search-bar.tsx` 的 `<motion.li>` | `hover:bg-muted` | 淡 `--muted` + 模糊 |
+| `wallet-search-trigger` | `search-bar.tsx` 的图标 `<motion.button>` | `hover:bg-muted` | 淡 `--muted` + 模糊 |
+| `wallet-account-trigger` | `account-switcher.tsx` 的触发器 `<motion.button>` | `hover:bg-muted/60`（≤75%） | 只模糊 |
+| `wallet-action` | `actions.tsx` 的图标圆底 `<span>` | `bg-muted` | 淡 `--muted` + 模糊 |
+
+不显然的几处：
+
+- **外框自己没有底色**（`index.tsx` 的根 `div` 只有 `border border-border`）→ 不用打标记，
+  它本来就透。**别顺手给它补一层**：描边卡片就是 beUI 的写法，补了等于改设计。
+  这跟 swap 正好相反（那边外框是 `bg-card`，所以是那一节的主要目标）
+- 两个 **morph 面板**是主角：账户切换器与搜索栏各自把触发器用 `layoutId` "长大"成一块横跨整行的
+  面板。暗色下 `bg-background` 是近黑 → 展开就是一块黑板，所以进 `--background` 组；
+  上游写死的 `backdrop-blur-md` 被本文件无层级的规则顶掉（**继 `dock` / `toast` / `swap-scrim`
+  之后第三、四处"收编上游自带的玻璃"**）
+- 面板是 `position: absolute` 且被外框的 `overflow-hidden + rounded-4xl` 裁着 ——
+  **普通 `overflow: hidden` 不是 backdrop root 触发器**（实测过），所以面板照样采得到页面
+- `wallet-account-item` / `wallet-search-option` 打**外层 `<motion.li>`**、不是里面那个按钮：
+  `ITEM` 变体给 li 写了 `filter: blur(0px)`，li 因此是一层 backdrop root，按钮在它里面自己挂 blur
+  采不到页面；打 li 则没事（元素自己的 `filter` 不挡自己的 `backdrop-filter`，同「提示条」的 li）。
+  里面按钮上的 `bg-muted` 照样吃得到 —— `--muted` 是自定义属性，会从 li 继承下去
+- `wallet-account-trigger` 只有 `hover:bg-muted/60`（≤75%）→ **只模糊、不淡 token**（同
+  `breadcrumb-link`）。代价是它的模糊**常驻**（`backdrop-filter` 不靠 hover 才生效），
+  这块地方平时也是糊的 —— 有意为之，不想这样就别给它挂模糊
+- **没打的**：`CopyButton`（**早就有 `data-slot='button'`**，那条规则已经把 `--muted` 淡到 62%，
+  `hover:bg-muted` 自动跟着走，别重复打）；余额旁那只眼睛按钮与通知铃铛（ghost 本来就透明，
+  铃铛还自带 `data-slot='button'`）；`AccountAvatar` 的 `bg-muted`（远程 DiceBear 图没加载出来时的
+  占位底，图一到就被盖住，属于内容不是表面）
+
+#### 其他 / 领域：prediction-market（2 个文件 7 处 + 共用的 `Tabs` 1 处）
+
+调试页 `Other & domain` 里的两格：下单票 `PredictionMarket` 与列表卡片 `PredictionMarketCard`。
+
+| slot | 打在哪 | 底色 | 处理 |
+| --- | --- | --- | --- |
+| `prediction-market` | 下单票的根 `div` | `bg-background` | 淡 `--background` + 模糊 |
+| `prediction-market-amount` | 票里装金额输入的那块 | `bg-card` | 淡 `--card` + 模糊 |
+| `prediction-market-chips` | 快捷金额那排的**容器** | 容器没有底色，`bg-background` 画在里面的 `<button>` 上 | 淡 `--background` + 模糊，**用 `> button` 选到按钮**（本文件唯一一条不在组里的规则） |
+| `prediction-market-card` | 卡片的 `article` 根 | `bg-card` | 淡 `--card` + 模糊 |
+| `prediction-market-card-panel` | 卡片里那块内层板（赔率 + 收藏） | `bg-background` | 淡 `--background` + 模糊 |
+| `prediction-market-card-bookmark` | 收藏按钮 | `hover:bg-muted` | 淡 `--muted` + 模糊 |
+| `tabs-list` | `Tabs` 的 `role="tablist"`（**共用组件**） | `bg-card`（只有 pill / segment 变体有） | 淡 `--card` + 模糊 |
+
+不显然的几处：
+
+- **两个根都是实心底**，这就是这一节的主要目标：下单票的根 `bg-background`、卡片的 `article`
+  根 `bg-card`。根一挂上 `backdrop-filter` 就成了 backdrop root，所以**里面那些表面的模糊是
+  "搭便车"**（真正糊页面的是根）—— 同「导航 / 布局」第二条。照样把内层放进 blur 列表
+  （同 `swipeable-list-item` / `editable-cell`），无害且一致
+- **chips 的标记打在容器上、不给两个按钮各打一处**：画底色的是里面的 `<button>`
+  （`bg-background`），CSS 用 `> button` 选到 —— 同 `table-head th` 那种写法。
+  它的模糊与淡底色必须写在**同一条规则**里（组的粒度是"同一个 slot 集合"，这里选中的是父子两种元素）
+- **`Tabs` 是共用组件**（导航那一节也在用），标记因此是**有条件**打的：
+  `data-slot={variant === "pill" || variant === "segment" ? "tabs-list" : undefined}` ——
+  只有这两个变体的轨道是 `bg-card`，`underline` 只有下边框，给它也打上只会让那一条常驻是糊的。
+  ⚠️ 这个条件写法会让上面那个产物探针的**窄版漏报**（slot 名不紧跟在 `data-slot":` 后面），
+  所以探针现在是宽松版，别改回去
+- 本轮 prediction-market 的选择器用的是 `pill` 变体，两个指示块是 `bg-emerald-500/20` /
+  `bg-red-500/10` —— 本来就带 alpha，不淡
+- **没打的**：卡片头部那个 `size-12` 图标圆盘（`bg-background`）与赔率前的 `size-8` 图标底
+  （`bg-muted`）—— "头像 / 图标牌"属于内容，同 swap 里 `TokenDot` / `ChainDot` 那两圈；
+  `MarketOddsButton`（两个变体都把底色盖成 `bg-emerald-500/10` / `bg-rose-500/10`，只有 10%，
+  而且那是**硬编码调色板**、跟 token 无关，淡 token 也管不到它）；下单票的 Buy/Sell 用的
+  `Tabs variant="underline"`（没有底色）；`h-0.5 bg-foreground` 的下划线指示条与
+  `selection:bg-foreground/10`（一个是"值"、一个是选区高亮，都不是表面）
+
 #### 物理铁律
 
 - **祖先带 `mask` / `filter` / `opacity < 1` / `isolation: isolate` 会形成 backdrop root，
@@ -1027,7 +1178,9 @@ token 还是字面量，是字面量就得先决定要不要 token 化，别打�
 所以模糊态下用 **token 压淡**替代整元素 `opacity`：
 
 ```css
-html[data-frosted='true'] [data-slot]:disabled {
+/* 两个开关都算：只开背景图时虽然有 opacity 可用，
+   但让两种开关下的禁用态长得一样更重要（用户会来回切着看） */
+:is(html[data-frosted='true'], html[data-background='true']) [data-slot]:disabled {
     opacity: 1;                                          /* 把 50% 收回来，blur 才是全强度 */
     --background: color-mix(in oklab, var(--background-solid) 30%, transparent);
     /* --card / --muted 同样 30%；主题色 --primary 要按它自己那档折半 → 44% */

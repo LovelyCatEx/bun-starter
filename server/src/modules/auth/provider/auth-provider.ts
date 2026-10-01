@@ -9,10 +9,7 @@ export interface AuthUser {
   name: string;
 }
 
-/**
- * The single seam for plugging in your own account storage (database, LDAP,
- * third-party API, ...). Implement it and pass it to `createAuthPlugin`.
- */
+/** 账号存储的唯一扩展点：实现它并传给 `createAuthPlugin`（见 auth.md）。 */
 export interface AuthProvider {
   authenticate(credentials: AuthCredentials): Promise<AuthUser | null>;
 }

@@ -14,9 +14,8 @@ import {
   useRef,
 } from "react";
 
-// Lenis' own expo-out curve — the canonical smooth-scroll easing. Kept as a
-// named local fn (not a lib/ease token) because tokens are bezier control
-// points for the motion lib, while Lenis needs a (t) => number easing fn.
+// Lenis' own expo-out curve, a local fn rather than a `lib/ease` token: those are
+// bezier control points for the motion lib, while Lenis takes a (t) => number.
 const EASE_SCROLL = (t: number) => Math.min(1, 1.001 - 2 ** (-10 * t));
 
 export type ScrollTarget = number | string | HTMLElement;
@@ -236,9 +235,8 @@ export function SmoothScroll({
 }
 
 /**
- * Read the page's smooth-scroll state. Inside <SmoothScroll> it returns the
- * shared motion values; outside it falls back to a native window scroll
- * listener so scroll-driven components still work without the provider.
+ * Page smooth-scroll state: the shared motion values inside <SmoothScroll>, a
+ * native window listener outside it.
  */
 export function useSmoothScroll(): SmoothScrollApi {
   const ctx = useContext(SmoothScrollContext);

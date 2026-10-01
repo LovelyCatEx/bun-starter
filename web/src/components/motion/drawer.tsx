@@ -49,11 +49,8 @@ export function Drawer({
 
   const offscreen = side === "right" ? "100%" : "-100%";
 
-  // Two fixed siblings, no wrapper: the backdrop spans the viewport edges but
-  // paints the scrim, and the panel is inset off one side and paints its own
-  // surface, so neither is a transparent edge-spanning layer. Both hang off
-  // `PresenceGate`, so interaction releases in the same commit that starts the
-  // exit rather than when it ends.
+  // Two fixed siblings, no wrapper — it would span the viewport edges while staying
+  // transparent. `PresenceGate` releases interaction the moment the exit starts.
   return (
     <AnimatePresence>
       {open ? (

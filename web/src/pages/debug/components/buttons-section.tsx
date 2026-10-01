@@ -55,8 +55,7 @@ const BUTTON_VARIANTS = ['primary', 'secondary', 'ghost', 'outline'] as const
 const BUTTON_SIZES = ['sm', 'md', 'lg'] as const
 
 /**
- * A real variant list for the swap buttons. Labels are plain strings on purpose:
- * the cascade animation splits the label per letter and can only do that for text.
+ * Labels are plain strings on purpose: the cascade animation splits the label per letter.
  */
 const SWAP_STATES = [
   { id: 'draft', label: 'Draft', icon: <Pencil className="size-4" /> },
@@ -90,14 +89,8 @@ const SEGMENT_STRIDE = 108
 const SEGMENT_INSET = 4
 
 /**
- * Every button-ish component under `web/src/components/motion/`, on our tokens.
- *
- * The interesting axis is not "does it look right" but "does it still answer a click":
- * each demo that owns state wires a real handler, and the ones that animate on their own
- * (hold, slide, swap) report the gesture into the shared readout at the bottom.
- *
- * English and hard-coded on purpose — the debug page is exempt from the i18n rules
- * (see `.claude/rules/frontend.md`), and it gets deleted before release.
+ * Every button-ish component under `web/src/components/motion/`, on our tokens; each demo that
+ * owns state wires a real handler. English on purpose — see `.claude/rules/frontend.md`.
  */
 export function ButtonsSection() {
   // `useExpandableActionBar` owns the bar's state, so the controlled path is
@@ -251,8 +244,8 @@ export function ButtonsSection() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {/*
-              The pair a swap button is made of, driven from outside: `value` is the
-              animation key, so the text has to be a string for cascade to split it.
+              The pair a swap button is made of, driven from outside: `value` is the animation
+              key, so the text has to be a string for cascade to split it.
             */}
             <span className="inline-flex items-center gap-2 text-sm font-medium">
               <ActionSwapIcon value={swapItem.id} animation="blur" className="size-4">
@@ -363,8 +356,8 @@ export function ButtonsSection() {
       <Demo label="liquid">
         <div className="flex flex-col gap-2">
           {/*
-            One `LiquidItem` is the gooey pill (the SVG filter draws it, the div under it
-            is the hit surface); the labels sit above it as ordinary buttons.
+            `LiquidItem` is the gooey pill (the SVG filter draws it, the div under it is the
+            hit surface); the labels sit above it as ordinary buttons.
           */}
           <Liquid
             fill="var(--primary)"

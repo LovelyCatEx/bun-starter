@@ -34,11 +34,9 @@ const INPUT_COLUMN_WIDTH = 120;
 const DEFAULT_ROOT_FONT_SIZE = 16;
 
 /**
- * What one `rem` is worth here, in px. The default until the first client
- * layout, so the server and the hydrating client emit the same floor; measured
- * once after that, because a document that sets its own `html { font-size }`
- * lays a rem column out against that size and a floor computed from 16 would
- * fall short by the same factor.
+ * What one `rem` is worth here, in px. The default until the first client layout, so
+ * server and hydration agree; measured after that, because a document with its own
+ * `html { font-size }` lays rem columns out against that size.
  */
 function useRootFontSize() {
   const [size, setSize] = useState(DEFAULT_ROOT_FONT_SIZE);
@@ -52,9 +50,8 @@ function useRootFontSize() {
 }
 
 /**
- * The absolute width a column declared, in px, or null when it declared a share
- * of the remainder instead (`fr`, `%`, `auto`, `calc()`, nothing at all) — those
- * are worth whatever is left over, which is not a width this can add up.
+ * The absolute width a column declared, in px, or null when it declared a share of the
+ * remainder instead — a leftover, which is not a width this can add up.
  */
 function resolveColumnWidth(
   width: string | undefined,
@@ -171,16 +168,12 @@ export function Table<T>({
     orderedColumns.every((c) => widths[c.key] != null);
 
   const rootFontSize = useRootFontSize();
-  // In a container narrower than the columns, `table-layout: fixed` shrinks
-  // every column toward zero instead of scrolling. Floor the table at what the
-  // columns actually asked for — an absolute declared width where there is one,
-  // and for the ones sharing the remainder whatever content they can fall back
-  // on — then let the viewport scroll past it.
+  // In a container narrower than the columns, `table-layout: fixed` shrinks every column
+  // toward zero instead of scrolling: floor the table at what the columns asked for and let
+  // the viewport scroll past it.
   const minTableWidth = useMemo(() => {
-    // A column whose cells render bare inputs has no content for the fallback
-    // to measure, which is exactly the column that collapses; a renamable
-    // header is an input too, and in a fixed layout the header row is what
-    // sizes the column.
+    // A column of bare inputs has no content to measure — exactly the one that collapses;
+    // a renamable header is an input too, and the header row is what sizes the column.
     const inputOnly = (column: (typeof orderedColumns)[number]) =>
       Boolean(onColumnRename) || (!column.cell && Boolean(column.editable));
     const total = orderedColumns.reduce((sum, column) => {

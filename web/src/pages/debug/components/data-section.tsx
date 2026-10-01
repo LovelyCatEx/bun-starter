@@ -5,17 +5,8 @@ import { Table, type TableColumn } from '@/components/motion/table'
 import { Demo, Section } from '@/pages/debug/components/section'
 
 /**
- * `Table` once, three ways. The registry ships the same component under `table`, `table-editable`
- * and `table-async`; the difference is entirely in which props you hand it, so each demo below
- * turns on a different set and nothing else:
- *
- * - `table`          — read-only rows, selection, resize, sort. The base configuration.
- * - `table-editable` — `editable` cells + the row/column menus + header renaming: state the user writes.
- * - `table-async`    — `loading` + `onEndReached`: pages that arrive late, skeleton rows, empty state.
- *
- * `data` and `columns` are arrays (never JSX children), so every row type below is a plain object
- * and `columns` reads its properties by `key`. English and hard-coded on purpose — the debug page
- * is exempt from the i18n rules and gets deleted before release.
+ * `Table` once, three ways: the registry's `table` / `table-editable` / `table-async` differ
+ * only in which props they turn on. English on purpose — see `.claude/rules/frontend.md`.
  */
 
 type Invoice = {

@@ -10,9 +10,8 @@ export interface TextCascadeProps {
 }
 
 /**
- * Letter-by-letter slot roll for standalone text — the old letters drop away
- * as the new ones land, left to right. Same motion as the action-swap
- * cascade variant, with a text-first API.
+ * Letter-by-letter slot roll for standalone text — same motion as the
+ * action-swap cascade variant, with a text-first API.
  */
 export function TextCascade({ text, className }: TextCascadeProps) {
   return (

@@ -125,9 +125,8 @@ export function InlineSlider({
     return () => observer.disconnect();
   }, [trackProps.ref]);
 
-  // Each stop owns both a value and a physical position. As in RangeSlider,
-  // the stops span the entire track at even intervals; text only affects
-  // whether a marker is painted, never whether its stop remains interactive.
+  // Each stop owns a value and a physical position; text affects only whether a marker is
+  // painted, never whether its stop stays interactive.
   const endX = Math.max(HANDLE_START, geometry.width - HANDLE_END_INSET);
   const stops = useMemo(() => {
     const values = [...new Set(Array.from({ length: STOP_COUNT }, (_, index) =>
@@ -141,9 +140,8 @@ export function InlineSlider({
     }));
   }, [min, max, step, endX]);
   const restingX = mapBetweenStops(stops, current, "value", "x");
-  // One motion value owns the thumb for the entire gesture. Pointer movement
-  // writes pixels directly; only release/click/keyboard changes use a spring.
-  // Never derive dragging pixels from a rounded value or swap to a lagging spring.
+  // One motion value owns the thumb for the whole gesture: pointer movement writes pixels
+  // directly, only release/click/keyboard changes spring, and never from a rounded value.
   const handleX = useMotionValue(restingX);
   const restingTarget = useRef(restingX);
   const settleTo = useCallback((x: number) => {
@@ -163,12 +161,10 @@ export function InlineSlider({
   const fillRight = useTransform(handleX, (x) =>
     x >= endX ? geometry.width - 2 : x + 8,
   );
-  // Slide a fixed-size fill inside the inset clipping window. The labels and
-  // dots stay above it, and only transforms animate.
+  // A fixed-size fill slides inside the inset clipping window; only transforms animate.
   const fillX = useTransform(fillRight, (right) => right - geometry.width + 2);
-  // Part progressively over six pixels at each text edge instead of
-  // toggling the stem on/off in a single pointer frame. The thumb uses the
-  // same two-dot treatment across both the label and numeric readout.
+  // The stem parts progressively over six pixels at each text edge instead of toggling in a
+  // single pointer frame; the same two-dot treatment covers the label and the readout.
   const split = useTransform(handleX, (x) => {
     const overlap = (start: number, end: number) => Math.max(0, Math.min(
       1,
@@ -245,8 +241,7 @@ export function InlineSlider({
         event.preventDefault();
         const pointerX = event.clientX - rect.left;
         const thumbX = handleX.get();
-        // Grabbing the thumb preserves the exact grab point. A track click
-        // waits for release, so it glides to a dot without an intermediate jump.
+        // Grabbing the thumb keeps the exact grab point; a track click waits for release.
         const offset = Math.abs(pointerX - thumbX - 2) <= 12 ? pointerX - thumbX : 2;
         gesture.current = { id: event.pointerId, left: rect.left, offset, x: thumbX };
         setDragging(true);
@@ -264,8 +259,7 @@ export function InlineSlider({
         );
         active.x = x;
         handleX.set(x);
-        // Use the same piecewise map as the resting stops, so value and
-        // position agree throughout the drag.
+        // Same piecewise map as the resting stops, so value and position agree through the drag.
         queueDragCommit(mapBetweenStops(stops, x, "x", "value"));
       }}
       onPointerUp={endGesture}

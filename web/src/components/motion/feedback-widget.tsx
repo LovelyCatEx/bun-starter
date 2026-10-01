@@ -96,9 +96,8 @@ export function FeedbackWidget({
   useEffect(() => {
     if (status !== "open") return;
 
-    // Match the wallet account switcher's staged interaction: focusing while
-    // the surface is still expanding makes the caret and focus state appear
-    // inside a scaled panel. Arm the field once the open morph has settled.
+    // Focusing while the surface is still expanding puts the caret and focus
+    // state inside a scaled panel — arm the field once the open morph has settled.
     const timer = window.setTimeout(
       () => textareaRef.current?.focus(),
       reduce ? 0 : MORPH_OPEN_DURATION * 1000,
@@ -106,7 +105,6 @@ export function FeedbackWidget({
     return () => window.clearTimeout(timer);
   }, [status, reduce]);
 
-  // Dismiss on escape or outside click while open (but not mid-send).
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

@@ -56,20 +56,15 @@ export function AvailabilityScheduler({
   );
   // The row that last opened a dropdown paints above the rest — see DayRow.
   const [openDay, setOpenDay] = useState<DayKey | null>(null);
-  // Exactly one time panel is open at a time, and the scheduler is the one that
-  // knows which. A panel is absolutely positioned inside its own field, so two
-  // open at once paint over each other's options — and nothing else can close
-  // the first: a Select only dismisses on an outside *pointerdown*, which
-  // keyboard and assistive-technology activation never fires.
+  // Exactly one panel open at a time: a panel is absolutely positioned inside its own field,
+  // and nothing else can close the first — a Select only dismisses on an outside pointerdown,
+  // which keyboard and assistive-technology activation never fires.
   const [openPanel, setOpenPanel] = useState<string | null>(null);
   const controlled = value !== undefined;
   const week = controlled ? value : internal;
 
-  // Which panels the week currently puts on screen. A field that leaves — its
-  // day switched off, its range removed — never reports its panel closed: the
-  // only thing that dismisses a controlled Select is an outside pointerdown,
-  // and a field on its way out is no longer there to hear one. Keeping its id
-  // would reopen the panel the moment the same range came back.
+  // Panels the week currently puts on screen: a field that leaves never reports its panel
+  // closed, and keeping its id would reopen it the moment the same range came back.
   const livePanels = useMemo(() => {
     const ids = new Set<string>();
     for (const { key } of WEEKDAYS) {
@@ -106,8 +101,7 @@ export function AvailabilityScheduler({
       setOpenPanel((current) =>
         open ? id : current === id ? null : current,
       );
-      // Elevation stays on the row that opened last so the panel's collapse
-      // animation finishes above its neighbours.
+      // Elevation stays on the last-opened row so its collapse finishes above neighbours.
       if (open) setOpenDay(day);
     },
     [],

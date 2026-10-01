@@ -393,11 +393,9 @@ function ImagePreviewDialog({
   const src = item ? imageSource(item) : undefined;
   const content =
     item && src ? (
-      // The wrapper carries no box: both children are `fixed` and resolve
-      // against the viewport themselves. The scrim spans the viewport edges but
-      // paints a colour, and the layer that centres the image is inset off every
-      // edge. `PresenceGate` releases interaction in the same commit that starts
-      // the exit.
+      // The wrapper carries no box: both children are `fixed` and resolve against the
+      // viewport themselves — the scrim spans the edges but paints a colour, the image
+      // layer is inset off every edge. `PresenceGate` releases interaction on exit start.
       <PresenceGate>
         {({ isPresent, gate }) => (
           <div

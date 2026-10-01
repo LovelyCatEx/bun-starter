@@ -42,13 +42,9 @@ export function MorphingModal({
     };
   }, [open]);
 
-  // Mounted only while open, and while open the chrome is two fixed siblings
-  // rather than one wrapper: the backdrop spans the viewport edges but carries
-  // the scrim colour, and the layer positioning the panel sits inset off every
-  // edge (`inset-4`, with the bottom placement's `pb-4` on top of it). Both hang
-  // off `PresenceGate`, so interaction releases in the same commit that starts
-  // the exit rather than when it ends — `open` is already false for those
-  // frames.
+  // Mounted only while open, as two fixed siblings rather than one wrapper: the
+  // backdrop spans the viewport edges carrying the scrim, the panel layer sits inset
+  // off every edge. Both hang off `PresenceGate`, so interaction releases at exit start.
   return (
     <AnimatePresence initial={false}>
       {open ? (

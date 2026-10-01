@@ -79,13 +79,8 @@ export function Switch({
             animate={{ scale: squish ? 0.9 : 1 }}
             className={cn(
               "pointer-events-none block h-5 w-5 rounded-full shadow-md",
-              // Track when checked is `--primary`, so the thumb has to be that
-              // surface's own foreground. Upstream says `bg-background`, which
-              // pairs the thumb with the *page* instead — a near-black dot on a
-              // pink track in every dark shade, and a near-invisible white dot on
-              // the light-grey track in light mode. Unchecked stays as upstream:
-              // that track is `--muted-foreground/60`, a neutral, and the page
-              // background is its correct partner.
+              // 旋钮取所坐表面的对比色：checked 的轨道是 `--primary` → `--primary-foreground`，
+              // unchecked 的轨道是中性色 → `bg-background`。与上游的差异见 frontend.md。
               checked ? "bg-primary-foreground" : "bg-background",
             )}
           >

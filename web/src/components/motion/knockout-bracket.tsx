@@ -10,10 +10,8 @@ import { cn } from "@/lib/utils";
 export type Team = {
   name: string;
   /**
-   * Any square image URL — club crest, org mark, player photo. Wins over `code`.
-   * Drawn as-is on the card surface, so a transparent-background mark inked for
-   * one theme disappears in the other: ship artwork that reads on both, or pick
-   * the URL yourself from your theme state.
+   * Any square image URL — club crest, org mark, player photo. Wins over `code`. Drawn
+   * as-is on the card surface, so a theme-specific transparent mark can vanish.
    */
   logo?: string;
   /** ISO 3166-1 alpha-2 code, loaded from flagcdn.com (England is gb-eng). Used when `logo` is absent. */
@@ -50,12 +48,8 @@ export type Round = {
 };
 
 export interface KnockoutBracketProps {
-  /**
-   * The whole draw, ordered widest round first. Any single-elimination
-   * tournament fits: each round holds half the matches of the one before it
-   * (16 → 8 → 4 → 2 → 1) and `rounds[r].matches[k]` is fed by matches `2k` and
-   * `2k + 1` of the round before it. Two rounds are enough.
-   */
+  /** The whole draw, ordered widest round first. Each round holds half the matches of the
+   * one before; `matches[k]` is fed by `2k` and `2k + 1`. Two rounds are enough. */
   rounds: Round[];
   /** Round shown as the leftmost column on mount. Defaults to 1, clamped to the valid range. */
   initialRound?: number;
@@ -67,9 +61,8 @@ export interface KnockoutBracketProps {
 }
 
 
-// Card geometry drives the whole computed layout — every later match sits at the
-// exact vertical midpoint of its two feeders, so pairs line up with connectors.
-// Keep CARD_H in sync with the card's internal spacing.
+// Card geometry drives the whole computed layout — every later match sits at the exact
+// vertical midpoint of its two feeders. Keep CARD_H in sync with the card's internal spacing.
 const CARD_W = 250;
 const CARD_H = 124;
 // Pocket (20) + stem (20) — matches the CSS `]` connector geometry.
@@ -87,9 +80,8 @@ const HEADER_H = 44;
 const PAD_X = 8;
 const PAD_Y = 12;
 
-// Firmer than SPRING_LAYOUT so the many cards, connectors and stage height
-// glide as one piece; damping just over critical (~1.05) settles with no bounce
-// and no lazy overdamped tail.
+// Firmer than SPRING_LAYOUT so cards, connectors and stage height glide as one piece;
+// damping just over critical settles with no bounce and no lazy overdamped tail.
 const REFLOW = {
   type: "spring",
   stiffness: 260,
@@ -107,9 +99,8 @@ const REFLOW_OPACITY = {
 const clamp = (n: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, n));
 
-// Column x-offset and window test — shared by the render pass and the memoized
-// layout so the two can't drift. Module-level (stable identity) so the layout
-// memo can call them without widening its dependency list.
+// Column x-offset and window test, shared by the render pass and the memoized layout so the
+// two can't drift, and module-level so that memo can call them without widening its deps.
 const colX = (r: number, page: number) => PAD_X + (r - page) * COL_W;
 const isInWindow = (r: number, page: number, visibleCols: number) =>
   r >= page && r < page + visibleCols;
@@ -164,9 +155,8 @@ function BracketConnector({
 const crestSrc = (team: Team) =>
   team.logo ?? (team.code ? `https://flagcdn.com/w80/${team.code}.png` : null);
 
-/** Two-letter stand-in when a team has no artwork — "Real Madrid" → RM.
- * Spread, not `word[0]`: an emoji or astral first character is a surrogate pair
- * and indexing it renders a replacement glyph. */
+/** Two-letter stand-in when a team has no artwork — "Real Madrid" → RM. Spread,
+ * not `word[0]`: an astral first character is a surrogate pair. */
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -352,9 +342,8 @@ export function KnockoutBracket({
   const maxPage = Math.max(0, rounds.length - Math.min(2, rounds.length));
   const [page, setPage] = useState(() => clamp(initialRound, 0, maxPage));
 
-  // Shared reflow — cards, connectors, headers and stage height page together.
-  // Height springs with the same token (layout morph is the product feel for
-  // collapsing rounds); opacity uses a short ease so fades don't lag the glide.
+  // Shared reflow — cards, connectors, headers and stage height page together. Height
+  // springs with the same token; opacity eases short so fades don't lag the glide.
   const transition = reduce
     ? { duration: 0 }
     : { ...REFLOW, opacity: REFLOW_OPACITY };
@@ -368,10 +357,8 @@ export function KnockoutBracket({
     return `Showing ${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
   }, [rounds, page, visibleCols]);
 
-  // Layout is computed, not scrolled. The leftmost visible round (`page`) is the
-  // base and stacks at a fixed rhythm; every later match centers on its feeders,
-  // and behind rounds spread out (below). Cards and connectors derive from one
-  // pass and page together under the shared transition.
+  // Layout is computed, not scrolled: the leftmost visible round (`page`) stacks at a fixed
+  // rhythm, every later match centers on its feeders, and behind rounds spread out (below).
   const { cy, containerHeight, connectors } = useMemo(() => {
     const centers: number[][] = new Array(rounds.length);
     const base = rounds[page];
@@ -382,9 +369,8 @@ export function KnockoutBracket({
       for (let k = 0; k < rounds[r].matches.length; k++) {
         const top = feeders[2 * k];
         if (top == null) {
-          // A round with more matches than its feeders allow (an odd draw, a bye
-          // left out) stacks a full row under the last card placed in this
-          // round — a fixed rhythm from the top can land on top of a midpoint.
+          // A round with more matches than its feeders allow (an odd draw, a bye left out)
+          // stacks a full row under the last card placed in it, not at a fixed rhythm.
           const prev = row[k - 1];
           row[k] = prev == null ? PAD_Y + CARD_H / 2 : prev + ROW;
         } else {
@@ -393,9 +379,8 @@ export function KnockoutBracket({
       }
       centers[r] = row;
     }
-    // Behind rounds keep their natural spread (spacing halves each step out,
-    // each match straddling its parent) instead of collapsing, so paging back
-    // slides a formed column in from the left just as paging forward does.
+    // Behind rounds keep their natural spread — spacing halves each step out, each match
+    // straddling its parent — so paging back slides a formed column in from the left.
     for (let r = page - 1; r >= 0; r--) {
       const half = ROW / 2 ** (page - r + 1);
       centers[r] = rounds[r].matches.map((_, i) => {
@@ -423,10 +408,8 @@ export function KnockoutBracket({
       });
     }
 
-    // Measured, not derived from the base count: a fallback-stacked round can
-    // run past the base column, and the stage clips its overflow.
-    // Seeded with one card's center so an empty round yields a real height
-    // rather than -Infinity.
+    // Measured, not derived from the base count: a fallback-stacked round can run past the
+    // base column. Seeded with one card's center so an empty round isn't -Infinity.
     const lowest = Math.max(
       PAD_Y + CARD_H / 2,
       ...centers.slice(page, page + visibleCols).flat(),
@@ -579,12 +562,8 @@ export function KnockoutBracket({
 }
 
 // ── Sample data ──────────────────────────────────────────────────────────────
-// A full World Cup knockout stage, here to demo the shape. Swap it for your own
-// tournament. Rounds run widest first and each holds half as many matches as the
-// one before it (16 → 8 → 4 → 2 → 1); `matches[k]` of a round is fed by matches
-// `2k` and `2k + 1` of the round before it, which is what pairs the connectors.
-// Any draw works: start at the round you have (Round of 16, quarter-finals),
-// give teams a `logo` instead of a country `code`, or neither for initials.
+// A full World Cup knockout stage, here to demo the shape. Rounds run widest first, half as
+// many matches each time, `matches[k]` fed by `2k` and `2k + 1` of the round before.
 
 export const TEAMS = {
   southAfrica: { name: "South Africa", code: "za" },

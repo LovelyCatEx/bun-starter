@@ -38,9 +38,8 @@ export interface WheelPickerProps {
 }
 
 const DEG = Math.PI / 180;
-// Physics constants, tuned for an iOS-like flick rather than reused from the
-// shared spring tokens: the wheel coasts in whole-row units and springs to an
-// integer detent, which a layout spring can't express cleanly.
+// Physics constants, not the shared spring tokens: the wheel coasts in whole-row
+// units and springs to an integer detent, which a layout spring can't express.
 const DECELERATION = 0.00042; // rows per ms², how fast a flick bleeds off (lower = freer)
 const MAX_VELOCITY = 0.18; // rows per ms, caps a hard fling
 const VELOCITY_WINDOW = 90; // ms of recent drag to average a release velocity over
@@ -111,9 +110,8 @@ export function WheelPicker({
   const container = useRef<HTMLDivElement>(null);
   const drumRef = useRef<HTMLUListElement>(null);
   const bandRef = useRef<HTMLUListElement>(null);
-  // Scroll position measured in rows (a float index). One source of truth for
-  // both layers: the drum rotates by `itemAngle·scroll`, the crisp band slides
-  // by `itemHeight·scroll`.
+  // Scroll position measured in rows (a float index) — one source of truth for both
+  // layers: the drum rotates by `itemAngle·scroll`, the band slides by `itemHeight·scroll`.
   const scroll = useRef(indexOf(currentValue));
   const raf = useRef(0);
   const emitted = useRef(currentValue);
@@ -130,15 +128,12 @@ export function WheelPicker({
           const li = node as HTMLLIElement;
           const i = Number(li.dataset.index);
           const want = Math.abs(i - s) > hideBeyond ? "hidden" : "visible";
-          // Write only on change — an unconditional write every frame thrashes
-          // style recalc and is what made the drag feel draggy on mobile.
+          // Write only on change — an unconditional write every frame thrashes style recalc.
           if (li.style.visibility !== want) li.style.visibility = want;
         }
       }
-      // The band is the SAME drum, clipped to the centre row — driven by the
-      // identical transform so the crisp copy sits exactly on the dimmed one,
-      // with no parallax ghost as rows cross the window. It needs the same
-      // horizon cull, or the row on the back of the drum bleeds into the front.
+      // The band is the SAME drum clipped to the centre row, driven by the identical
+      // transform (and the same horizon cull) so the crisp copy registers on the dimmed one.
       if (band) {
         band.style.transform = `translateZ(${-radius}px) rotateX(${itemAngle * s}deg)`;
         for (const node of Array.from(band.children)) {
@@ -171,9 +166,8 @@ export function WheelPicker({
     [options, last, controlled, onValueChange, sound, reduce, getPlayer],
   );
 
-  // Drum path: fires a tick whenever the nearest row changes, independent of
-  // `emit` (which only fires on settle during a glide/fling, not per row
-  // crossed). Gated on `!reduce` since the reduced render never calls this.
+  // Drum path: ticks whenever the nearest row changes, independent of `emit`
+  // (which only fires on settle, not per row crossed). The reduced render never calls this.
   const maybeTick = useCallback(
     (pos: number) => {
       const row = clamp(Math.round(pos), 0, last);
@@ -263,16 +257,13 @@ export function WheelPicker({
     scroll: number;
     pts: [number, number][];
   } | null>(null);
-  // Coalesce touch/pointer moves to one paint per animation frame — raw move
-  // events fire several times per frame (and off-frame) on high-refresh
-  // screens, and painting each one is what made the drag feel choppy.
+  // Coalesce touch/pointer moves to one paint per animation frame — raw move events
+  // fire several times per frame (and off-frame) on high-refresh screens.
   const dragFrame = useRef(0);
   const latestY = useRef(0);
   // Shared drag core, driven by a Y coordinate from either a mouse pointer or a
-  // native touch. Touch is bound with non-passive listeners in the effect below
-  // so the move can preventDefault the page scroll — React's synthetic touch
-  // events are passive and can't, which is why finger-drag did nothing on
-  // mobile.
+  // native touch. Touch uses the non-passive listeners in the effect below so the move
+  // can preventDefault the page scroll — React's synthetic touch events are passive and cannot.
   const beginDrag = useCallback(
     (y: number) => {
       stop();
@@ -320,9 +311,8 @@ export function WheelPicker({
     }
     drag.current = null;
     setGrabbing(false);
-    // Average velocity over the last `VELOCITY_WINDOW` ms of movement rather
-    // than the final two samples — a single noisy frame otherwise makes an
-    // even flick feel like it caught or slipped.
+    // Average velocity over the last `VELOCITY_WINDOW` ms rather than the final two
+    // samples — one noisy frame otherwise makes an even flick feel caught or slipped.
     const pts = d.pts;
     let v = 0;
     if (pts.length > 1) {
@@ -370,15 +360,13 @@ export function WheelPicker({
     [endDrag],
   );
 
-  // Wheel drives `scroll` continuously — like a drag — then snaps once it goes
-  // idle. Firing a fresh eased step per notch instead stacks overlapping
-  // animations that keep interrupting each other, which read as lag.
+  // Wheel drives `scroll` continuously — like a drag — then snaps once it goes idle.
+  // A fresh eased step per notch would stack overlapping animations instead.
   const wheelSnap = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onWheel = useCallback(
     (event: globalThis.WheelEvent) => {
-      // Native (non-passive) so preventDefault actually stops the page from
-      // scrolling behind the wheel — React's synthetic wheel listener is
-      // passive, so a handler on the element cannot cancel the scroll.
+      // Native (non-passive) so preventDefault stops the page scrolling behind the
+      // wheel — React's synthetic wheel listener is passive and cannot cancel it.
       if (disabled || reduce) return;
       event.preventDefault();
       if (sound) getPlayer().prepare();
@@ -450,10 +438,8 @@ export function WheelPicker({
     [],
   );
 
-  // Native touch + wheel listeners, bound non-passively so touchmove and wheel
-  // can block the page from scrolling while the wheel spins. React's synthetic
-  // touch/wheel handlers are passive, so preventDefault there is a no-op and the
-  // gesture scrolls the page instead of driving the drum.
+  // Native touch + wheel listeners, bound non-passively so touchmove and wheel can
+  // block the page from scrolling instead of driving the drum.
   useEffect(() => {
     const el = container.current;
     if (!el || reduce || disabled) return;
@@ -583,8 +569,7 @@ export function WheelPicker({
       </ul>
 
       {/* Center band: the very same drum, clipped to one row and drawn crisp.
-          Its own perspective, centred on the container middle, matches the main
-          drum's projection so the two copies register exactly. */}
+          Its own perspective, centred on the container middle, matches the main drum's. */}
       <div
         className="pointer-events-none absolute inset-x-0 top-1/2 z-10 -translate-y-1/2 overflow-hidden rounded-md bg-foreground/[0.04]"
         style={{ height: itemHeight, perspective: 1000 }}

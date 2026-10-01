@@ -3,22 +3,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 /**
- * Native helpers: where a compiled C / C++ program comes from, and how to run it.
- *
- * The name is a **convention**, and everything else follows from it. `server/native/<name>.c`
- * compiles to `<name>` (`<name>.exe` on Windows), and `scripts/compile.ts` embeds each
- * platform's build with `--asset` — which keeps only the basename, so all five builds land
- * under exactly the same name. That is the whole reason the lookup below can be a hard-coded
- * string instead of a search: see `.claude/skills/native-helper/SKILL.md` (entry point: `.claude/rules/packaging.md`).
- *
- * A packaged release has no compiler to build with, so it carries the built helper inside the
- * binary and writes it out on first use — a program cannot be run from inside the binary. In
- * dev there is a compiler, so it builds from source instead and caches beside it.
- *
- * Being embedded and being readable are two different things: `--asset` puts the helper in the
- * executable whether or not anything reads it, while *this* code only survives bundling if a
- * module imports it — the sample in `server/native/` has no consumer, so import this where you
- * actually use it.
+ * Native helpers: `server/native/<name>.c` compiles to `<name>`, and `--asset` keeps only
+ * the basename, so all five platforms' builds land under that one name — which is why the
+ * lookup below can be hard-coded. See `.claude/rules/packaging.md`「原生产物」.
  */
 export const NATIVE_HELPERS = {
   'hello-helper': 'server/native/hello-helper.c',
@@ -40,9 +27,7 @@ const resolved = new Map<NativeHelperName, Promise<string>>();
 
 /**
  * The path to a runnable helper, built or extracted on first use and cached after.
- *
- * One entry point for both worlds on purpose: callers should not have to know whether they
- * are inside a packaged binary.
+ * One entry point for both worlds, so callers need not know which one they are in.
  */
 export function nativeHelperPath(name: NativeHelperName): Promise<string> {
   const cached = resolved.get(name) ?? build(name);
@@ -54,9 +39,7 @@ export function nativeHelperPath(name: NativeHelperName): Promise<string> {
 
 /**
  * Runs the helper and hands back the subprocess; its stdout is the helper's output.
- *
- * `PipedSubprocess` rather than the bare `Subprocess`, which types all three streams as a
- * union with `undefined`: the caller's reads have to be known to be possible.
+ * `PipedSubprocess`, not the bare `Subprocess`: only it types the three streams as readable.
  */
 export async function spawnNativeHelper(
   name: NativeHelperName,
@@ -81,16 +64,9 @@ export interface NativeHelperResult {
 }
 
 /**
- * Runs the helper once and hands back all of it — no trimming, no decoding of stdout, and a
- * non-zero exit is a value rather than a throw.
- *
- * This is the layer to reach for when the answer is not one line of text: a helper that
- * prints JSON, a helper whose exit code *is* the answer (1 = no match, 2 = bad input), or one
- * that emits bytes. Deciding for the caller is what `runNativeHelper` is for, and it is built
- * on this.
- *
- * Both pipes are read while waiting for the exit, not after it: a helper that writes more
- * than a pipe buffer holds would otherwise block on its own output and never exit.
+ * Runs the helper once and hands back stdout as bytes, stderr as text, and the exit code as
+ * a value rather than a throw. Both pipes are read while waiting for the exit: a helper that
+ * writes more than a pipe buffer holds would otherwise block on its output and never exit.
  */
 export async function execNativeHelper(
   name: NativeHelperName,
@@ -107,15 +83,9 @@ export async function execNativeHelper(
 }
 
 /**
- * Runs the helper once and hands back its stdout as text, trimmed — the shape most helpers
- * have: take argv, print an answer, exit.
- *
- * The sugar over `execNativeHelper`, and deliberately lossy: `stdout` is decoded as UTF-8 and
- * trimmed, and a non-zero exit throws with whatever the helper said on stderr (falling back to
- * its stdout). When any of that is wrong for your helper, use `execNativeHelper` instead.
- *
- * For anything longer-lived than one call — streaming in, streaming out, resizing a terminal —
- * take `spawnNativeHelper` and drive the subprocess yourself.
+ * Runs the helper once and hands back its stdout as trimmed UTF-8 text; a non-zero exit
+ * throws with whatever the helper said on stderr. Anything longer-lived than one call takes
+ * `spawnNativeHelper` instead.
  */
 export async function runNativeHelper(
   name: NativeHelperName,
@@ -134,13 +104,8 @@ export async function runNativeHelper(
 }
 
 /**
- * All of a subprocess pipe, as text.
- *
- * `Bun.readableStreamToText` does this but is deprecated in favour of
- * `ReadableStream#text()` — which the runtime has, and the types do not: bun-types only
- * augments `stream/web`'s `ReadableStream` with it, while the one a subprocess hands back is
- * the global. Wrapping the stream in a `Response` is the same read, spelled with types that
- * exist and no deprecated call.
+ * All of a subprocess pipe, as text. `Bun.readableStreamToText` is deprecated, and the types
+ * give a subprocess's global stream no `text()` — see `.claude/rules/backend.md`「代码风格」.
  */
 function readText(stream: ReadableStream<Uint8Array>): Promise<string> {
   return new Response(stream).text();
@@ -193,9 +158,8 @@ async function extractEmbedded(name: NativeHelperName): Promise<string> {
     chmodSync(staging, 0o755);
     renameSync(staging, out);
   } catch (error) {
-    // A rename that lost a race with another instance is fine — the bytes are the same ones,
-    // and the file it left is the one just written. A platform without mode bits is fine too;
-    // Windows runs by extension.
+    // Losing a rename race is fine: the file left behind is the one just written. A platform
+    // without mode bits is fine too — Windows runs by extension.
     rmSync(staging, { force: true });
 
     if (!existsSync(out)) {
@@ -216,8 +180,8 @@ async function buildFromSource(name: NativeHelperName): Promise<string> {
     Bun.file(out).stat().catch(() => null),
   ]);
 
-  // Missing either one counts as "needs a build"; a built helper newer than its source is
-  // reused, which is what keeps a dev restart from shelling out to a compiler every time.
+  // A built helper newer than its source is reused, so a dev restart doesn't shell out to a
+  // compiler every time.
   if (src !== null && built !== null && built.mtimeMs >= src.mtimeMs) {
     return out;
   }
@@ -249,12 +213,9 @@ async function buildFromSource(name: NativeHelperName): Promise<string> {
 }
 
 /**
- * How to build a helper on the machine we are running on.
- *
- * The cross-compiling table is `scripts/native-helper.ts`; this one is what dev runs, and it
- * only ever has to name one platform's compiler. `-lutil` is where glibc keeps `openpty` and
- * Windows helpers need shell32 for `CommandLineToArgvW`, so both travel with the helpers people
- * actually write with this; they are no-ops for a program that touches neither.
+ * How to build a helper on this machine — dev's half; the cross-compiling table is
+ * `scripts/native-helper.ts`. `-lutil` is where glibc keeps `openpty` and shell32 is where
+ * `CommandLineToArgvW` lives; both are no-ops for a program that touches neither.
  */
 function compileCommand(source: string, out: string): string[] | null {
   const args = ['-O2', '-o', out, source];

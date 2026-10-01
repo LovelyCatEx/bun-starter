@@ -28,11 +28,8 @@ const DEFAULT_SPRING = { stiffness: 140, damping: 26, mass: 1.2 };
 type WordGroup = { text: string; trailing: string };
 
 /**
- * One tokenizer for both modes: a line becomes the words it is made of, each
- * carrying the whitespace that follows it. Word mode animates a group at a
- * time, char mode the characters inside one — so the two can't drift apart on
- * what counts as a word or where a space belongs. Runs of whitespace and tabs
- * survive as their own group rather than collapsing.
+ * One tokenizer for both modes: a line becomes the words it is made of, each carrying the
+ * whitespace that follows it, so word and char mode can't drift on where a space belongs.
  */
 function toWordGroups(line: string): WordGroup[] {
   const chunks = line.match(/\S+\s*|\s+/g) ?? [];
@@ -102,9 +99,8 @@ export function TextReveal({
               initial={initial}
               animate={animate}
               transition={transition}
-              // `whitespace-pre` is load-bearing: a unit's trailing space is
-              // inside an inline-block and would otherwise collapse to zero
-              // width, running every word together.
+              // `whitespace-pre` is load-bearing: a trailing space inside an inline-block
+              // collapses to zero width, running every word together.
               className="inline-block whitespace-pre will-change-transform"
             >
               {unit}
@@ -119,9 +115,8 @@ export function TextReveal({
           <span key={lineKey} className="block">
             {groups.map((group) => {
               const whole = group.text + group.trailing;
-              // Characters animate one at a time, but each word (plus the
-              // space that follows it) sits in its own inline-block so a long
-              // line wraps between words instead of mid-word.
+              // Characters animate one at a time, but each word plus its trailing space sits
+              // in its own inline-block, so a long line wraps between words instead of mid-word.
               if (split !== "char") return renderUnit(whole);
 
               const groupCount = groupCounts.get(whole) ?? 0;

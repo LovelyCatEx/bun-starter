@@ -31,12 +31,7 @@ function nest(tree: TranslationTree, path: string[], value: Messages): void {
   }
 }
 
-/**
- * 把所有语言文件拼成 i18next 的 resources。
- *
- * 语言文件必须放在「模块 / 页面」目录里，一个文件一种语言，**目录路径自动成为 key 前缀**：
- * `auth/login/zh-cn.ts` 里的 `title` 就是 `t('auth.login.title')`。
- */
+/** 把所有语言文件拼成 i18next 的 resources；目录与命名约定见 frontend.md「文案（i18n）」。 */
 function buildResources(files: Record<string, LanguageFile>) {
   const resources: Record<string, { translation: TranslationTree }> = {}
 

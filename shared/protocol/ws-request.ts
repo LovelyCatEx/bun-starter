@@ -1,20 +1,13 @@
 /**
- * 一条从客户端进来的 WS 帧。
+ * 一条从客户端进来的 WS 帧，两端共用（服务端 `parse`、前端定型）。
  *
- * 两端共用这一份：服务端在这里**解析**（`WsRequest.parse`），前端在这里**定型**
- * （发出去的 `{ id, event, data }` 按它检查）。
- *
- * WS 是不可信边界：`message` 是 Elysia 原样交到 handler 的值，可能是任何东西 ——
- * 不是 JSON 的字符串、数组、`null`、缺 `event` 的对象。所以一律从 `parse()` 进来：
- * 它要么给出字段齐全的请求，要么给出 `null`，让调用点自己决定是回一帧错误还是断连。
- * HTTP 侧的对应物是 DTO 加控制器里的手校验（`body as Partial<LoginDto>`）。
+ * WS 是不可信边界，一律从 `parse()` 进来：要么给出字段齐全的请求，要么给出 `null`，
+ * 由调用点决定回错误帧还是断连。
  */
 export class WsRequest<T = unknown> {
   /**
-   * 应答要原样带回来的 id；客户端不关心应答（单向通知）时为 `null`。
-   *
-   * 有了它，一个连接上可以同时飞着多个请求，回来的帧各自对号入座 —— 没有它就只能
-   * 靠"同一个 event 只有一帧在途"这种假设，一旦并发就串了。
+   * 应答要原样带回来的 id；单向通知时为 `null`。有了它，一个连接上可以同时飞着多个
+   * 请求而各自对号入座 —— 没有它就只能假设"同一个 event 只有一帧在途"。
    */
   id: string | null;
 
@@ -31,11 +24,8 @@ export class WsRequest<T = unknown> {
   }
 
   /**
-   * 原始帧 → `WsRequest`，认不出来就 `null`。
-   *
-   * 泛型是**调用点的承诺而不是校验**：`WsRequest.parse<ChatSendDto>(message)` 只保证
-   * 外层的 `id` / `event` / `data` 三个字段存在且类型正确，`data` 内部仍然是 `unknown`，
-   * 与 HTTP 控制器里 `body as Partial<LoginDto>` 同一套写法 —— 需要严格校验就自己再收一道。
+   * 原始帧 → `WsRequest`，认不出来就 `null`。泛型是**调用点的承诺而不是校验**：只保证
+   * 外层三个字段存在且类型正确，`data` 内部仍是 `unknown`，需要严格校验就自己再收一道。
    */
   static parse<T = unknown>(frame: unknown): WsRequest<T> | null {
     const payload = WsRequest.decode(frame);

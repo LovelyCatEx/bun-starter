@@ -23,10 +23,8 @@ import { cn } from "@/lib/utils";
 export type Team = {
   name: string;
   /**
-   * Any square image URL — club crest, org mark, player photo. Wins over `code`.
-   * Drawn as-is on the node's card-colored disc, so a transparent-background
-   * mark inked for one theme disappears in the other: ship artwork that reads on
-   * both, or pick the URL yourself from your theme state.
+   * Any square image URL — club crest, org mark, player photo. Wins over `code`. Drawn
+   * as-is on the card-colored disc, so a theme-specific transparent mark can vanish.
    */
   logo?: string;
   /** ISO 3166-1 alpha-2 code, loaded from flagcdn.com (England is gb-eng). Used when `logo` is absent. */
@@ -56,19 +54,12 @@ export type Round = {
 };
 
 export interface KnockoutWheelProps {
-  /**
-   * The whole draw, ordered widest round first — the same array the knockout
-   * bracket takes. Any single-elimination tournament fits: each round holds half
-   * the matches of the one before it (16 → 8 → 4 → 2 → 1) and `rounds[r].matches[k]`
-   * is fed by matches `2k` and `2k + 1` of the round before it. Two rounds are
-   * enough; the wheel grows a ring per round and sizes itself to the rim.
-   */
+  /** The whole draw, ordered widest round first — the same array the bracket takes. Each
+   * round holds half the matches of the one before it; `matches[k]` is fed by `2k` and
+   * `2k + 1` of the round before. Two rounds are enough. */
   rounds: Round[];
-  /**
-   * Index of the outermost round to draw. Earlier rounds are dropped and the
-   * kept round's own teams become the rim, so `1` on a 32-team draw opens at the
-   * Round of 16. Defaults to 0 (the whole tree); clamped to the valid range.
-   */
+  /** Index of the outermost round to draw; earlier rounds drop and the kept round's teams
+   * become the rim. Defaults to 0 (whole tree), clamped to the valid range. */
   initialRound?: number;
   className?: string;
 }
@@ -89,9 +80,9 @@ const HUB_R = 34;
 // Nodes grow outward so the crowded outer ring still reads at small sizes.
 const NODE_MIN = 14.2;
 const NODE_STEP = 2.2;
-// Initials floor, in viewBox units. The stage never goes below 32rem against a
-// 760-unit box (scale ~0.674), so 15 units is ~10px on screen — under that, two
-// letters are a smudge. `node.r * 0.8` alone puts the inner ring at 7.6px.
+// Initials floor, in viewBox units: at the stage's 32rem minimum against a 760-unit box this
+// is ~10px on screen, and `node.r * 0.8` alone puts the inner ring under it, where two letters
+// are a smudge.
 const INITIALS_MIN = 15;
 // Siblings pull slightly toward their parent, opening a lane between subtrees.
 const SIBLING_GAP = 0.9;
@@ -155,9 +146,8 @@ const teamName = (side: MatchSide) => keepTogether(side.team?.name ?? "TBD");
 const crestSrc = (team: Team) =>
   team.logo ?? (team.code ? `https://flagcdn.com/w80/${team.code}.png` : null);
 
-/** Two-letter stand-in when a team has no artwork — "Real Madrid" → RM.
- * Spread, not `word[0]`: an emoji or astral first character is a surrogate pair
- * and indexing it renders a replacement glyph. */
+/** Two-letter stand-in when a team has no artwork — "Real Madrid" → RM. Spread,
+ * not `word[0]`: an astral first character is a surrogate pair. */
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -187,8 +177,7 @@ function buildWheel(rounds: Round[]) {
   const ringR = (depth: number) => (depth / layers) * OUTER_R;
   const nodeR = (depth: number) => NODE_MIN + (depth - 1) * NODE_STEP;
 
-  // An empty or malformed catalog renders nothing rather than throwing on the
-  // way to the hub.
+  // An empty or malformed catalog renders nothing rather than throwing.
   const final = rounds[layers - 1]?.matches[0];
   if (!final) return { nodes, links, champion: null };
 
@@ -354,8 +343,7 @@ function TeamMark({
             <circle cx={node.x} cy={node.y} r={node.r} />
           </clipPath>
           {/* Plain <image> — flags from flagcdn.com, logos from wherever you host
-              them. A 4:3 flag is cropped to fill the disc; a logo is fitted whole
-              inside it, since a crest cropped to a circle loses its shape. */}
+              them; a logo is fitted whole, since a crest cropped to a circle loses its shape. */}
           <motion.image
             href={src}
             x={node.x - box.w / 2}
@@ -481,11 +469,9 @@ const WheelAnchor = memo(function WheelAnchor({
   onKey: (node: WheelNode, key: string) => void;
 }) {
   const size = pct(node.r * 2);
-  // Capture-phase focus props, so a Tooltip cloning the child cannot overwrite
-  // them. Both interaction paths are always attached: iPadOS answers the hover
-  // query with true for a finger, so hanging the tap path off "cannot hover"
-  // left it unreachable on the very device it was written for. The event says
-  // which input arrived.
+  // Capture-phase focus props, so a Tooltip cloning the child cannot overwrite them.
+  // Both paths are always attached: iPadOS answers the hover query with true for a
+  // finger, so gating the tap path off "cannot hover" makes it unreachable there.
   const tap = useTapGesture<boolean>();
   const hover = useHoverGesture();
   const trigger = (
@@ -495,9 +481,8 @@ const WheelAnchor = memo(function WheelAnchor({
       tabIndex={isTabStop ? 0 : -1}
       aria-label={caption}
       onKeyDown={(event: KeyboardEvent) => {
-        // A key press starts a keyboard activation, which never had a pointer
-        // behind it: a gesture the platform took away must not be read as the
-        // tap behind the click this press synthesizes.
+        // A key press is a keyboard activation with no pointer behind it: a gesture the
+        // platform took away must not be read as the tap behind this click.
         tap.drop();
         if (!event.key.startsWith("Arrow")) return;
         // Arrows drive the wheel here, so they must not also scroll the page.
@@ -573,9 +558,8 @@ export function KnockoutWheel({
   // 63 flags for a 32-team draw, and SVG <image> has no lazy attribute — so the
   // requests wait until the wheel is nearly on screen.
   const inView = useInView(ref, { once: true, margin: "300px" });
-  // Hover, tap and focus are tracked apart. Sharing one slot let a stray mouse
-  // move clear the isolation while a node still held focus, and a tap has to
-  // outlive the pointerleave that a finger fires the moment it lifts.
+  // Tracked apart: a shared slot let a stray mouse move clear the isolation while a node
+  // held focus, and a tap has to outlive the pointerleave a finger fires the moment it lifts.
   const [hovered, setHovered] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
@@ -687,13 +671,9 @@ export function KnockoutWheel({
     [],
   );
 
-  // A finger never leaves the flag it lit, so the isolation would hold for good
-  // — and bare stage reports no pointer event of its own to end it. The next
-  // pointerdown that isn't on a flag stands in for the pointer leaving; it is
-  // consumed, since a wheel spanning the viewport makes tapping past it the
-  // natural way out and there is no reason for that tap to do anything else.
-  // Only a pinned flag arms this: a mouse ends its own hover, and the browser
-  // drops focus on its own.
+  // A finger never leaves the flag it lit, and bare stage reports no pointer event of its own,
+  // so the next pointerdown that isn't on a flag stands in for the leave — consumed, since
+  // tapping past a viewport-spanning wheel is the natural way out. Only a pinned flag arms it.
   const unpin = useCallback(() => {
     setPinned(null);
     const focus = document.activeElement;
@@ -731,10 +711,9 @@ export function KnockoutWheel({
         className,
       )}
     >
-      {/* Below the min width the rim's marks collapse too small to tell apart or
-          tap, so the wheel holds its size and pans instead. The floor is fixed,
-          not rim-derived: node radius grows with depth, so a shallower draw has
-          *smaller* marks and needs the width more, not less. */}
+      {/* Below the min width the rim's marks collapse too small to tell apart or tap, so
+          the wheel holds its size and pans. The floor is fixed, not rim-derived: a shallower
+          draw has *smaller* marks and needs the width more, not less. */}
       <div
         ref={stageRef}
         className="relative mx-auto w-full min-w-[32rem] max-w-[34rem]"
@@ -796,9 +775,8 @@ export function KnockoutWheel({
           ))}
         </svg>
 
-        {/* An SVG <g> can't anchor a Tooltip, so each flag gets an invisible
-            HTML hit area laid over it in percentage units, which track the
-            wheel as it scales. */}
+        {/* An SVG <g> can't anchor a Tooltip, so each flag gets an invisible HTML hit
+            area in percentage units, which track the wheel as it scales. */}
         {nodes.map((node) => (
           <WheelAnchor
             key={node.id}
@@ -834,8 +812,7 @@ export function KnockoutWheel({
         )}
       </div>
 
-      {/* role="img" prunes the svg's descendants, so every result is restated
-          here for screen readers. */}
+      {/* role="img" pruned the svg's descendants — restated here for screen readers. */}
       {/* Named lists, not <section aria-label> — a named section is a landmark,
           and five of those would crowd real page landmarks. */}
       <div className="sr-only">
@@ -855,13 +832,8 @@ export function KnockoutWheel({
 }
 
 // ── Sample data ──────────────────────────────────────────────────────────────
-// A finished 32-team cup, here to demo the shape. Swap it for your own
-// tournament. Rounds run widest first and each holds half as many matches as the
-// one before it (16 → 8 → 4 → 2 → 1); `matches[k]` of a round is fed by matches
-// `2k` and `2k + 1` of the round before it, which is what pairs the branches.
-// Any draw works: pass fewer rounds for a smaller cup, give teams a `logo`
-// instead of a country `code`, or neither for initials. The knockout bracket
-// takes the same array, so one dataset feeds both fixture styles.
+// A finished 32-team cup, here to demo the shape. Rounds run widest first, half as many
+// matches each time; the knockout bracket takes the same array.
 
 export const TEAMS = {
   spain: { name: "Spain", code: "es" },

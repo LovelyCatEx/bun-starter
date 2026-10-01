@@ -12,9 +12,6 @@ type WalletAction = {
   onClick?: () => void;
 };
 
-/**
- * Row of primary wallet actions rendered icon-over-label, with a spring press.
- */
 export function WalletActions({
   onSend,
   onDeposit,
@@ -46,7 +43,11 @@ export function WalletActions({
           transition={SPRING_PRESS}
           className="flex flex-1 flex-col items-center gap-2 outline-none"
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
+          <span
+            // frosted blur hook
+            data-slot="wallet-action"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground"
+          >
             <Icon className="h-5 w-5" />
           </span>
           <span className="text-xs font-medium text-muted-foreground">

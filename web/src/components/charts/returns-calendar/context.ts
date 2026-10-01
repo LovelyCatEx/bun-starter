@@ -15,16 +15,8 @@ import type { ReturnsCalendarCell, ReturnsCalendarProps, ReturnsCalendarSelectio
 import { compound, MONTHS, same, YEAR } from "./utils";
 
 /**
- * Monthly returns as a years by months grid. Each cell tints toward the up or
- * down color by magnitude, and a compounded year column closes every row.
- * Cells spring in on a diagonal wave. Hovering a month glides a tooltip with
- * its value and dims everything that shares neither its row nor its column;
- * hovering a year total replays that row month by month. Clicking a month
- * anchors a span: the grid dims, hovering previews the run from that month to
- * the pointer with its compounded return, a second click locks it and a third
- * clears it. The Year column selects the same way but by whole years — anchor a
- * year, a second year spans every month between them. Hover lifts are gated to
- * pointer devices, and reduced motion keeps the fades only.
+ * Monthly returns as a years by months grid; a compounded year column closes every row.
+ * Clicking anchors a span (months, or whole years in the Year column), hovering previews it.
  */
 export function useReturnsCalendarModel({
   years = [],
@@ -85,9 +77,6 @@ export function useReturnsCalendarModel({
   /** percent that saturates a month's tint */
   const range = 8;
 
-  // one click on a month anchors a span and dims everything else; hovering then
-  // previews the run from the anchor to the pointer and compounds it live, a
-  // second click locks it, and the next click anywhere clears it
   const ci = (c: ReturnsCalendarCell) => c.y * 12 + c.m;
   const clear = () => {
     setSelection(null);
@@ -102,8 +91,6 @@ export function useReturnsCalendarModel({
       : null;
   const spanValue = span ? compound(flat.slice(span.lo, span.hi + 1)) : 0;
 
-  // the Year column runs its own selection: anchor a year, then a second year
-  // spans whole years and compounds every month between them
   const yearAnchored = pinned !== null && pinned.m === YEAR;
   const yearTo = spanEnd ?? (yearAnchored && hover && hover.m === YEAR ? hover : null);
   const yearSpan =

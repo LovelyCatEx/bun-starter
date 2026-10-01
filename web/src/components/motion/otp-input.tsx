@@ -111,8 +111,7 @@ export function OTPInput({
     return length - 1;
   };
 
-  // Single insertion path: one digit overwrites the active slot and advances; a
-  // multi-digit chunk (paste / SMS autofill) fills forward from the active slot.
+  // Single insertion path for a digit, a pasted chunk and SMS autofill alike.
   const insert = (raw: string, from = active) => {
     const digits = raw.replace(/\D/g, "");
     if (!digits) return;
@@ -127,9 +126,8 @@ export function OTPInput({
     setActive(Math.min(i, length - 1));
   };
 
-  // The keyboard is the single source of truth: preventDefault on keydown
-  // reliably blocks native insertion (unlike beforeinput in React), so the hidden
-  // input never accumulates a competing string and slot holes survive.
+  // The keyboard is the single source of truth: preventDefault on keydown reliably
+  // blocks native insertion, unlike beforeinput in React.
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (disabled || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
@@ -170,9 +168,8 @@ export function OTPInput({
     insert(e.clipboardData.getData("text"), active);
   };
 
-  // Autofill path: SMS one-time-code arrives as a whole value in one shot.
-  // Keystrokes go through onKeyDown and paste through onPaste, so only autofill
-  // reaches here — spread it across the slots from the start.
+  // Autofill path: an SMS one-time-code arrives in one shot. Keystrokes and paste
+  // go through their own handlers, so only autofill reaches here.
   const onChangeNative = (e: React.ChangeEvent<HTMLInputElement>) => {
     const digits = sanitize(e.target.value, length);
     if (!digits) return;
@@ -270,8 +267,7 @@ export function OTPInput({
                   disabled && "opacity-50",
                 )}
               >
-                {/* Blinking caret marks the active slot — centered when empty,
-                    trailing the digit when the slot is already filled. */}
+                {/* Blinking caret on the active slot, centered when empty. */}
                 {isActive && !showSuccess ? (
                   <motion.span
                     aria-hidden

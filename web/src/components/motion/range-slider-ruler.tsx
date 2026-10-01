@@ -33,11 +33,8 @@ export function RulerSlider({
   ...options
 }: RulerSliderProps) {
   const reduce = useReducedMotion();
-  // Decimal places the step implies, so 0.5 reads "72.5" and 1 reads "72".
-  // Fixed width keeps the readout from jittering as the value rolls; tick
-  // labels stay trimmed so a whole-number scale is not littered with ".0".
-  // ponytail: reads 0 decimals for an exponential step (1e-7) — no such scale
-  // is legible on a ruler anyway, so no parsing beyond this.
+  // Decimal places the step implies, so 0.5 reads "72.5" and 1 reads "72"; a whole-number
+  // scale is not littered with ".0". ponytail: an exponential step (1e-7) reads 0 decimals.
   const decimals = String(options.step ?? 1).split(".")[1]?.length ?? 0;
   const readout = (value: number) => value.toFixed(decimals);
 
@@ -49,9 +46,8 @@ export function RulerSlider({
       options.formatValueText ?? (unit ? (v) => `${readout(v)} ${unit}` : undefined),
   });
 
-  // The range need not divide by the step (0–10 by 4). Full ticks stop at the
-  // last whole one and max gets a tick of its own, so the scale never runs past
-  // the value the slider can actually report.
+  // The range need not divide by the step (0–10 by 4): full ticks stop at the last whole
+  // one and max gets its own, so the scale never runs past the last reportable value.
   const span = Number(((max - min) / step).toFixed(6));
   const wholeSteps = Math.floor(span);
   const remainder = span - wholeSteps;
@@ -67,11 +63,9 @@ export function RulerSlider({
   // clear interacting underneath an active drag.
   const gesture = useRef(0);
 
-  // ponytail: every tick is in the DOM — fine to a few hundred (80 units at
-  // step 0.5 is 161). Window to the visible span if a finer step is ever needed.
-  // Each tick carries an offset because max sits `remainder` of a step past the
-  // last whole tick. Whenever remainder is under 0.5 that point falls inside
-  // the previous box, so an appended flex box can never centre on it.
+  // ponytail: every tick is in the DOM — fine to a few hundred. Each tick's offset is
+  // explicit because max sits `remainder` of a step past the last whole tick, and under
+  // 0.5 that point falls inside the previous flex box instead of centring.
   const ticks = Array.from({ length: wholeSteps + 1 }, (_, i) => ({
     // toFixed trims float dust from fractional steps (0.1 + 0.2 …).
     value: Number((min + i * step).toFixed(6)),
@@ -83,9 +77,8 @@ export function RulerSlider({
   if (remainder > 0) ticks.push({ value: max, major: true, offset: maxOffset });
 
   const snapToTick = () => {
-    // The same nearest-tick rule useSlider applies. max counts as a candidate
-    // when the step does not divide the range, so a flick near the end does
-    // not settle on the last whole step.
+    // The same nearest-tick rule useSlider applies: max counts as a candidate when the
+    // step does not divide the range, so a flick near the end does not settle short.
     const target = snapSliderValue(min + (-x.get() / gap) * step, min, max, step);
     const snapped = -((target - min) / step) * gap;
     const id = ++gesture.current;
@@ -167,9 +160,8 @@ export function RulerSlider({
             holding.current = false;
             if (reduce) snapToTick();
           }}
-          // The ticks are positioned rather than laid out, so the row needs an
-          // explicit width plus half a gap of slop each side to cover the
-          // whole drag surface.
+          // The ticks are positioned rather than laid out, so the row needs an explicit
+          // width plus half a gap of slop each side to cover the whole drag surface.
           style={{ x, marginLeft: -gap / 2, width: maxOffset + gap }}
           className="absolute inset-y-0 left-1/2"
         >

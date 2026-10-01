@@ -14,12 +14,9 @@ import { cn } from "@/lib/utils";
 import { ITEM, LIST, MORPH } from "./constants";
 
 /**
- * Search icon that morphs into a full-width search bar via a shared layoutId,
- * growing leftward across the header row. The recent-searches results render as
- * a SEPARATE dropdown below the bar — not part of the morphing element — so
- * filtering as you type resizes only the dropdown and never re-fires the morph
- * (which would scale-distort the input text). The in-flow slot keeps its width
- * whether open or closed so the header row (and card) never shifts.
+ * Search icon morphs into a full-width bar via a shared layoutId, growing
+ * leftward across the header row. Results are a SEPARATE dropdown, so filtering
+ * resizes only that and never re-fires the morph (which would scale-distort text).
  */
 export function SearchBar({
   placeholder = "Search",
@@ -59,9 +56,8 @@ export function SearchBar({
 
   // The box keeps the bouncy morph (same feel as the account switcher)...
   const morph: Transition = reduce ? { duration: 0 } : MORPH;
-  // ...but the leading icon + input travel across the row, so their own layout
-  // uses a critically-damped spring — they glide to place without inheriting the
-  // box's overshoot (which read as the icon jittering right-then-left).
+  // ...but the icon + input travel across the row, so their own layout uses a
+  // critically-damped spring instead of inheriting the box's overshoot.
   const glide: Transition = reduce
     ? { duration: 0 }
     : { type: "spring", duration: 0.5, bounce: 0 };
@@ -89,6 +85,8 @@ export function SearchBar({
             key="icon"
             layoutId={layoutId}
             type="button"
+            // frosted blur hook
+            data-slot="wallet-search-trigger"
             aria-label="Search"
             onClick={() => setOpen(true)}
             transition={morph}
@@ -100,14 +98,15 @@ export function SearchBar({
         )}
       </AnimatePresence>
 
-      {/* one connected panel: input + results grow out of the trigger. The text
-          nodes use layout="position" so when the panel resizes (filtering) they
-          reposition without scaling — no re-morph distortion, still connected. */}
+      {/* one connected panel: input + results grow out of the trigger; the text
+          nodes use layout="position" so a resize repositions them without scaling. */}
       <AnimatePresence initial={false} mode="popLayout">
         {open ? (
           <motion.div
             key="panel"
             layoutId={layoutId}
+            // frosted blur hook
+            data-slot="wallet-search-panel"
             transition={morph}
             style={{ borderRadius: 16 }}
             className="absolute top-0 -right-2 -left-2 z-40 overflow-hidden border border-border/30 bg-background backdrop-blur-md"
@@ -159,6 +158,8 @@ export function SearchBar({
                   <motion.li
                     key={term}
                     layout="position"
+                    // frosted blur hook
+                    data-slot="wallet-search-option"
                     variants={reduce ? undefined : ITEM}
                   >
                     <button

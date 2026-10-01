@@ -32,8 +32,7 @@ const SEARCH_MORPH: Transition = {
 	bounce: 0.22,
 };
 
-// Keep the spring on the shell, but unfold complex clip-path values with the
-// same progressive tween as Morph Popover so the content never snaps ahead.
+// The shell springs; the clip-path unfolds with Morph Popover's tween, so content never snaps.
 const SEARCH_CLIP_TRANSITION: Transition = {
 	duration: 0.32,
 	ease: EASE_OUT,
@@ -154,8 +153,7 @@ export function MorphingSearch({
 
 	const { activeIndex, moveTo, moveActive } = useRowCursor(filteredItems, query);
 
-	// The cursor is stamped with the query, so changing it drops the highlight
-	// without this having to say so.
+	// The cursor is stamped with the query, so changing it drops the highlight.
 	const updateQuery = useCallback(
 		(next: string) => {
 			setQuery(next);
@@ -250,17 +248,14 @@ export function MorphingSearch({
 		return () => window.removeEventListener("keydown", handleShortcut);
 	}, [closeSearch, open, openSearch, shortcut]);
 
-	// Only this component's own state. Telling the consumer the query changed is
-	// a side effect, so it waits for the effect below.
+	// Only this component's state; telling the consumer waits for the effect below.
 	useOnOpen(open, () => {
 		setQuery("");
 		moveTo(null);
 	});
 
-	// Keyed to `open` alone. `onQueryChange` is read through a ref because an
-	// inline one changes identity on every keystroke, and this effect clearing
-	// the field on every keystroke is exactly what that costs. Written after
-	// commit for the reason `lib/hooks/use-row-cursor.ts` gives at length.
+	// Keyed to `open` alone; `onQueryChange` is read through a ref because an inline one
+	// changes identity per keystroke. Written after commit — see `lib/hooks/use-row-cursor.ts`.
 	const notifyQuery = useRef(onQueryChange);
 	useLayoutEffect(() => {
 		notifyQuery.current = onQueryChange;
@@ -361,11 +356,8 @@ export function MorphingSearch({
 	)}px ${resultsHeight}px 0px round 12px)`;
 	const expandedContentClip = "inset(0px 0px 0px 0px round 12px)";
 
-	// Neither grouping layer carries a box: they only hold `inert`/`aria-hidden`,
-	// the z-index and the presence key, and every child below is `fixed` and
-	// resolves against the viewport itself. The click catcher spans the viewport
-	// edges but has no children and filters nothing, so it is not a sampling
-	// layer either.
+	// Neither grouping layer carries a box (only `inert`/`aria-hidden`, z-index and the
+	// presence key); every child is `fixed` and resolves against the viewport.
 	const overlay = mounted
 		? createPortal(
 				<div

@@ -75,13 +75,9 @@ export function BloomMenu({
       {/* spacer fixes the anchor to the trigger size */}
       <div className="h-11 w-36" aria-hidden />
 
-      {/* Centering box sized to the OPEN panel and centered on the trigger.
-          place-items-center only centers an item that fits its cell, so the cell
-          must be as wide as the panel — otherwise the overflow left-anchors and
-          the panel expands rightward. The box is a fixed size per viewport (vw
-          doesn't change mid-animation), so its -translate centering never drifts
-          the way a content-sized wrapper would. Both states share its center, so
-          the morph grows from the middle outward in every direction. */}
+      {/* Centering box sized to the OPEN panel: `place-items-center` only centers
+          an item that fits its cell, and a fixed size per viewport keeps its
+          centering from drifting between the two states. */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 grid h-[300px] w-[min(86vw,420px)] -translate-x-1/2 -translate-y-1/2 place-items-center [&>*]:pointer-events-auto">
         {/* popLayout pulls the exiting trigger out of grid flow at once, so the
             grid never briefly holds two rows and shoves the panel off-center */}
@@ -119,9 +115,8 @@ export function BloomMenu({
 
                 {/* grid */}
                 <motion.div
-                  // Iris reveal: start as a small box at the grid center and open
-                  // outward to all four corners, so the menu grows from the middle
-                  // in every direction instead of wiping top-down.
+                  // Iris reveal: a small box at the grid center opening outward to
+                  // all four corners, rather than wiping top-down.
                   initial={
                     reduce ? false : { clipPath: "inset(45% 34% 45% 34%)" }
                   }
@@ -134,9 +129,8 @@ export function BloomMenu({
                   className="grid grid-cols-3"
                 >
                   {items.map((item, i) => {
-                    // Radial stagger: delay each item by its distance from the
-                    // grid center so the four corners animate together and the
-                    // open reads as center-out, not corner-by-corner.
+                    // Radial stagger: delay by distance from the grid center, so the
+                    // open reads as center-out rather than corner-by-corner.
                     const cols = 3;
                     const rows = Math.ceil(items.length / cols);
                     const col = i % cols;
@@ -153,9 +147,8 @@ export function BloomMenu({
                           onSelect?.(item.label);
                           setOpen(false);
                         }}
-                      // Static cell with hairline borders (no animated fill) so
-                      // the grid lines never flicker as items stagger in. Only the
-                      // inner content animates.
+                      // Static cell with hairline borders (no animated fill), so the
+                      // grid lines never flicker as items stagger in.
                       className={cn(
                         "flex items-center justify-center px-3 py-6 text-muted-foreground transition-colors hover:text-foreground",
                         i % 3 !== 2 && "border-r border-border",

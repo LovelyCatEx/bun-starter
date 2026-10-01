@@ -357,15 +357,9 @@ export function MorphingTabs({
       : firstEnabledItem;
   const activeId = activeItem?.id ?? null;
 
-  // The rail cannot scroll: the liquid surface is one continuous shape spanning
-  // the panel, so its notch has to stay over the tab that cut it. Slots narrow
-  // to fit the panel instead, in that order of sacrifice:
-  //   1. the design width, down to a floor where a truncated label still reads;
-  //   2. the gap between slots, so the floor survives one panel narrower;
-  //   3. the floor itself — a cramped tab is still tappable, a clipped one is
-  //      not reachable at all.
-  // Every tier fits inside the panel by construction, so no tab is ever cut off
-  // and the notch never has to be clamped away from the tab that cut it.
+  // The rail cannot scroll — the liquid surface is one shape spanning the panel,
+  // so its notch must stay over the tab that cut it. Slots narrow instead, in
+  // order: the design width down to a readable floor, then the gap, then the floor.
   const { tabWidth, slotGap } = useMemo(() => {
     const count = order.length;
     if (!surfaceWidth || count === 0) {
@@ -777,14 +771,9 @@ export function MorphingTabs({
                 onPointerMove={moveDrag}
                 onPointerUp={(event) => finishDrag(event.pointerId)}
                 onPointerCancel={(event) => finishDrag(event.pointerId)}
-                // A touch is implicitly captured by whatever it landed on —
-                // here the label inside the tab — so the moment the drag takes
-                // the capture for the tab itself, that child *loses* it, and
-                // the notification bubbles straight back up to this handler.
-                // Ending the drag on it kills the gesture on the frame it
-                // starts. Only the tab losing its own capture means the
-                // platform took the pointer away. A mouse has no implicit
-                // capture, which is why this only ever bit on a real finger.
+                // A touch is implicitly captured by the child it landed on, which
+                // therefore loses capture — and bubbles this event — when the drag
+                // takes it. Only the tab's own loss means the platform took it away.
                 onLostPointerCapture={(event) => {
                   if (event.target !== event.currentTarget) return;
                   finishDrag(event.pointerId);

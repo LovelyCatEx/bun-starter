@@ -19,11 +19,8 @@ function getAudioContextCtor(): AudioContextCtor | undefined {
 }
 
 // One shared context/buffer/gain for the whole page, ref-counted across every
-// `createTickPlayer()` caller. Components like WheelPicker commonly compose
-// several side by side (a date made of month/day/year drums) — giving each
-// its own AudioContext would waste resources and risk hitting a browser's cap
-// on concurrent contexts. The context only closes once every consumer that
-// created a player has called `dispose()`.
+// `createTickPlayer()` caller — several players sit side by side (a date's
+// month/day/year drums), and one AudioContext each risks a browser's cap.
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let clickBuffer: AudioBuffer | null = null;
@@ -81,9 +78,8 @@ function ensureContext() {
 function prepareContext() {
   ensureContext();
   if (ctx?.state === "suspended") {
-    // Browsers may reject this when it is not called from a trusted gesture.
-    // Pointer, touch, wheel and keyboard entry points call `prepare()` first;
-    // this repeat attempt keeps direct `play()` calls safe as well.
+    // Browsers may reject this outside a trusted gesture; the repeat attempt
+    // here keeps a direct `play()` call safe as well.
     void ctx.resume().catch(() => undefined);
   }
 }
@@ -95,11 +91,8 @@ interface TickPlayer {
 }
 
 /**
- * Lazily-initialized tick player. No `AudioContext` is created until the first
- * `prepare()` or `play()` call anywhere on the page. Every player shares the
- * same context/buffer, ref-counted so `dispose()` only tears it down once the
- * last consumer is gone. Safe during SSR or in browsers without Web Audio:
- * `prepare()` and `play()` become silent no-ops.
+ * Lazily-initialized tick player: no `AudioContext` is created until the first
+ * `prepare()` / `play()` anywhere on the page. Silent no-ops without Web Audio.
  */
 export function createTickPlayer(): TickPlayer {
   consumers++;
@@ -115,9 +108,8 @@ export function createTickPlayer(): TickPlayer {
       if (disposed) return;
       prepareContext();
       if (!ctx || !masterGain || !clickBuffer) return;
-      // A fast fling can cross rows more quickly than the tail of a tick.
-      // Cutting that tail keeps the feedback dry instead of stacking into a
-      // louder metallic ring.
+      // A fast fling crosses rows faster than a tick's tail; cutting it keeps
+      // the feedback dry instead of stacking into a metallic ring.
       activeSource?.stop();
       const source = ctx.createBufferSource();
       source.buffer = clickBuffer;

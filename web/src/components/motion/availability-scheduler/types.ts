@@ -18,10 +18,9 @@ export const WEEKDAYS: { key: DayKey; label: string }[] = [
 // ─── panels ──────────────────────────────────────────────────────────────────
 
 /**
- * Names one time field week-wide, because the scheduler holds a single open
- * panel for the whole week. Range ids belong to the value and are only unique
- * within a day, so the day is part of the name — and the scheduler builds the
- * same keys to ask whether the panel it is holding is still on screen.
+ * Names one time field week-wide, since only one panel is open for the whole
+ * week. Range ids are unique only within a day, so the day is part of the key;
+ * the scheduler rebuilds the same keys to check its open panel is still on screen.
  */
 export const panelKey = (day: DayKey, rangeId: string, edge: "start" | "end") =>
   `${day}:${rangeId}:${edge}`;
@@ -79,10 +78,9 @@ function withCurrentOption(
 }
 
 /**
- * Same-day ranges only. A valid pair is left alone so an off-grid persisted
- * end (17:00 with `step={720}`) is not rewritten. When the invariant fails,
- * the just-selected endpoint stays and only the opposite side moves onto a
- * neighboring generated option.
+ * Same-day ranges only. A valid pair is left alone so an off-grid persisted end
+ * is not rewritten; when the invariant fails only the opposite endpoint moves
+ * onto a neighboring generated option.
  */
 export function clampRange(
   start: string,

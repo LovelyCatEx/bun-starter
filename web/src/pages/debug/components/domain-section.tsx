@@ -12,15 +12,7 @@ import { Demo, Section } from '@/pages/debug/components/section'
 
 /**
  * The "whole product" pieces: a wallet, a swap, two prediction-market surfaces, a weekly
- * availability editor, and the five 404 stages.
- *
- * Every one of them owns its layout, so each demo sits in a height-bounded box; the taller ones
- * scroll inside it rather than stretching the page. All of them are uncontrolled here — the props
- * they accept are `value` / `onXChange` pairs plus a `defaultX`, and the demos let the built-in
- * state do the work.
- *
- * English and hard-coded on purpose — the debug page is exempt from the i18n rules and gets
- * deleted before release.
+ * availability editor, and the five 404 stages. English on purpose — see `.claude/rules/frontend.md`.
  */
 
 const WALLET_ACCOUNTS = [
@@ -50,10 +42,8 @@ const FED_VOLUME = [18, 24, 21, 30, 28, 36, 33, 41]
 
 const MATCH_VOLUME = [12, 19, 26, 22, 34, 47, 39, 52]
 
-// 状态色用 `--success` / `--warning`（本身带语义，四档暗色里各自调明度）：
-// 主胜绿、平局琥珀，第三个不传走组件默认。
-// **不要用 `--chart-1..5`** —— 它们在 `dark.css` 里是同一组灰阶、没有翻转，
-// 亮色的 `--chart-1`（L 0.87）在浅底上几乎看不见，暗色的 `--chart-5`（L 0.269）在深黑上同理。
+// 状态色走 `--success` / `--warning`（主胜绿、平局琥珀），不要用 `--chart-1..5` ——
+// 理由见 `.claude/rules/frontend.md`「颜色只能用 token」。
 const MATCH_OUTCOMES = [
   { id: 'arsenal', label: 'Arsenal', probability: 0.54, color: 'var(--success)' },
   { id: 'draw', label: 'Draw', probability: 0.24, color: 'var(--warning)' },
@@ -177,10 +167,8 @@ export function DomainSection() {
       </Demo>
 
       {/*
-        The five 404 stages share one props contract (`NotFoundProps` from `not-found/shared.tsx`)
-        and one layout: `NotFoundStage` centers its children in a `min-h-[420px]` column, which is
-        taller than these boxes. `h-full min-h-0` drops the floor and fills the bounded box instead,
-        so the stage centers its own content rather than hanging 60px past the bottom edge.
+        `h-full min-h-0` drops `NotFoundStage`'s `min-h-[420px]` floor so the stage fills the
+        bounded box instead of hanging past the bottom edge.
       */}
       <Demo label="not-found-glitch" height={360}>
         <NotFoundGlitch className="h-full min-h-0" />

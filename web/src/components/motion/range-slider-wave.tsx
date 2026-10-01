@@ -22,9 +22,8 @@ export interface WaveSliderProps extends SliderOptions {
 }
 
 /**
- * Equalizer slider: bars rise into a crest around the handle position and fall
- * back as it passes, so the value reads as a travelling wave. Bars up to the
- * value are filled, the rest stay muted.
+ * Equalizer slider: bars rise into a crest around the handle and fall back as it
+ * passes; bars up to the value are filled, the rest stay muted.
  */
 export function WaveSlider({ bars = BARS, className, ...options }: WaveSliderProps) {
   const reduce = useReducedMotion();

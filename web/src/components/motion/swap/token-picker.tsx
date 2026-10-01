@@ -78,6 +78,8 @@ export function TokenPicker({
           <motion.button
             key="backdrop"
             type="button"
+            // frosted blur hook
+            data-slot="swap-scrim"
             aria-label="Close"
             onClick={onClose}
             initial={{ opacity: 0 }}
@@ -89,6 +91,8 @@ export function TokenPicker({
 
           <motion.div
             key="sheet"
+            // frosted blur hook
+            data-slot="swap-token-picker"
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: "100%" }}
             animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: "100%" }}

@@ -129,10 +129,8 @@ export function CommandPalette({
     return Array.from(map.entries());
   }, [filtered]);
 
-  // Grouping reorders the list, so the rendered order is not the filtered
-  // order whenever two groups interleave. Everything that has to agree on
-  // "which row" — the highlight, the ids, Enter, the scroll — reads this one
-  // array, so they cannot drift apart.
+  // Grouping reorders the list, so the rendered order differs from the filtered order
+  // whenever groups interleave; everything addressing a row reads this one array.
   const rows = useMemo(() => grouped.flatMap(([, list]) => list), [grouped]);
 
   const { activeIndex: active, moveTo, moveActive } = useRowCursor(rows, query);
@@ -177,13 +175,9 @@ export function CommandPalette({
 
   if (!mounted) return null;
 
-  // Portaled to <body> so ancestors with transforms, filters, or fixed
-  // positioning can't trap the overlay in their stacking context, and mounted
-  // only while open. The chrome is two fixed siblings rather than one wrapper:
-  // the backdrop spans the viewport edges but carries the scrim colour, and the
-  // layer positioning the panel is inset off every edge. Both hang off
-  // `PresenceGate`, so interaction releases in the same commit that starts the
-  // exit rather than when it ends — `open` is already false for those frames.
+  // Portaled to <body> so an ancestor's transform / filter can't trap the overlay, and
+  // mounted only while open. Backdrop and panel layer are two fixed siblings off `PresenceGate`,
+  // so interaction releases in the commit that starts the exit — `open` is already false there.
   return createPortal(
     <AnimatePresence initial={false}>
       {open ? (
@@ -254,11 +248,8 @@ export function CommandPalette({
                     aria-autocomplete="list"
                     className={cn(
                       "h-12 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none",
-                      // The palette focuses this field the moment it opens, and iOS
-                      // zooms the page in on a focused field under 16px: the fixed
-                      // overlay is magnified off-center — clipped leading edge, half
-                      // an icon column — and the zoom outlives the palette. 16px on
-                      // touch keeps the page at scale 1; pointer devices keep 14px.
+                      // iOS zooms on a focused field under 16px, magnifying this fixed overlay
+                      // off-center and outliving the palette: 16px keeps scale 1, pointer keeps 14px.
                       canTouch && "text-base",
                     )}
                   />

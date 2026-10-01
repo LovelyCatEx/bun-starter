@@ -30,10 +30,8 @@ export interface ThemeToggleProps
 
 const VT_STYLE_ID = "beui-theme-toggle-vt";
 
-// View transitions animate in CSS, not motion springs, so easing here is
-// either EASE_OUT_CSS or a keyword. The circle variants keep the Material
-// standard curve because their reveal expands symmetrically rather than
-// decelerating. Durations differ per variant to match native OS mode switches.
+// View transitions animate in CSS, so the easing here is EASE_OUT_CSS or a keyword;
+// the circle variants keep the Material curve as their reveal expands symmetrically.
 const VT_CSS = `
 html[data-beui-vt="rect"]::view-transition-old(root) {
   animation: none;
@@ -60,16 +58,10 @@ html[data-beui-vt="blinds"]::view-transition-old(root) {
   animation: none;
   mix-blend-mode: normal;
 }
-/* Slats: a masked band widens inside every 72px tile, so the new theme opens
-   across the page like a shutter. The band edge has to be a registered custom
-   property — mask-image itself is not animatable, but it re-resolves every
-   frame the property ticks. mask-size fixes the tile at 72px rather than
-   letting a repeating gradient's last stop define it, which is what keeps the
-   20px soft edge from dragging the tile wider than the slat and leaving a
-   feathered gap that never closes; it also means both ends land clean, fully
-   transparent at -20px and fully opaque at 72px. Falling back to no mask
-   (unregistered property, so the var is invalid) reveals the page in one
-   step. */
+/* Slats: a masked band widens inside each 72px tile. The edge must be a
+   registered custom property, since mask-image is not animatable but
+   re-resolves every frame the property ticks; mask-size pins the tile at 72px
+   so the 20px soft edge cannot drag it wider and leave a feathered gap. */
 @property --beui-vt-slat {
   syntax: "<length>";
   inherits: false;

@@ -1,31 +1,12 @@
 /*
- * 高斯模糊。开关是 <html data-frosted="true">，半径走 --frosted-blur。
- *
- * 命中靠组件上的 data-slot：beUI 没给这些组件任何可识别的属性，光靠类名也认不出来
- * （bg-primary 出现在 19 个文件里，只有 9 个是按钮）。
- *
- * 打标记只有一条原则：**谁画了底色，就打在谁身上**。没画底色的（Input 的字段框、Radio、
- * OTP 格、Combobox / MultiSelect 的透明外壳、RulerSlider / WaveSlider、TodoList）照样打 ——
- * 它们没有东西可淡，所以由本文件现给它们补一层表面（见下面第三条规则）。
- * `AgentCode` 的 pre 是另一种：它该**全透明**（调用方传了底色也顶掉），让 blur 去糊背后那层 ——
- * 有东西给 blur 显影就不需要自己再画一层。「代码 / 输出」这一类都按这条走（见下面那条规则）。
- * 唯一没打的是 SignUpForm 的 <form>：它是布局容器、不是控件。
- *
- * **带 alpha 的表面看档位淡不淡**：`/80` 那三处面板基本等于实心，照样进 token 组；
- * `/75` 以下的本来就够透（`/20` 再淡一层就真看不见了），只进 blur 那条。
- *
- * **硬编码的底色**（`morphing-tabs` 的 `#292929` / `#fafaf8`）没有 token 可覆盖，只能直接写
- * `background-color` —— 前提是那个表面自己没有 `:hover` 底色。见文件末尾。
- *
- * 边界的唯一一次外扩：**调试页的演示框也算表面**（`data-slot="demo-panel"`，就是
- * `agent-tools-section.tsx` 里那 5 块 `bg-muted/40`）。组件自己不画底色的（AgentCode 的 pre）
- * 总得有东西给 blur 显影，那层东西就是演示框本身。代价是演示框成了 backdrop root，
- * 框里的标记只能采样框内的画面 —— 嵌套模糊不叠加，见 frontend.md「物理铁律」。
+ * 毛玻璃。两个开关各管一半：`data-background` 管"透"（降底色），`data-frosted` 管"糊"
+ * （`backdrop-filter`）。降底色写 `:is(frosted, background)`；模糊与"为让模糊生效而必须
+ * 拆掉的东西"只写 `html[data-frosted='true']`。清单与物理约束见 `frontend.md`「毛玻璃」。
  */
 
-/* 影子变量：`--background: color-mix(… var(--background) …)` 是同元素自引用，会让声明失效。
-   定义在 html 上是为了自动跟 light / 四档暗色 / 主题色走，不用按模式抄四份。 */
-html[data-frosted='true'] {
+/* 影子变量：`--x: color-mix(… var(--x) …)` 是同元素自引用，会让整条声明失效。
+   定义在 html 上以自动跟随 light / 四档暗色 / 主题色。 */
+:is(html[data-frosted='true'], html[data-background='true']) {
     --background-solid: var(--background);
     --primary-solid: var(--primary);
     --card-solid: var(--card);
@@ -35,26 +16,19 @@ html[data-frosted='true'] {
     --border-solid: var(--border);
 }
 
-/*
- * ⚠️ 只覆盖 token，不要改成直接写 `background-color`：本文件无层级，会连 `:hover` 一起压死。
- * 覆盖 token 则 hover / 暗色 / 主题色全自动跟着走。详细理由见 frontend.md「高斯模糊」。
- *
- * 62% 是中性表面的手感值；`--*-foreground` 一个都不碰，所以按钮上的文字仍然不透明。
- *
- * **主题色单独一档、而且只淡一点（88%）**：62% 那点透明度在浅色页面上没问题，
- * 一到暗色页面，粉 / 蓝这类有彩度的底色被近黑的页面"染"成灰的 —— 看着像掺了黑染料。
- * 实测（`color-mix(in oklab, …) 62%, transparent` 与显式 `alpha 62%` 渲染结果逐像素相同，
- * `in srgb` 也一样）说明不是 `color-mix` 混进了黑，就是 62% 太淡。所以中性表面照旧 62%，
- * 主题色收在 88%：还透一点，但颜色基本还是主题色本身。
- */
-html[data-frosted='true'] [data-slot='button'] {
-    backdrop-filter: blur(var(--frosted-blur, 12px));
+/* 只覆盖 token，不直接写 `background-color`：本文件无层级，后者会连 `:hover` 一起压死。
+   中性表面 62%，主题色 88%（62% 在暗色页面上会被染灰）。 */
+:is(html[data-frosted='true'], html[data-background='true']) [data-slot='button'] {
     --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
     --card: color-mix(in oklab, var(--card-solid) 62%, transparent);
     --muted: color-mix(in oklab, var(--muted-solid) 62%, transparent);
 }
 
-/* 模糊本身：所有打了标记的表面（按钮在上面那条里，它自己的 token 集合不一样）。 */
+html[data-frosted='true'] [data-slot='button'] {
+    backdrop-filter: blur(var(--frosted-blur, 12px));
+}
+
+/* 所有标记过的表面的模糊（按钮在上一条，它的 token 集合不同）。 */
 html[data-frosted='true'] :is(
     [data-slot='input'],
     [data-slot='checkbox'],
@@ -94,7 +68,6 @@ html[data-frosted='true'] :is(
     [data-slot='citations-count'],
     [data-slot='image-generation'],
     [data-slot='image-generation-resolution'],
-    /* 导航一批：见文件末尾「导航 / 布局」那段 */
     [data-slot='morphing-tabs'],
     [data-slot='morphing-tabs-panel'],
     [data-slot='expandable-tabs'],
@@ -104,27 +77,36 @@ html[data-frosted='true'] :is(
     [data-slot='swipeable-list'],
     [data-slot='swipeable-list-item'],
     [data-slot='bouncy-accordion-item'],
-    /* 悬停弹出来的两个：提示气泡，以及 MorphPopover 的面板（面包屑的省略号 / ai-sidebar / copy-menu 共用） */
     [data-slot='tooltip-surface'],
     [data-slot='morph-popover-content'],
-    /* 数据 / 表格：见文件末尾「数据 / 表格」那段 */
     [data-slot='table'],
     [data-slot='table-menu'],
     [data-slot='table-menu-trigger'],
     [data-slot='editable-cell'],
-    /* 唯一一个不在 `components/` 里的 slot：调试页的演示框，只加模糊不淡底色（`/40` 本来就够透） */
+    [data-slot='swap'],
+    [data-slot='swap-token-button'],
+    [data-slot='swap-token-picker'],
+    [data-slot='swap-scrim'],
+    [data-slot='wallet-account-panel'],
+    [data-slot='wallet-account-trigger'],
+    [data-slot='wallet-account-item'],
+    [data-slot='wallet-search-panel'],
+    [data-slot='wallet-search-trigger'],
+    [data-slot='wallet-search-option'],
+    [data-slot='wallet-action'],
+    [data-slot='prediction-market'],
+    [data-slot='prediction-market-amount'],
+    [data-slot='prediction-market-card'],
+    [data-slot='prediction-market-card-panel'],
+    [data-slot='prediction-market-card-bookmark'],
+    [data-slot='tabs-list'],
     [data-slot='demo-panel']
 ) {
     backdrop-filter: blur(var(--frosted-blur, 12px));
 }
 
-/*
- * 表面是 --background。只有这几个可以碰它 —— 它们的子树里没有把 --background 当文字色用的地方。
- *
- * 分两半：前半是**自己就画 `bg-background`** 的（面板、外框、勾选框的未选中态、
- * 通知堆叠里的卡片）；后半是**自己一点底色都没有**的，靠下面那条规则现补一层。
- */
-html[data-frosted='true'] :is(
+/* 表面是 --background。子树里没有把 --background 当文字色用的地方，所以可以碰它。 */
+:is(html[data-frosted='true'], html[data-background='true']) :is(
     [data-slot='checkbox'],
     [data-slot='select-trigger'],
     [data-slot='select-content'],
@@ -139,47 +121,24 @@ html[data-frosted='true'] :is(
     [data-slot='multi-select-trigger'],
     [data-slot='ruler-slider'],
     [data-slot='wave-slider'],
-    /* 通知堆叠里那几张卡片（自己画 bg-background）。子树里没有拿 --background 当文字色的地方 */
     [data-slot='notification-stack-card'],
-    /* 悬停弹层：提示气泡、MorphPopover 的面板。两者都是 createPortal 出去的，
-       祖先里没有 isolate，所以模糊和淡出都直接生效。内容里也没有 `bg-foreground text-background` */
     [data-slot='tooltip-surface'],
     [data-slot='morph-popover-content'],
-    /* 表格外框，以及行 / 列菜单的面板（同样 createPortal，祖先里只有一个 `transform`
-       定位壳 —— transform 不是 backdrop root 触发器）。两处子树里都没有 `bg-foreground text-background` */
     [data-slot='table'],
-    [data-slot='table-menu']
+    [data-slot='table-menu'],
+    [data-slot='wallet-account-panel'],
+    [data-slot='wallet-search-panel'],
+    [data-slot='prediction-market'],
+    [data-slot='prediction-market-card-panel']
 ) {
     --background: color-mix(in oklab, var(--background-solid) 62%, transparent);
 }
 
-/*
- * 给「没有任何底色」的那些补一层表面：它们原本只有边框 / 圈 / 格子，开模糊时**没有东西可淡** ——
- * `--background` 被淡成 62% 也无处施加，看上去跟没开一样。
- *
- * 分两档，差别只在**谁能压过谁**：
- *
- * 1. 兜底档（这条）：写进 `@layer utilities`、整条选择器套 `:where()`（权重 0），
- *    于是**只要元素上带了 `bg-*`，utility 就赢，这一条不生效**。补底色是兜底，
- *    不该盖掉别人明确的底色 —— 踩过两次：approval-card 给 Input 传 `bg-background/70`、
- *    ToolApprovalCode 给 AgentCode 传 `bg-muted/30`。
- * 2. 强压档（下一条）：无层级，压过一切 utility。只有自己写了 `bg-transparent` 的那两个
- *    （Combobox / MultiSelect 的触发外壳 —— 一个"空"utility，不是底色）需要它，
- *    否则兜底永远不生效。
- *
- * ⚠️ 这是本文件里少数几处直接写 `background-color` 的地方。**别把这个做法推广到有底色的 slot 上** ——
- * 那边一律走上面的 token 覆盖（那样 hover / 暗色 / 主题色才会跟着走）。
- * `AgentCode` 的 pre 也不在里面：它背后总有东西（父面板 / 演示框）给 blur 显影，
- * 自己保持透明反而对 —— 加了这层就等于把它变成一块实心板。
- *
- * 补哪一层要跟**同节邻居的表面**对齐，不能一律 `--background`：
- * `--background` 在暗色下是 `oklch(0.145)`（近黑），补出来的是一块黑板；
- * agent-tools 那几个面板用的都是 `--muted`（暗色 `oklch(0.269)`），
- * 所以 `todo-list` 补 `--muted`、并且进上面那条 `--muted` 淡出组，
- * 才跟 approval-card / tool-result / file-diff 看着是一家人。
- */
+/* 给完全没有底色的表面补一层，否则被淡的 token 无处施加。写进 `@layer utilities` 并套
+   `:where()`（权重 0），使元素上任何 `bg-*` 都能盖过它 —— 补底色只是兜底。
+   补哪一层要跟同节邻居对齐：这里补 `--background`，`todo-list` 补 `--muted`。 */
 @layer utilities {
-    :where(html[data-frosted='true'])
+    :where(:is(html[data-frosted='true'], html[data-background='true']))
         :where(
             [data-slot='input'],
             [data-slot='radio'],
@@ -190,32 +149,20 @@ html[data-frosted='true'] :is(
         background-color: var(--background);
     }
 
-    :where(html[data-frosted='true']) :where([data-slot='todo-list']) {
+    :where(:is(html[data-frosted='true'], html[data-background='true']))
+        :where([data-slot='todo-list']) {
         background-color: var(--muted);
     }
 }
 
-html[data-frosted='true']
+/* 这两个触发外壳自己写了 `bg-transparent`（空 utility，不是底色），兜底档压不过它。 */
+:is(html[data-frosted='true'], html[data-background='true'])
     :is([data-slot='combobox-trigger'], [data-slot='multi-select-trigger']) {
     background-color: var(--background);
 }
 
-/*
- * **「代码 / 输出」这一类表面一律全透明**：开模糊时它们自己不该再画一层底色，
- * 显影交给背后的东西（参数面板、页面背景图、演示框）。留一层底色的症状就是
- * 暗色模式下"黑色一层"压在代码上 —— 用户报了两轮。
- *
- * - `agent-code`：`AgentCode` 自己没底色，但调用方会传 —— `ToolApprovalCode` 传的就是
- *   `bg-muted/30`，盖上就等于把 pre 变成一块实心板，blur 被它自己挡掉
- * - `tool-result-output`：`bg-muted/80`，本来是"淡一档"那一组的，实测在暗色 + 亮背景图下
- *   还是一块黑板，挪到这里
- * - `demo-panel`：调试页给这些组件垫的那层 `bg-muted/40`，同样是黑板（只保留它的模糊）
- *
- * 无层级 → 压得过一切 utility，不用 `!important`（这里没有内联样式要斗）。
- * 面板 / 卡片类（approval-card、image-generation、code-block、file-diff-content…）**不在这里**：
- * 它们照旧走上面那条"淡一档"，那是有边界、有内容层的容器，需要一点底色才看得出是个面板。
- */
-html[data-frosted='true']
+/* 「代码 / 输出」类一律全透明：它们背后总有东西给模糊显影，自己留底色反而变成不透明板。 */
+:is(html[data-frosted='true'], html[data-background='true'])
     :is(
         [data-slot='agent-code'],
         [data-slot='tool-result-output'],
@@ -224,29 +171,15 @@ html[data-frosted='true']
     background-color: transparent;
 }
 
-/*
- * 底色撤掉之后得给块补回**边框**，否则"框"就没了 —— 用户报的正是这句
- * （「tool-result 展开之后是有边框的啊」）。原来那圈边界是 `bg-muted/80` 这块实心板的边缘，
- * 撤了底色就看不出这是块代码区了。
- *
- * 只补在**块**上（输出的内容块）：`agent-code` 是 `pre` 本身、`ToolApprovalCode` 已经自带
- * `border-border/50`、调试页那 5 块演示框在 JSX 里就写了 `border-border/60` —— 那些都不用补。
- * 60% 跟演示框的写法对齐，深浅一致。
- */
-html[data-frosted='true'] [data-slot='tool-result-output'] {
+/* 撤掉底色后补回边框，否则块状边界消失（原来那圈边界就是 `bg-muted/80` 的边缘）。 */
+:is(html[data-frosted='true'], html[data-background='true'])
+    [data-slot='tool-result-output'] {
     border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
 }
 
-/*
- * 表面是 --muted：选中 / 悬停的高亮块、chip、五条轨道、几个 bg-muted 面板，
- * 外加 `bg-muted/80` 那两处（80% 基本等于实心，淡完约 50%）。
- * （第三处 `tool-result-output` 已经挪到下面「代码 / 输出一律全透明」那条去了。）
- *
- * ⚠️ 这一组只碰 --muted，别再往里加 --background 或 --foreground：滑块的填充和把手是
- * `bg-foreground`，气泡和 FluidSlider 的填充标签是 `bg-foreground text-background` ——
- * 那两处靠 --foreground 当底色、--background 当文字色，覆盖了会让填充上的字变半透明。
- */
-html[data-frosted='true'] :is(
+/* 表面是 --muted。这一组只碰 --muted：滑块的填充与气泡是 `bg-foreground text-background`，
+   在那里 `--foreground` 是底色、`--background` 是文字色，覆盖会让字变半透明。 */
+:is(html[data-frosted='true'], html[data-background='true']) :is(
     [data-slot='select-item'],
     [data-slot='select-morph-item'],
     [data-slot='combobox-item'],
@@ -258,55 +191,32 @@ html[data-frosted='true'] :is(
     [data-slot='image-generation'],
     [data-slot='code-block'],
     [data-slot='file-diff-content'],
-    /* 通知堆叠的底衬（卡片下面那层 rounded-3xl），同 approval-card 那一类面板 */
     [data-slot='notification-stack'],
-    /* 自己没底色，靠上面的兜底档补这一层（补的就是 --muted，所以必须在这组里） */
     [data-slot='todo-list'],
-    /* swipeable-list 的外壳（`bg-muted`）：滑开后露出的操作按钮区就在它上面 */
     [data-slot='swipeable-list'],
-    /* 可编辑格的输入框：未聚焦时 `bg-transparent`（对的，底色归所在的 td），
-       只有 `focus:bg-muted` 那一档是实心 —— 它自己不用补底色，淡 `--muted` 就够了 */
-    [data-slot='editable-cell']
+    [data-slot='editable-cell'],
+    [data-slot='wallet-action'],
+    [data-slot='wallet-account-item'],
+    [data-slot='wallet-search-trigger'],
+    [data-slot='wallet-search-option'],
+    [data-slot='prediction-market-card-bookmark']
 ) {
     --muted: color-mix(in oklab, var(--muted-solid) 62%, transparent);
 }
 
-/*
- * 折叠容器的展开态会把 clip-path 写进内联 `style`，而 `clip-path` 和 `mask` 一样是 backdrop root ——
- * 里面所有打了标记的表面（ToolResult 的输出块、FileDiff 的内容、ToolApproval 的参数面板、
- * ToolApprovalCode 的 pre）全都糊不了。这里顶掉它。
- *
- * 必须 `!important`：那个值由 framer-motion 写在 `style=""` 上，内联样式只有 `!important` 能压。
- * 代价是开模糊时这个折叠失去"从上方擦出"的动画，还剩高度 + 透明度两条 —— 内容照样被
- * `height: 0` + `overflow-hidden` 裁掉，所以关着的时候不会漏出来。
- * `clip-path: none` 之后这个元素不再是 backdrop root，后代的模糊就采样得到外面了。
- */
+/* 折叠容器把 clip-path 写在内联 `style` 上，而它与 mask 一样是 backdrop root，会让内部
+   所有表面的模糊失效。只有 `!important` 压得过内联值；代价是失去"从上方擦出"的动画。 */
 html[data-frosted='true'] [data-slot='agent-disclosure'] {
     clip-path: none !important;
 }
 
-/* 开态的开关轨道是 --primary。未选中态走 bg-muted-foreground/60，本来就只有 60%。
-   88% 同按钮那条：主题色别被暗色页面染灰。 */
-html[data-frosted='true'] [data-slot='switch'] {
+:is(html[data-frosted='true'], html[data-background='true']) [data-slot='switch'] {
     --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
 }
 
-/*
- * 禁用态（`disabled:opacity-50` 这一类）**不能用整元素 opacity 表达**：元素自己带
- * `backdrop-filter` 时再叠一层 `opacity: .5`，等于把"糊好的那层"和背后**没糊**的页面
- * 50/50 混在一起 —— 实测（棋盘格：`blur` + `opacity .5` 和"只有半透明底色、完全没 blur"
- * 两格渲染几乎一致），肉眼就是"这个控件没糊"。用户报的就是禁用态的 Select。
- *
- * 改法：模糊态下把 opacity 收回 1，改用 token 各自压淡 —— 每个 token 取**它自己启用态那一档
- * 的一半**（62% → 30%，主题色的 88% → 44%），前景 / 边框 / 次级文字压到 50%。
- * 观感同样是"变灰变淡"，但 blur 是全强度。主题色不能跟着中性表面写 30%：
- * 那样比原来的 `opacity: .5` 还淡，禁用按钮会淡过头。
- *
- * ⚠️ 只认 `:disabled`（原生表单元素）。用**条件类名**表达禁用的（`options.disabled &&
- * "opacity-50"`：几条 RangeSlider、OTP、adaptive-stepper…）这条盖不到 —— 它们是 div，
- * CSS 无从判断。真遇到就单独处理（给那个组件加 `data-disabled` 之类），别去按类名猜。
- */
-html[data-frosted='true'] [data-slot]:disabled {
+/* 禁用态不能靠整元素 `opacity`：它与 `backdrop-filter` 叠加会把糊好的层与未糊的页面混合，
+   视觉上等于没有模糊。改用 token 压淡，每档取启用态的一半。只认原生 `:disabled`。 */
+:is(html[data-frosted='true'], html[data-background='true']) [data-slot]:disabled {
     opacity: 1;
     --background: color-mix(in oklab, var(--background-solid) 30%, transparent);
     --primary: color-mix(in oklab, var(--primary-solid) 44%, transparent);
@@ -317,10 +227,8 @@ html[data-frosted='true'] [data-slot]:disabled {
     --muted-foreground: color-mix(in oklab, var(--muted-foreground-solid) 50%, transparent);
 }
 
-/* 表面是 --card：滚轮选择器、右键菜单的面板、提示卡（`bg-card/95`）、
-   以及导航一批的卡片（expandable-tabs 外壳、dock 的 `bg-card/80`、swipeable-list 的行、
-   bouncy-accordion 的一行）。 */
-html[data-frosted='true']
+/* 表面是 --card。 */
+:is(html[data-frosted='true'], html[data-background='true'])
     :is(
         [data-slot='wheel-picker'],
         [data-slot='context-menu-content'],
@@ -328,51 +236,32 @@ html[data-frosted='true']
         [data-slot='expandable-tabs'],
         [data-slot='dock'],
         [data-slot='swipeable-list-item'],
-        [data-slot='bouncy-accordion-item']
+        [data-slot='bouncy-accordion-item'],
+        [data-slot='swap'],
+        [data-slot='swap-token-button'],
+        [data-slot='swap-token-picker'],
+        [data-slot='prediction-market-amount'],
+        [data-slot='prediction-market-card'],
+        [data-slot='tabs-list']
     ) {
     --card: color-mix(in oklab, var(--card-solid) 62%, transparent);
 }
 
-/*
- * 提示条（`animated-toast-stack`）**不能只淡底色** —— 卡片外面的 `<li>` 上有 framer-motion
- * 写的 `filter: blur(0px)`（入场是"糊着浮现"，收尾值不是 `none`，照样是 backdrop root），
- * 卡片的 `backdrop-blur-xl` 因此采不到页面。实测四格（30px 棋盘格）：只淡 `--card` 那格
- * 大格子看得见（blur 是死的），现状不打标记那格几乎不透明（`bg-card/95` 把玻璃盖住了）。
- *
- * 所以模糊**挂到 li 自己身上**，而不是把它的 `filter` 顶掉：元素自己的 `filter` 不挡自己的
- * `backdrop-filter`，于是入场的"糊着浮现"动画保住了（顶掉的话就没了，同 `agent-disclosure`
- * 那种代价）。卡片照样是那个半透明的"显影层"。半径仍由 `--frosted-blur` 控制。
- *
- * 顺带一句：li 上还有 `will-change: transform`，实测**不是**触发器（只杀 `filter` 那格就糊了）。
- */
+/* 提示条的模糊挂在 `<li>` 上而非卡片：li 上有 framer-motion 写的 `filter: blur(0px)`，
+   是 backdrop root，卡片自己挂模糊只会采到 li 内部。元素自身的 `filter` 不挡自身的
+   `backdrop-filter`，所以这样做同时保住了入场的模糊动画。 */
 html[data-frosted='true'] [data-slot='toast-stack-item'] {
     backdrop-filter: blur(var(--frosted-blur, 12px));
 }
 
-/* 卡片自己那条上游的 `backdrop-blur-xl` 收掉：它现在采的是 li 内部（li 已经糊过一遍的画面），
-   叠上去等于两遍模糊、半径也不受 --frosted-blur 控制（滑块拉到 0 它还会糊）。只留 li 那一层。 */
+/* 卡片上游自带的 `backdrop-blur-xl` 采的是 li 内部（已糊过一遍），叠上等于两遍模糊，
+   且半径不受 `--frosted-blur` 控制。 */
 html[data-frosted='true'] [data-slot='toast'] {
     backdrop-filter: none;
 }
 
-/*
- * 弹层：**先拆掉挡在前面的 backdrop root，模糊才轮得到面板自己**。
- *
- * 右键菜单的面板在 `createPortal` 里，外面套了一层定位用的 wrapper，那层挂着
- * `[filter:drop-shadow(0_18px_28px_rgba(0,0,0,0.2))]` —— `filter` 是 backdrop root 的触发器，
- * 于是面板的 `backdrop-filter` 只能采样这个 wrapper **内部**的画面，而 wrapper 里除了面板本身
- * 什么都没有 → 糊了个空气。实测（30px 棋盘格四格对照）：带 `filter` 的两格大格子清清楚楚，
- * 去掉 `filter` 的两格被抹成均匀灰。
- *
- * 影子不能丢，改挂到面板自己身上：`box-shadow` 与 `drop-shadow` 在圆角矩形上视觉等价。
- * 无层级 → 压得过 `[filter:…]` 那个 utility，不用 `!important`。
- *
- * ⚠️ 面板自己身上那个由 framer-motion 写的 `clip-path`（`inset(0 0 0 0 round 12px)`）**不用管**：
- * clip-path 只挡**后代**的 backdrop 采样，面板自己就是带 `backdrop-filter` 的那层，采得到外面
- * （实测过）。所以这里的 morph 动画照旧，不像 `agent-disclosure` 那条要牺牲动画。
- *
- * ⚠️ `popover-morph.tsx:336` 有一模一样的 `[filter:drop-shadow(0_10px_18px_…)]`，等做到那一节再处理。
- */
+/* 弹层的定位 wrapper 带 `filter: drop-shadow(…)`，是 backdrop root，会让面板的模糊只能
+   采样 wrapper 内部。顶掉它，阴影改挂面板自身（圆角矩形上两者视觉等价）。 */
 html[data-frosted='true'] [data-context-menu-portal] {
     filter: none;
 }
@@ -381,46 +270,19 @@ html[data-frosted='true'] [data-slot='context-menu-content'] {
     box-shadow: 0 18px 28px rgb(0 0 0 / 0.2);
 }
 
-/*
- * 导航 / 布局这一批。三个坑，各说各的。
- *
- * 一、**硬编码的底色没有 token 可覆盖，只能直接写 `background-color`**（上面规则说"别这么做"
- *    的第四类例外，前三类见「代码 / 输出」与「兜底补一层」）。`morphing-tabs` 的外壳是
- *    `bg-[#292929]`、面板是 `bg-[#fafaf8]` —— 不淡一层的话 blur 被它们自己挡得严严实实
- *    （只加 blur、不淡底色 = 跟没开一样）。
- *    安全的前提是**这两个表面自己没有 `:hover` 底色**：交互反馈在子元素上（未选中的 tab 是
- *    `group-hover:bg-white/[0.06]`），所以这里压 `background-color` 不会连 hover 一起压死。
- *    62% 与 token 组同档。
- */
-html[data-frosted='true'] [data-slot='morphing-tabs'] {
+/* 硬编码底色没有 token 可覆盖，只能直接写 `background-color`。安全的前提是这两个表面
+   自身没有 `:hover` 底色（交互反馈在子元素上）。 */
+:is(html[data-frosted='true'], html[data-background='true']) [data-slot='morphing-tabs'] {
     background-color: color-mix(in oklab, #292929 62%, transparent);
 }
 
-html[data-frosted='true'] [data-slot='morphing-tabs-panel'] {
+:is(html[data-frosted='true'], html[data-background='true'])
+    [data-slot='morphing-tabs-panel'] {
     background-color: color-mix(in oklab, #fafaf8 62%, transparent);
 }
 
-/*
- * 二、**外壳自己带 `backdrop-filter`，后代其实采不到页面**：`morphing-tabs` 的面板、
- *    `swipeable-list` 的行都在这种外壳里面。这两个外壳还原本写着 `isolate`，试过把它换成
- *    `z-index: 0`（调试页 `Demo` 的定高块就是这么写的）来放开后代 —— 实测**看不出差别**：
- *    外壳那层已经把页面糊好、铺在自己底下了，后代就算不再是"只能采外壳内部"，采到的还是同一张
- *    "糊过的画面"（棋盘格 30px / 半径 24px：面板与行在换与不换两种写法下极差都是 0~1、
- *    均值也一致）。收益测不出来就不动生成物 —— 少一个改动。
- *
- *    所以这里的做法是：**只让外壳糊**，后代的底色照样淡（它们在模糊上"搭便车"）。
- *    真要后代自己糊页面（比如以后想让它们用更大的半径），把外壳的 `isolate` 换成 `z-index: 0`
- *    才是正解 —— 两者都造 stacking context，但只有 `isolation: isolate` 在 backdrop root 的
- *    触发列表里（`section.tsx` 那段注释讲的就是这件事）。
- */
-
-/*
- * 三、**MorphPopover 的面板跟右键菜单是同一个毛病**：`createPortal` 出去的 wrapper 挂着
- *    `[filter:drop-shadow(0_10px_18px_rgba(0,0,0,0.14))]`，`filter` 是 backdrop root 触发器，
- *    面板的 `backdrop-filter` 只能采样 wrapper 内部 → 糊了个空气。处理方式与右键菜单逐字相同：
- *    顶掉 wrapper 的 `filter`（无层级压得过 utility，不用 `!important`），影子改挂 `box-shadow`。
- *    面板自己身上由 framer-motion 写的 `clip-path` 不用管 —— 它只挡后代，不挡自己。
- */
+/* 同右键菜单：wrapper 的 `filter: drop-shadow` 挡住面板自己的模糊采样。
+   面板自身由 framer-motion 写的 `clip-path` 只挡后代，不影响它自己的模糊。 */
 html[data-frosted='true'] [data-morph-popover-portal] {
     filter: none;
 }
@@ -429,55 +291,28 @@ html[data-frosted='true'] [data-slot='morph-popover-content'] {
     box-shadow: 0 10px 18px rgb(0 0 0 / 0.14);
 }
 
-/*
- * 这一批里**故意没打标记**的：
- * - `expandable-tabs` 选中态的胶囊（`bg-foreground/10`）、`dock` 选中态的胶囊
- *   （`bg-muted/60`）、`swipeable-list` 滑开后露出的那几个操作按钮：都 ≤75%，本来就够透；
- *   而且它们都在带 `backdrop-filter` 的父元素内部（父元素自己就是 backdrop root），
- *   后代再挂 blur 也采不到页面 —— 透、但不额外糊
- * - `breadcrumb-page`（当前页）：自己没有底色，只有个不起作用的 `isolate`
- * - `bouncy-accordion` 的 `item.disabled && "opacity-50"`、`swipeable-list` 的
- *   `item.disabled && "opacity-60"`：**条件类名**表达的禁用态，CSS 认不出来，
- *   同上一条 `:disabled` 规则的脚注
- * - `DockItem` 与 `bouncy-accordion` 的触发器都是裸 `<button>`，没有 `data-slot='button'`，
- *   所以不会吃到按钮那条规则（这是对的：它们本身不画底色）
- */
-
-/*
- * 数据 / 表格。两处是"本来就有的毛病"、两处是这一节特有的，都写在这里。
- *
- * 一、外框（`bg-background`）与菜单面板（`bg-background`）走上面的 `--background` 组 + 模糊那条，
- *    这里不用再写。菜单外面那层定位壳只有 `transform`，不是 backdrop root ——
- *    不像右键菜单 / MorphPopover 那样要拆 `filter`。
- *
- * 二、**表头始终保持实心**（三个 `<th>` 的 `bg-muted` 一个字不碰，也没打标记）：sticky 表头要的就是
- *    "行滚到它下面就被盖住"，半透明会把滚上去的行透出来（哪怕糊过），看着花。这一条是用户看过之后定的。
- *
- * 三、外框自己带 `backdrop-filter`（= 它自己是一层 backdrop root），所以里层（`editable-cell` 的
- *    `focus:bg-muted`）采不到页面 —— 同上面「导航 / 布局」那段的第二条。它只负责把底色淡掉，
- *    糊由外框那层负责。
- */
-
-/*
- * 行 / 列菜单那颗 ⋯ 胶囊（`bg-primary text-primary-foreground`，`table-header.tsx` 的列把手
- * 与 `row-handle.tsx` 的行把手共用这一个按钮）是裸 `<button>`，吃不到 `data-slot='button'`
- * 那条规则 —— 但它是**仅有的几个自己画实心主题色底色的裸按钮**（同 `DockItem` 那种不画底色的
- * 不是一回事），所以补一条。88% 同按钮那条：主题色别被暗色页面染灰。
- */
-html[data-frosted='true'] [data-slot='table-menu-trigger'] {
+/* 行 / 列菜单那颗 ⋯ 胶囊是裸 `<button>`，吃不到 `[data-slot='button']` 那条规则。 */
+:is(html[data-frosted='true'], html[data-background='true'])
+    [data-slot='table-menu-trigger'] {
     --primary: color-mix(in oklab, var(--primary-solid) 88%, transparent);
 }
 
-/*
- * 这一批里**故意没打标记**的：
- * - **表头**（三个 `bg-muted` 的 `<th>`）：保持实心，理由见上一条
- * - 表格的行：选中 `bg-muted/60`、悬停 `bg-muted/50`，两道都 ≤75%，本来就够透；
- *   而且行底下就是外框自己的底 —— 行与外框之间没有别的画面，挂 blur 也采不到东西。
- *   行是透出**外框那层糊**的，不是自己糊
- * - `skeleton-rows` 里那条 `animate-pulse` 的占位条（`bg-muted` 实心）：它是**内容**、不是表面，
- *   跟文字同一类 —— 淡了反而看着像"没加载出来"
- * - 行把手 / 列把手那个包着胶囊的定位 `div`（`zIndex: 40` 的固定层）：它不画底色，画底色的是
- *   里面那颗由 `table-menu-trigger` 覆盖的按钮
- * - `editable-cell` 不在「兜底补一层」那组：未聚焦时**就该**全透明（底色归所在的 td），
- *   补一层等于每个可编辑格变成一块板
- */
+/* 标记打在容器上、底色画在里面的按钮上（本身无底色），故用子选择器。 */
+html[data-frosted='true'] [data-slot='prediction-market-chips'] > button {
+    backdrop-filter: blur(var(--frosted-blur, 12px));
+    --background: color-mix(in oklab, var(--background-solid) 62%, transparent);
+}
+
+/* `data-frosted-solid`：明确要求"即使开了背景图也保持实心"的表面，长列表下拉用。
+   权重比 token 组高一个属性选择器，故不依赖书写顺序。底色实心后模糊不再可见，
+   保留它是为了与其它表面共用同一条规则；想要"又实又带一点玻璃"就把值调到 95%。 */
+:is(html[data-frosted='true'], html[data-background='true'])
+    [data-slot='select-content'][data-frosted-solid] {
+    --background: var(--background-solid);
+}
+
+:is(html[data-frosted='true'], html[data-background='true'])
+    [data-slot='select-content'][data-frosted-solid]
+    [data-slot='select-item'] {
+    --muted: var(--muted-solid);
+}

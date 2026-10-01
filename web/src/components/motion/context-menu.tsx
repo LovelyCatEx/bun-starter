@@ -244,18 +244,14 @@ export function ContextMenuTrigger({
 
   const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     childProps.onPointerDown?.(event);
-    // A pen presses the same way a finger does and gets no `contextmenu` out
-    // of the platform for it, so it holds to open too. A mouse has the right
-    // button and is left to `onContextMenu`.
+    // A pen presses like a finger and gets no platform `contextmenu`, so it
+    // long-presses too; a mouse is left to `onContextMenu`.
     const pressToOpen =
       event.pointerType === "touch" || event.pointerType === "pen";
     if (event.defaultPrevented || disabled || !pressToOpen) return;
 
-    // `pointer-coarse:select-none` misses this press on a laptop whose mouse
-    // is the primary pointer and whose touchscreen is not, and the platform's
-    // own long-press selection then claims the gesture and cancels ours. The
-    // press is the only thing that knows which input is on the glass, so it
-    // takes selection away itself — for its own duration, and no longer.
+    // The press knows which input is on the glass, so it takes selection away for
+    // its own duration — `pointer-coarse:select-none` misses a mouse-first laptop.
     releaseSelection.current?.();
     releaseSelection.current = holdSelection(event.currentTarget);
 
@@ -302,12 +298,9 @@ export function ContextMenuTrigger({
     "aria-controls": context.open ? context.menuId : undefined,
     "aria-haspopup": "menu",
     "aria-expanded": context.open,
-    // The long press is ours: without this iOS runs its own on the same
-    // gesture and drops the selection callout and its handles on top of the
-    // menu we just opened. Only the press gesture is ours though — the child
-    // is the consumer's content, so a mouse can still select the text in it
-    // and right-click the selection. `touch-none` stays off too: the page
-    // still has to scroll from the trigger.
+    // Without this the platform runs its own long press on the same gesture and
+    // drops the selection callout over the menu. Covers the press only — a mouse
+    // can still select the child, and `touch-none` stays off so the page scrolls.
     className: cn(TOUCH_GESTURE_CONTENT_CLASS, childProps.className, className),
     onContextMenu: (event: ReactMouseEvent<HTMLElement>) => {
       childProps.onContextMenu?.(event);
@@ -390,9 +383,8 @@ export function ContextMenuContent({
       return;
     }
 
-    // Let the measured collapsed clip paint once before expanding it. Without
-    // this preparation frame, the first invocation can batch both states and
-    // appear at full size without the morph.
+    // Let the measured collapsed clip paint once before expanding it, or the first
+    // invocation batches both states and appears at full size without the morph.
     let openFrame = 0;
     const prepareFrame = requestAnimationFrame(() => {
       openFrame = requestAnimationFrame(() => setMorphReady(true));

@@ -192,16 +192,9 @@ export function ProjectFolder({
     onClick?.();
   };
 
-  // The chrome is two siblings: a backdrop spanning the viewport edges that
-  // paints the scrim, and a transparent dialog inset off every edge that lays
-  // out and scrolls the panel. The backdrop cannot nest inside that scroll box —
-  // WebKit resolves a `position: fixed` descendant of an accelerated overflow
-  // scroller against the scroller, not the viewport, so the insets would go
-  // unscrimmed on a phone. The scroll box takes no pointer events and the panel
-  // takes them back, so gutter presses still close the overlay. Accepted: the
-  // 2rem inset sits outside the scroll box, so it stays put rather than
-  // scrolling away with the content.
-  //
+  // Two siblings: a viewport-spanning backdrop paints the scrim, and a transparent dialog
+  // scrolls the panel. The backdrop cannot nest inside that scroll box — WebKit resolves a
+  // `fixed` descendant of an accelerated overflow scroller against the scroller.
   const overlay = isExpanded || isClosing ? (
     <>
       <AnimatePresence initial={false}>
@@ -232,8 +225,7 @@ export function ProjectFolder({
         aria-hidden={isExpanded ? undefined : "true"}
         className="pointer-events-none fixed inset-x-6 inset-y-8 z-50 flex items-start justify-center overflow-y-auto sm:items-center"
       >
-        {/* 61rem, not `max-w-5xl`: the cap is on a padding-free box, so it has to
-            be the 64rem border box less the 3rem the gutters take. */}
+        {/* 61rem = the 64rem border box less the 3rem the gutters take. */}
         <div
           className={cn(
             "pointer-events-auto relative z-10 w-full max-w-[61rem]",

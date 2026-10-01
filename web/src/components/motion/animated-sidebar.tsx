@@ -46,9 +46,8 @@ const PANEL_TRANSITION = {
   ease: EASE_DRAWER,
 } as const;
 
-// The desktop rail settles at a hard zero-width boundary. Keep the spring
-// critically damped so it cannot overshoot, pause against that boundary, and
-// then snap back during the final frame.
+// The desktop rail settles at a hard zero-width boundary, so the spring is kept
+// critically damped: overshoot would pause against it and snap back.
 const SIDEBAR_MORPH_TRANSITION = {
   type: "spring",
   stiffness: 380,
@@ -315,12 +314,9 @@ function MobileSidebar({
   const context = useAnimatedSidebar();
   const panelRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
-  // The sheet is mounted for as long as the viewport is mobile, so it hides
-  // itself while closed rather than sitting there transparent and interactive.
-  // Opening shows it in the same commit that starts the slide — a delayed show
-  // would run the focus effect below against a still-hidden panel, and focus()
-  // on a hidden element is ignored. Closing waits for the slide to finish, and
-  // the panel's own exit tells us when that is: no duration to keep in sync.
+  // Mounted whenever the viewport is mobile, so closed it hides; it must show in
+  // the same commit that starts the slide, since focus() on a hidden element is
+  // ignored.
   const [hidden, setHidden] = useState(!context.openMobile);
   // The completion callback fires for the open slide too, and it reads state
   // from whenever motion settles: a ref keeps it on the current one.
@@ -372,11 +368,8 @@ function MobileSidebar({
 
   if (!mounted) return null;
 
-  // This container groups the sheet for hiding and the z-index and carries no
-  // box: both children are `fixed` and resolve against the viewport themselves.
-  // The scrim spans the viewport edges but paints a colour, and the panel is
-  // inset off one side and paints its own surface, so no layer here is a
-  // transparent edge-spanning one.
+  // Groups the sheet for hiding and z-index, boxless: both children are `fixed`
+  // and resolve against the viewport, and neither is a transparent edge-spanning layer.
   return createPortal(
     <div
       className={cn(
@@ -1058,10 +1051,8 @@ export function AnimatedSidebarMenuButton({
     if (context.isMobile && shouldCloseOnSelect) {
       context.setOpenMobile(false);
     }
-    // A submenu cannot render in the icon rail, so opening one from there
-    // leaves its children unreachable — a pointer can still fall back to the
-    // rail or the shortcut, a finger has nothing. Selecting a group unfolds
-    // the panel that is about to hold it.
+    // A submenu cannot render in the icon rail, so opening one there would leave
+    // its children unreachable for a finger. Unfold the panel that will hold it.
     if (ariaExpanded !== undefined && panel.collapsed && !context.isMobile) {
       context.setOpen(true);
     }

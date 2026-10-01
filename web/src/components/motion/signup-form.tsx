@@ -89,11 +89,8 @@ const STRENGTH_COLORS = [
 ] as const;
 
 /**
- * Length-weighted strength score, 0-4. NIST SP 800-63B advises against
- * composition requirements and treats length as the dominant factor, so extra
- * character classes only nudge the score — they can't rescue a short password.
- * This is a heuristic for feedback, not entropy estimation; pair it with a
- * breach-list check server-side for anything real.
+ * Length-weighted strength score, 0-4: length dominates, extra character
+ * classes only nudge it. A heuristic for feedback, not entropy estimation.
  */
 export function passwordStrength(password: string): number {
   if (password.length < MIN_PASSWORD_LENGTH) return 0;
@@ -173,10 +170,8 @@ export function SignUpForm({
 
   const [revealPassword, setRevealPassword] = useState(false);
 
-  // "Reward early, punish late": errors are computed on every change, but a
-  // field only *shows* its error once it has been blurred (or submit touched
-  // everything). So a first entry is never flagged mid-typing, while a field
-  // already in error clears the moment it becomes valid.
+  // "Reward early, punish late": errors compute on every change but show only
+  // after blur (or submit), so a field in error clears the moment it is valid.
   const [touched, setTouched] = useState<Partial<Record<keyof SignUpValues, boolean>>>(
     {},
   );

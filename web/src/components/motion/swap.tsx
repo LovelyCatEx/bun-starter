@@ -84,6 +84,8 @@ export function MultiChainSwap({
 
   return (
     <div
+      // frosted blur hook
+      data-slot="swap"
       className={cn(
         "relative isolate w-full max-w-[420px] overflow-hidden rounded-3xl",
         "border border-border/20 bg-card",

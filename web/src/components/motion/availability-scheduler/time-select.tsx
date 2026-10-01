@@ -35,7 +35,9 @@ export function TimeSelect({
       <SelectTrigger className="tabular-nums">
         <SelectValue className="whitespace-nowrap" />
       </SelectTrigger>
-      <SelectContent>
+      {/* `solid`：这一列最多 48 个时间选项，透出背后的图案就读不清了。
+          面板保持实心，模糊照旧（规则见 `frosted.css` 末尾） */}
+      <SelectContent solid>
         <div className="max-h-56 overflow-y-auto overscroll-contain">
           {options.map((o) => (
             <SelectItem key={o.value} value={o.value} className="tabular-nums">

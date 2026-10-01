@@ -157,12 +157,8 @@ export function NotificationStack({
     setIsExpanded(false);
   }, [setIsExpanded]);
 
-  // A pointer leaving the stack is what collapses it, and a finger never
-  // leaves: without this the stack stays open for good once tapped, and when
-  // `onViewAll` is set the next tap follows the link instead of closing. The
-  // tap that lands somewhere else stands in for the pointer leaving, and it is
-  // consumed rather than passed through — the expanded stack covers the page,
-  // so the tap that dismisses it is aimed at nothing else.
+  // A finger never leaves, so a tap that lands elsewhere stands in for the
+  // pointer leaving; it is consumed rather than passed through.
   useDismiss(tapExpanded && isExpanded, collapse, rootRef, {
     behavior: "consume",
   });
@@ -240,10 +236,8 @@ export function NotificationStack({
           ? `${items.length} notifications. ${expandedLabel}.`
           : `${items.length} notifications. Expand notifications.`
       }
-      // A tap reports as a hover on its way past — enter, leave, then click —
-      // so an unfiltered hover path expands, collapses and expands again in
-      // the space of one tap, springs and all. The tap has its own route
-      // through `handleClick`.
+      // A tap passes through as enter, leave, then click, so the hover path
+      // alone would expand, collapse and expand again within one tap.
       onPointerEnter={(event: PointerEvent<HTMLButtonElement>) => {
         if (hover.enter(event)) setIsExpanded(true);
       }}

@@ -91,18 +91,16 @@ export const HoldActionButton = forwardRef<
   };
 
   const handlePointerLeave = (event: PointerEvent<HTMLButtonElement>) => {
-    // Only reached when the capture below was refused: a captured pointer gets
-    // no boundary events at all. A finger does not get this reading either way
-    // — WebKit fires leave repeatedly for a touch that never moved, which
-    // would cancel every hold on the frame it started.
+    // Only reached when the capture above was refused — a captured pointer gets no
+    // boundary events. Touch is excluded: WebKit fires leave repeatedly for a finger
+    // that never moved, cancelling the hold on its first frame.
     if (event.pointerType !== "touch") cancelHold();
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-    // Leaving the button abandons the hold, and while the pointer is captured
-    // nothing announces that: no boundary events, and `touch-none` means a
-    // finger sliding off cannot scroll and so cannot cancel either. Measure it
-    // instead — off the button ends the hold, wherever the pointer then goes.
+    // While the pointer is captured nothing announces leaving the button: no boundary
+    // events, and `touch-none` stops a sliding finger from scrolling off. Measure the
+    // rect instead — off the button ends the hold.
     if (!holding) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -170,11 +168,9 @@ export const HoldActionButton = forwardRef<
       )}
       {...rest}
     >
-      {/* Safari hands the fill its own compositing layer and then stops
-          applying the button's rounded overflow clip to it, so the liquid
-          bleeds past the corners. clip-path survives compositing. It lives on
-          this static layer rather than the button so it never cuts the focus
-          ring, and reads the same radius so the two cannot drift apart. */}
+      {/* Safari composites the fill separately and stops applying the button's
+          rounded overflow clip to it, so the liquid bleeds past the corners.
+          `clip-path` survives that; on this static layer, not the button. */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 [clip-path:inset(0_round_var(--hold-radius))]"

@@ -57,10 +57,9 @@ export interface SidebarResourceMove {
 }
 
 /**
- * The moves this row can make right now, the same four the keyboard offers on
- * `Alt+Shift+Arrow`. A pointer drag is the fast path for them; a finger has no
- * drag to give, so the row menu carries them too. Absent keys are moves this
- * row cannot make from where it sits.
+ * The moves this row can make right now, the same four `Alt+Shift+Arrow`
+ * performs. A finger has no drag to give, so the row menu carries them too;
+ * absent keys are moves unavailable from where the row sits.
  */
 export interface SidebarResourceMoveCommands {
   up?: () => void;
@@ -618,11 +617,8 @@ export function AISidebar({
     [expandedIds, renderedItems],
   );
 
-  // Which row carries the roving tabindex is resolved during render, never in
-  // a passive effect: an effect lands after the browser paints, so the first
-  // commit — and, on a server-rendered page, the markup itself — would have no
-  // tabbable row and Tab would skip the whole tree. The same hole opens again
-  // whenever a collapse or a rolled-back move takes the focused row out of it.
+  // Resolved during render, never in a passive effect: an effect lands after
+  // paint, so the first commit would have no tabbable row for Tab to land on.
   const focusedRow =
     focusedId !== null && flat.some((row) => row.item.id === focusedId)
       ? focusedId

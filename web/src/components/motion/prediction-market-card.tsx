@@ -85,6 +85,8 @@ export function PredictionMarketCard({
 	return (
 		<article
 			aria-labelledby={titleId}
+			// frosted blur hook
+			data-slot="prediction-market-card"
 			className={cn(
 				"flex h-full w-full min-w-0 flex-col overflow-hidden rounded-3xl bg-card text-foreground",
 				className,
@@ -129,7 +131,11 @@ export function PredictionMarketCard({
 				</div>
 			</header>
 
-			<div className="mx-2 mb-2 flex flex-1 flex-col rounded-3xl bg-background px-4 py-3">
+			<div
+				// frosted blur hook
+				data-slot="prediction-market-card-panel"
+				className="mx-2 mb-2 flex flex-1 flex-col rounded-3xl bg-background px-4 py-3"
+			>
 				<div className="flex flex-1 flex-col justify-center gap-3">
 					{outcomes.map((outcome, index) => (
 						<div key={outcome.id} className="space-y-1">
@@ -230,6 +236,8 @@ export function PredictionMarketCard({
 					<span className="shrink-0">{volume} vol.</span>
 					<motion.button
 						type="button"
+						// frosted blur hook
+						data-slot="prediction-market-card-bookmark"
 						aria-label={`Bookmark ${title}`}
 						aria-pressed={saved}
 						onClick={() => {

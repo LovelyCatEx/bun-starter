@@ -1,10 +1,3 @@
-// Define your Drizzle schema here.
-//
-// Example (SQLite):
-// import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
-//
-// export const users = sqliteTable('users', {
-//   id: text('id').primaryKey(),
-// });
+// Drizzle schema（当前为空）。建表写法与迁移流程见 .claude/rules/database.md。
 
 export {};

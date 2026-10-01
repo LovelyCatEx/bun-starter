@@ -3,11 +3,8 @@ import type { CSSProperties, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
- * 调试页的一节。
- *
- * **故意不给自己底色**：它只有一圈边框，好让里面的组件直接坐在页面的底色上。
- * 这一页存在的意义就是看组件**自己**长什么样，外面再套一层卡片底会把观感带偏
- * （两层半透明叠起来不是组件本来的样子），而且"组件自己透不透"也就看不出来了。
+ * 调试页的一节。**故意不给自己底色**：这一页就是要看组件自己长什么样，套一层卡片底
+ * 会把观感带偏，也看不出组件自己透不透。
  */
 export function Section({
   title,
@@ -30,20 +27,9 @@ export function Section({
 }
 
 /**
- * 一个组件的展示位：一行小标题 + 一块放组件的地方。
- *
- * 默认是"横排、可换行"的排布，适合按钮 / 徽章 / 输入框这类小件。
- * 传了 `height` 就换成**定高块**，给那些自己有布局、撑开会把整页拉爆的组件
- * （chat-app / animated-sidebar / availability-scheduler / wallet-card 这些）。
- *
- * 定高块上加 `relative z-0` 是有意的：那些组件的内部会用 `absolute` + 负 `z-index`
- * 做分层，靠这个 stacking context 把它们关在这块区域里，不然会跑到页面更下面的层去、
- * 被别的东西盖住。
- *
- * ⚠️ **别把它换成 `isolate`。** `isolation: isolate` 也能造 stacking context，但它同时是
- * 一个 **backdrop root** —— 后代的高斯模糊就只能采样这个框**内部**的画面，而框本身没有底色，
- * 于是"组件写对了、模糊却完全看不见"。`relative z-0` 造的 stacking context 不在 backdrop
- * root 的触发列表里，所以两件事都能满足。同理，别在这块上加 `filter` / `opacity` / `mask`。
+ * 一个组件的展示位；传了 `height` 就换成定高块（自己有布局、撑开会把整页拉爆的大件才需要）。
+ * 定高块用 `relative z-0` 而非 `isolate`：两者都造 stacking context，但后者同时是
+ * backdrop root，会把后代的高斯模糊关死。见 frontend.md「物理铁律」。
  */
 export function Demo({
   label,

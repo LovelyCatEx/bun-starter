@@ -34,6 +34,40 @@ bun-starter/
     skills/             # app-version / websocket / native-helper
 ```
 
+## 验证：只跑语法检查，不要任何形式的测试
+
+**改完代码只跑语法检查就够了**：
+
+```bash
+bun run typecheck    # = tsc -b，`-b`（build 模式）不能省
+```
+
+**不要写测试、不要跑测试、不要起服务、不要截图比对渲染结果** —— 视觉效果由用户自己到
+`/debug/theme` 上看。凡是"验证一下"的活儿，默认都只是这条 `tsc -b`。
+
+（只改了样式 / CSS / 文档时，连 `typecheck` 都可以不跑；但改了 `.tsx` / `.ts` 必须跑，
+`-b` 参数不能漏。）
+
+## 注释：写事实，不写备忘录
+
+**注释只陈述代码本身读不出来的事实**（为什么这么写、受什么约束）。以下四类**一律不写**：
+
+| 不写 | 例子 |
+| --- | --- |
+| 日记 / 变更史 | 「本轮」「这次」「之前」「以后」「已修好」「用户报的」「踩过」「实测过」 |
+| 对读者喊话 | 「注意」「别顺手」「你可以」「⚠️」及任何 emoji |
+| 复述代码 | `// 把 x 设为 y`、`// 遍历数组` |
+| 抄文档 | `.claude/` 里已经讲过的道理再写一遍 |
+
+**默认 0~1 行，2 行封顶。** 超过 2 行先问"这段该不该在这儿"：能由**命名**承载的（常量、变量、
+函数）就交给命名；是**跨文件的规矩**就挪进 `.claude/rules` 或 skill，注释里只留一句指针。
+
+唯一需要长注释的是**非显然的物理 / 协议约束**（例：哪些属性会形成 backdrop root）。那也压到
+3 行内、只留结论与判据，不写推导过程。
+
+生成的 beUI 文件里的**上游英文注释保持原样**（它们本来就是"为什么这么写"的合格注释），
+只改我们自己加的。
+
 ## 常用命令
 
 ```bash
@@ -83,8 +117,18 @@ bun run db:studio    # 打开 Drizzle Studio
 **为什么不合成一份**：rule 一旦被加载就是常驻上下文，而"改 `scripts/compile.ts`"和"写一个 service"要读的东西几乎不重叠。拆开与否的判据是 **`paths` 能不能划开**：`shared/**`、`server/src/db/**`、`scripts/**` 能划开；"带 ws 路由的 controller"划不开（ws 路由就写在普通 controller 文件里），所以长连接留在 `backend.md` 的硬约束 + `websocket` skill 里。
 
 - **rule 的 frontmatter 只认 `paths`**（YAML 列表，支持 glob 与 `{a,b}`），别写成 skill 的 `name` / `description`
-- 划不开的窄专题走 **skill**（按 description 匹配、用到才读）：`app-version` / `websocket` / `native-helper`
+- 划不开的窄专题走 **skill**（按 description 匹配、用到才读）：`app-version` / `websocket` / `native-helper` / `frosted-surface`
 - 细则**别抄回 `backend.md`**：它对整个 `server/**` 生效，抄进去就是每读一个后端文件都要付的上下文 —— `backend.md` 顶部有张「想做什么，读哪份」的路由表
+
+### beUI 生成物：不再重装，可以任意改
+
+`web/src/components/{motion,agents,charts}/` 下的 beUI 组件**不会再重装**（`shadcn add --overwrite`），
+也**没有更新现有组件的计划**。所以：
+
+- 生成物里**可以任意改** —— 加属性、改类名、甚至改逻辑都行，不用再包一层、也不用留"重装后要扫的探针"
+- `frontend.md`「引入与维护」里那几条改动清单照旧有用，但那是**"为什么跟上游不一样"的文档**，
+  不是防覆盖的探针
+- 加新组件仍然走 `shadcn add`（只是不会再 `--overwrite` 覆盖已有的）
 
 **改文档自己的规矩**（踩过：把章节从 `backend.md` 搬到 `packaging.md` 之后，`.claude/` 和代码注释里那些"见 X 的「Y」"没跟着改，全部过期）：
 
@@ -101,3 +145,4 @@ bun run db:studio    # 打开 Drizzle Studio
 - 改应用名称 / 版本号 → `.claude/skills/app-version/SKILL.md`
 - 长连接（WebSocket）：加事件、写 ws 路由、组件里接推送 → `.claude/skills/websocket/SKILL.md`
 - 原生产物（C / C++）：把 .c/.cpp 编进 5 个平台产物、dev 与产物里都能跑、进程 vs `bun:ffi` → `.claude/skills/native-helper/SKILL.md`
+- 毛玻璃：给组件适配"背景图 / 高斯模糊"两个模式、加 `data-slot`、排查"没生效 / 被自己挡掉" → `.claude/skills/frosted-surface/SKILL.md`

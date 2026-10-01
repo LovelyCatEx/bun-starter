@@ -20,9 +20,8 @@ const PARALLAX_SPRING = { stiffness: 120, damping: 30, mass: 0.6 };
 export interface ParallaxProps {
   children: ReactNode;
   /**
-   * Drift as a fraction of the element's travel through the viewport.
-   * Positive moves with the scroll (foreground), negative against it
-   * (background). ~0.1–0.5 reads best.
+   * Drift as a fraction of the element's travel through the viewport; ~0.1–0.5 reads best.
+   * Positive moves with the scroll, negative against it.
    */
   speed?: number;
   axis?: "x" | "y";
@@ -47,13 +46,9 @@ export function Parallax({
     target: ref,
     container,
     offset: ["start end", "end start"],
-    // Run after paint so a container ref defined higher in the tree is hydrated;
-    // otherwise framer falls back to the document and only the page scroll works.
-    // ⚠️ 本仓库的 motion 13 已经**不认这个选项**了（`UseScrollOptions` 里没有
-    // `layoutEffect`，`motion/` 整个包里也搜不到这个字符串）—— 上游是按
-    // framer-motion 11 的语义写的。留着它是因为它是上游源码、且是**唯一的**意图
-    // 记录，`@ts-expect-error` 同时当探针：哪天上游或 motion 对上了，这行会反过来
-    // 报"未使用的 expect-error"，提醒可以删掉。
+    // Run after paint, else a container ref defined higher in the tree is not yet
+    // hydrated and framer falls back to the document. `layoutEffect` is gone from
+    // motion 13 — see frontend.md.
     // @ts-expect-error motion 13 的 UseScrollOptions 没有 layoutEffect
     layoutEffect: false,
   });

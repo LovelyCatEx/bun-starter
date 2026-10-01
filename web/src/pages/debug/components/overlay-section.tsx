@@ -52,13 +52,9 @@ const REFRESH_ROWS = Array.from({ length: 12 }, (_, index) => index + 1)
 const SHEET_ROWS = ['Inbox', 'Starred', 'Drafts', 'Archive', 'Spam', 'Trash']
 
 /**
- * Every component in this section lives in a portal and only exists while open,
- * so each one needs its own open state here — a demo whose button does nothing
- * is not a demo.
- *
- * English and hard-coded on purpose: the debug page is a development tool that
- * gets deleted before release, and is exempt from the i18n rules (see
- * `.claude/rules/frontend.md`).
+ * Every component here is portalled and exists only while open, so each demo
+ * needs its own open state. English on purpose: the debug page is exempt from
+ * i18n — see `.claude/rules/frontend.md`.
  */
 export function OverlaySection() {
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -79,9 +75,8 @@ export function OverlaySection() {
   const [islandView, setIslandView] = useState<string | null>(null)
   const [pullCount, setPullCount] = useState(0)
 
-  // A second, independent stack. The app root already renders its own
-  // `<AnimatedToastStack fixed />` behind `useToast()`; this one is local to the
-  // demo so the toasts stay inside the box instead of escaping to the viewport.
+  // A second, independent stack, local to the demo so its toasts stay inside
+  // the box instead of escaping to the viewport.
   const { toasts, showToast, updateToast, dismissToast, clearToasts } =
     useAnimatedToastStack()
 
@@ -547,11 +542,8 @@ export function OverlaySection() {
             Clear
           </Button>
         </div>
-        {/*
-          No `fixed`: the default placement is `static`, which drops the stack
-          into the document flow — exactly what a contained demo wants. The
-          app-level stack behind `useToast()` is the one that passes `fixed`.
-        */}
+        {/* No `fixed`: the default `static` placement drops the stack into the
+            document flow, which is what a contained demo wants. */}
         <AnimatedToastStack
           toasts={toasts}
           onDismiss={dismissToast}
@@ -560,11 +552,8 @@ export function OverlaySection() {
       </Demo>
 
       <Demo label="feedback-widget" height={380}>
-        {/*
-          The widget pins itself to the bottom-right of whatever box it is in, so
-          the framing `Demo` is doing real work here rather than just drawing a
-          border. Submitting resolves after a beat to show the sending state.
-        */}
+        {/* The widget pins itself to the bottom-right of whatever box it is in,
+            so the framing `Demo` is doing real work here. */}
         <FeedbackWidget
           onSubmit={async () => {
             await new Promise((resolve) => setTimeout(resolve, 800))

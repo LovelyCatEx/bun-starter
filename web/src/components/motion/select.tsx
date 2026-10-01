@@ -69,17 +69,15 @@ export interface SelectProps {
   defaultValue?: string;
   onValueChange?: (value: string) => void;
   /**
-   * Controlled open state of the panel. A layout that stacks selects can hold
-   * this to keep exactly one panel open — the panel is absolutely positioned
-   * inside its field, so two open at once paint over each other's options.
+   * Controlled open state of the panel. A layout that stacks selects can hold this to
+   * keep exactly one open — the panel is absolutely positioned inside its field.
    */
   open?: boolean;
   /** Uncontrolled initial open state. Default false. */
   defaultOpen?: boolean;
   /**
-   * Fires whenever the panel opens or closes. The panel is absolutely
-   * positioned inside the field, so a layout that stacks selects has to know
-   * which one is open to paint it above its neighbours.
+   * Fires whenever the panel opens or closes — a layout that stacks selects needs to
+   * know which one is open to paint it above its neighbours.
    */
   onOpenChange?: (open: boolean) => void;
   disabled?: boolean;
@@ -278,9 +276,18 @@ export function SelectValue({ placeholder, className }: SelectValueProps) {
 export interface SelectContentProps {
   className?: string;
   children: ReactNode;
+  /**
+   * 面板始终保持**不透明**（开了背景图也不透），只保留模糊。
+   * 给"长列表"用：48 个选项透出背后的图案就读不清了 —— 见 `frosted.css` 末尾。
+   */
+  solid?: boolean;
 }
 
-export function SelectContent({ className, children }: SelectContentProps) {
+export function SelectContent({
+  className,
+  children,
+  solid = false,
+}: SelectContentProps) {
   const ctx = useSelectContext("SelectContent");
   const innerRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
@@ -310,10 +317,8 @@ export function SelectContent({ className, children }: SelectContentProps) {
     setPlacement(below < h + 16 && above > below ? "top" : "bottom");
   }, [open, ctx.triggerId, setPlacement]);
 
-  // Specify EVERY corner + both margins each render. The near edge (facing the
-  // trigger) animates flat->round and the gap opens on that side; the far edge
-  // stays rounded and its margin pinned to 0. Setting all of them avoids a
-  // stranded square corner when the placement flips between opens.
+  // Specify every corner and both margins each render: the near edge animates flat->round
+  // while the far edge stays rounded, so a flipped placement cannot strand a square corner.
   const isTop = ctx.placement === "top";
   const nearGap = open ? 8 : 0;
   const nearRadius = open ? 12 : 0;
@@ -325,9 +330,8 @@ export function SelectContent({ className, children }: SelectContentProps) {
     ? { duration: 0.3, ease: EASE_OUT, delay: 0.14 }
     : { duration: 0.16, ease: EASE_OUT };
 
-  // Items stay mounted (open just animates the panel) so each item's label
-  // registration persists — otherwise the trigger would fall back to the
-  // placeholder the moment the panel closes.
+  // Items stay mounted (open only animates the panel) so each item's label registration
+  // persists — otherwise the trigger falls back to the placeholder on close.
   return (
     <motion.div
       id={ctx.listId}
@@ -379,6 +383,7 @@ export function SelectContent({ className, children }: SelectContentProps) {
       // sits above or below depending on available space
       // frosted blur hook
       data-slot="select-content"
+      data-frosted-solid={solid ? "" : undefined}
       className={cn(
         "absolute left-0 right-0 z-20 rounded-xl border border-border bg-background shadow-lg",
         isTop ? "bottom-full" : "top-full",

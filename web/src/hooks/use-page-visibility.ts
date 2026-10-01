@@ -1,17 +1,8 @@
 import { useSyncExternalStore } from 'react'
 
 /**
- * Whether the user is actually looking at this page.
- *
- * Two levels, because they are not the same question:
- * `visible` is "the tab is showing" (not switched away, not minimised), `focused` is "this
- * window is the one being used". `active` is both — the one you almost always want. A visible
- * but unfocused tab is the interesting case: the user is in another window with this page
- * still on screen, which is exactly when a system notification is welcome and an in-app toast
- * is not.
- *
- * `web/src/hooks/notification/notification.ts` asks the same question outside React, so the
- * predicates live here and both sides share them.
+ * Two questions, two booleans: `visible` (the tab is showing) and `focused` (this window is
+ * the one in use). `active` is both — see `frontend.md`「页面可见性」for what each is for.
  */
 
 export interface PageVisibility {
@@ -48,9 +39,8 @@ function compute(): PageVisibility {
 }
 
 /**
- * Cached on purpose: `useSyncExternalStore` re-renders whenever the snapshot is a different
- * reference, so handing back a fresh object on every read would loop forever. It is replaced
- * only when something actually changed.
+ * Cached on purpose: `useSyncExternalStore` re-renders on a new snapshot reference, so
+ * handing back a fresh object per read would loop forever.
  */
 let snapshot = compute()
 
@@ -95,15 +85,6 @@ export function readPageVisibility(): PageVisibility {
 }
 
 /**
- * ```tsx
- * const { active } = usePageVisibility()
- *
- * // 页面不在眼前就别标记已读
- * useEffect(() => {
- *   if (active) markRead()
- * }, [active])
- * ```
- *
  * One set of DOM listeners serves every component that asks, and the same store answers
  * non-React callers (`isPageActive()`), so nothing drifts out of sync.
  */

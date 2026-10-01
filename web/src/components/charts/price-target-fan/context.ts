@@ -7,15 +7,9 @@ import type { PriceTargetFanActive, PriceTargetFanProps } from "./types";
 import { EMPTY_HISTORY, fmtScrubDate, H, LOW, MID, PAD, UP, W } from "./utils";
 
 /**
- * Analyst price targets. A year of history draws itself to now, then three
- * dashed projections fan out to the high, mean and low targets. The hot target
- * owns the header: its price rolls in on the shared NumberTicker and its
- * projection draws itself solid; the mean takes the header back on leave.
- * Scrubbing the history or hovering a target glides a value card
- * beside the point on a spring, one metric per row. Targets are focusable and
- * a tap toggles them on touch; Escape lets go. The now dot sends a slow ring
- * outward as the live-price signal. Reduced motion shows the finished chart,
- * moves the card without travel, and drops the ring.
+ * Analyst price targets: history draws to now, three dashed projections fan out
+ * to the high/mean/low targets, and the hot or scrubbed point owns the header and
+ * a value card. Targets are focusable, a tap toggles them, Escape lets go.
  */
 export function usePriceTargetFanModel({
   label = "Price target · 12 months",
